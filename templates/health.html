@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Health | Ollama Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🏥 System Health Dashboard</h1>
+            <div class="header-nav">
+                <a href="/" class="nav-link" title="Back to Chat">
+                    <span class="material-icons">chat</span>
+                </a>
+            </div>
+        </header>
+
+        <div class="status-badge {{ status }}">
+            System Status: {{ status.title() }}
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h2>🖥️ CPU</h2>
+                <p><strong>Cores:</strong> {{ cpu.count }}</p>
+                <p><strong>Usage:</strong> {{ cpu.percent }}%</p>
+            </div>
+
+            <div class="card">
+                <h2>💾 Memory</h2>
+                <p><strong>Total:</strong> {{ memory.total }}</p>
+                <p><strong>Available:</strong> {{ memory.available }}</p>
+                <p><strong>Used:</strong> {{ memory.used }} ({{ memory.percent }}%)</p>
+            </div>
+
+            <div class="card">
+                <h2>💽 Disk</h2>
+                <p><strong>Total:</strong> {{ disk.total }}</p>
+                <p><strong>Used:</strong> {{ disk.used }}</p>
+                <p><strong>Free:</strong> {{ disk.free }} ({{ disk.percent }}%)</p>
+            </div>
+
+            <div class="card">
+                <h2>🎮 GPU</h2>
+                {% if gpu_info is string %}
+                    <p>{{ gpu_info }}</p>
+                {% elif gpu_info %}
+                    {% for gpu in gpu_info %}
+                        <div class="gpu-item">
+                            <p><strong>ID:</strong> {{ gpu.id }}</p>
+                            <p><strong>Name:</strong> {{ gpu.name }}</p>
+                            <p><strong>Load:</strong> {{ gpu.load }}</p>
+                            <p><strong>Memory:</strong> {{ gpu.memory_used }}/{{ gpu.memory_total }}</p>
+                            <p><strong>Temperature:</strong> {{ gpu.temperature }}</p>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p>No GPU detected</p>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <h2>🤖 Ollama Service</h2>
+                <p><strong>Status:</strong> 
+                    <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
+                        {{ ollama_status }}
+                    </span>
+                </p>
+                <p><strong>Active Model:</strong> <span id="active-model-display">{{ ollama_model }}</span></p>
+                <small>This reflects the model selected on the main chat page. The default is shown if no selection has been made.</small>
+            </div>
+            <div class="card">
+                <h2>📊 Langfuse Tracing</h2>
+                <p><strong>Status:</strong> 
+                    <span class="status-indicator {{ 'connected' if langfuse_enabled else 'disconnected' }}">
+                        {{ 'Enabled' if langfuse_enabled else 'Disabled' }}
+                    </span>
+                </p>
+            </div>
+        </div>   
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const modelDisplay = document.getElementById('active-model-display');
+            if (modelDisplay) {
+                // Retrieve the last selected model from localStorage.
+                const storedModel = localStorage.getItem('selectedOllamaModel');
+                if (storedModel) {
+                    modelDisplay.textContent = storedModel;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

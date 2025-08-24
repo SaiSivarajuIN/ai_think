@@ -1,0 +1,85 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Think | Ollama Chat</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+
+    <!-- Markdown Converter -->
+    <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
+
+    <!-- MathJax v3 for LaTeX rendering -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h2>💬 AI Think | Ollama Chat</h2>
+        <div class="header-nav">
+            <a href="/history" class="nav-link" title="Chat History">
+                <span class="material-icons">history</span>
+            </a>
+            <button onclick="resetThread()" class="nav-link" title="New Chat">
+                <span class="material-icons">add_comment</span>
+            </button>
+            <a href="/health" class="nav-link" title="System Health">
+                <span class="material-icons">health_and_safety</span>
+            </a>
+            <a href="/settings" class="nav-link" title="Settings">
+                <span class="material-icons">settings</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Model Info -->
+    <div class="model-selector-container">
+        <label for="model-selector"><strong>Model:</strong></label>
+        <select id="model-selector" class="model-selector">
+            {% if available_models %}
+                {% for model in available_models %}
+                    <option value="{{ model }}" {% if model == model_id %}selected{% endif %}>{{ model }}</option>
+                {% endfor %}
+            {% else %}
+                <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
+            {% endif %}
+        </select>
+    </div>
+
+    <!-- Chat Box -->
+    <div class="container">
+        <div id="chatbox"></div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+        <textarea id="userMessage" placeholder="Type your message here..." rows="3"></textarea>
+        <button class="icon-btn" id="sendButton" onclick="sendMessage()" title="Send">
+           <span class="material-icons">send</span>
+        </button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
