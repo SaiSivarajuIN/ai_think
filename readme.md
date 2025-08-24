@@ -37,7 +37,7 @@ Navigate to the `ollamaSetup` directory and run the appropriate script for your 
   Open a terminal, make the script executable, and run it:
   ```bash
   chmod +x ollamaSetup/install.sh
-  .ollamaSetup/install.sh
+  ./ollamaSetup/install.sh
   ```
 
 #### Manual Installation

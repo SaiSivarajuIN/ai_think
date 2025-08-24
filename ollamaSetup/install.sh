@@ -15,9 +15,9 @@ fi
 
 echo ""
 echo "Pulling recommended models (this may take some time)..."
-ollama pull llama3.1
-ollama pull gemma2
-ollama pull mistral
+# ollama pull llama3.1
+# ollama pull gemma2
+# ollama pull mistral
 ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M
 
 echo ""

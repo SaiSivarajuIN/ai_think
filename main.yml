@@ -1,0 +1,45 @@
+name: Run Tests in GitHub Actions
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]  # Trigger on push to main branch, adjust as needed
+  # This cron expression schedules the workflow to run at midnight UTC every day
+  #schedule:
+    #- cron: '0 0 * * *' 
+    #- cron: '*/10 * * * *'
+  
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest  # Run on ubuntu or windows can change this as needed
+    strategy:
+      matrix:
+        python-version: ['3.11']  # Define a matrix of Python versions
+
+    steps:
+    - uses: actions/checkout@v4
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}   # Set up the Python version you need for your project from the matrix
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+      # Install the required libraries
+
+    - name: Run ollamaSetup
+      run: |
+        chmod +x run.sh
+        ./ollamaSetup/install.sh
+
+    - name: Archive ollama reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: ollama-reports
+        path: results/
