@@ -4,3 +4,5 @@ requests
 psutil
 GPUtil
 langfuse
+setuptools
+tzdata

@@ -3,6 +3,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# logger files & sqlite db
+logger
+chat.db
+
+
+
 # C extensions
 *.so
 
