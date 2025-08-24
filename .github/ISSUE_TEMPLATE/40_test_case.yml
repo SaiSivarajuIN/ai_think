@@ -1,0 +1,74 @@
+name: "Test Case"
+description: "Document a test case for quality assurance"
+title: "[Test Case]: "
+labels: ["test-case", "qa"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for contributing a test case. Please provide clear and concise details to ensure it can be easily executed and verified.
+
+  - type: input
+    id: related-feature
+    attributes:
+      label: "Related Feature or Bug"
+      description: "Link to the feature request, user story, or bug report this test case is for (e.g., #123)."
+      placeholder: "#123"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Test Case Description"
+      description: "A brief summary of what this test case is designed to verify."
+    validations:
+      required: true
+
+  - type: textarea
+    id: preconditions
+    attributes:
+      label: "Preconditions"
+      description: "Any setup or state required before executing the test steps (e.g., User is logged in, specific data exists)."
+      placeholder: |
+        - User is on the main chat page.
+        - The 'llama3' model is selected.
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Test Steps"
+      description: "The sequence of actions to perform to execute the test."
+      placeholder: |
+        1. Enter 'Hello' in the message input.
+        2. Click the 'Send' button.
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-results
+    attributes:
+      label: "Expected Results"
+      description: "What is the expected outcome after executing the test steps?"
+      placeholder: "The system should display a greeting from the AI and the message should appear in the chat history."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "Additional Context"
+      description: "Add any other context, screenshots, or attachments about the test case here."
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "Checklist"
+      description: "Please confirm the following before submitting."
+      options:
+        - label: "I have searched for existing test cases and this is a new one."
+          required: true
+        - label: "I agree to follow this project's Code of Conduct."
+          required: true
+
