@@ -1,4 +1,4 @@
-name: Run Tests in GitHub Actions
+name: Run ollama in GitHub Actions
 
 on:
   push:
@@ -34,6 +34,11 @@ jobs:
       # Install the required libraries
 
     - name: Run ollamaSetup
+      run: |
+        chmod +x ./ollamaSetup/install.sh
+        ./ollamaSetup/install.sh
+
+    - name: Install ollamaSetup
       run: |
         chmod +x ./ollamaSetup/install.sh
         ./ollamaSetup/install.sh
