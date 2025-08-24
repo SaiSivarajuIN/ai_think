@@ -67,11 +67,6 @@ The application is configured using a `.env` file in the project root.
     TOP_P=0.9
     TOP_K=40
 
-    # Optional: Langfuse credentials for tracing
-    LANGFUSE_PUBLIC_KEY=
-    LANGFUSE_SECRET_KEY=
-    LANGFUSE_HOST=https://us.cloud.langfuse.com
-
     # Optional: ChromaDB Cloud credentials for persistent vector storage
     CHROMA_API_KEY=
     CHROMA_TENANT=
