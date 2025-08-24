@@ -6,13 +6,13 @@ We are committed to ensuring the security of the application. We provide securit
 
 | Version | Supported          |
 | ------- | ------------------ |
-| Latest  | :white_check_mark: |
+| v0.0.1-beta  | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
 We take all security vulnerabilities seriously. If you discover a security issue, we appreciate your help in disclosing it to us in a responsible manner.
 
-To report a security vulnerability, please use the **private vulnerability reporting feature** on GitHub. You can submit a report by going to the ["Security" tab of the repository and clicking "Report a vulnerability"](https://github.com/SaiSivarajuIN/ai_think/security/advisories/new).
+To report a security vulnerability, please use the **private vulnerability reporting feature** on GitHub. You can submit a report by going to the ["Report a vulnerability" as issues of now](https://github.com/SaiSivarajuIN/ai_think/issues).
 
 This ensures the vulnerability is disclosed privately to the project maintainers. Please do **not** report security vulnerabilities through public GitHub issues.
 
