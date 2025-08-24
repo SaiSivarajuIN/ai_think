@@ -35,15 +35,6 @@ body:
       label: "Additional Context & Notes"
       description: "Add any other context, mockups, screenshots, or technical notes about the user story here."
 
-  - type: input
-    id: related-test-cases
-    attributes:
-      label: "Related Test Cases"
-      description: "Link to any related test case issues (e.g., #456)."
-      placeholder: "#456"
-    validations:
-      required: false
-
   - type: checkboxes
     id: checklist
     attributes:
@@ -56,3 +47,4 @@ body:
           required: false
         - label: "I agree to follow this project's Code of Conduct."
           required: true
+
