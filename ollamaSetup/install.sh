@@ -14,6 +14,10 @@ else
 fi
 
 echo ""
+echo "Starting Ollama server..."
+ollama serve
+
+echo ""
 echo "Pulling recommended models (this may take some time)..."
 ollama pull llama3.1
 ollama pull gemma2
