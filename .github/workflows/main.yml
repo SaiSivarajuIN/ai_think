@@ -1,4 +1,4 @@
-name: Run ollama in GitHub Actions
+name: Run AI Think in GitHub Actions
 
 on:
   push:
@@ -42,9 +42,3 @@ jobs:
       run: |
         chmod +x ./ollamaSetup/install.sh
         ./ollamaSetup/install.sh
-
-    - name: Archive ollama reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: ollama-reports
-        path: results/
