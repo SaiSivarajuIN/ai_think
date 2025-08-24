@@ -71,6 +71,11 @@ The application is configured using a `.env` file in the project root.
     LANGFUSE_PUBLIC_KEY=
     LANGFUSE_SECRET_KEY=
     LANGFUSE_HOST=https://us.cloud.langfuse.com
+
+    # Optional: ChromaDB Cloud credentials for persistent vector storage
+    CHROMA_API_KEY=
+    CHROMA_TENANT=
+    CHROMA_DATABASE=
     ```
 
 ### 1.5. Database Initialization
@@ -112,6 +117,18 @@ The application is now integrated with Langfuse for detailed tracing and observa
 - **Status:** The Langfuse connection status (`langfuse_enabled`) is displayed on the main chat page and the health page.
 
 ### 2.3. System Health Page (`/health`)
+### 2.3. ChromaDB Integration for Persistent Storage
+
+The application now supports ChromaDB as an optional, more scalable backend for storing chat history and application settings.
+
+- **How it works:** If a `CHROMA_API_KEY` is provided in the `.env` file, the application will attempt to connect to a ChromaDB Cloud instance.
+- **Fallback Mechanism:** If the API key is missing or the connection fails, the application gracefully falls back to using the local SQLite database (`chat.db`) for all operations. This ensures the application remains functional without a ChromaDB connection.
+- **Data Storage:**
+    - **Chat History:** All messages are stored in a collection named `chat_history`.
+    - **Application Settings:** Model parameters and Langfuse credentials are saved to a `app_settings` collection, ensuring they persist across application restarts.
+- **Status Indicator:** The connection status to ChromaDB is clearly displayed on the `/health` page.
+
+### 2.4. System Health Page (`/health`)
 
 A comprehensive health monitoring page is now available.
 
@@ -125,8 +142,9 @@ A comprehensive health monitoring page is now available.
     - **GPU:** Detailed information for each available GPU, including name, load, memory usage, and temperature (requires `GPUtil` and NVIDIA drivers).
     - **Ollama Status:** Indicates whether the application can connect to the Ollama server via `check_ollama_connection()`.
     - **Langfuse Status:** Indicates if tracing is enabled and authenticated.
+    - **ChromaDB Status:** Shows whether the app is connected to ChromaDB or using the SQLite fallback.
 
-### 2.4. Enhanced History Page (`/history`)
+### 2.5. Enhanced History Page (`/history`)
 
 The chat history page has been improved for better usability and correctness.
 
@@ -134,12 +152,12 @@ The chat history page has been improved for better usability and correctness.
 - **Improved Sorting:** Threads are now sorted by the timestamp of the **most recent message** in each thread, ensuring the latest conversations appear first.
 - **Timezone Handling:** All timestamps are now correctly handled and displayed in UTC for consistency, using Python's `zoneinfo` library.
 
-### 2.5. Improved Stability and Error Handling
+### 2.6. Improved Stability and Error Handling
 
 - **API Retries:** The `ollama_chat` function now includes a retry mechanism with exponential backoff. If a request fails (e.g., due to a temporary network issue or model loading), the application will automatically retry up to 3 times (waiting 1s, 2s, then 4s).
 - **Longer Timeout:** The timeout for Ollama API requests has been increased to 300 seconds (5 minutes) to accommodate slower models or long-running generation tasks.
 
-### 2.6. Advanced Logging
+### 2.7. Advanced Logging
 
 The application's logging has been upgraded to use a `TimedRotatingFileHandler`.
 
@@ -233,16 +251,17 @@ This is the core of the application, handling all server-side logic.
 -   **Logging**: The `setup_logging` function configures a `TimedRotatingFileHandler` to create a new log file in the `logger/` directory every day. All important actions (requests, errors, generations) are logged.
 -   **Database (`chat.db`)**: An SQLite database is used to persist:
     -   `messages`: Stores all user and bot messages with a `session_id`.
-    -   `settings`: Stores the current model parameters.
+    -   `settings`: Stores the current model parameters and acts as a fallback if ChromaDB is not connected.
+-   **ChromaDB Integration**: If configured, ChromaDB is used as the primary data store for chat history and settings, offering a more robust and scalable solution. The application falls back to SQLite if ChromaDB is unavailable.
 -   **Langfuse Integration**: If Langfuse keys are provided in `.env`, it traces all LLM interactions, providing observability into model performance.
 -   **Ollama Interaction (`ollama_chat`)**: This function is responsible for communicating with the Ollama API. It constructs the payload, sends the request, and handles retries with exponential backoff. It returns the bot's response and token usage.
 
 ### API Routes
 
 -   `GET /`: Renders the main chat page (`index.html`).
--   `POST /generate`: The primary endpoint for chat. It receives the conversation history, gets a response from `ollama_chat`, saves both user and bot messages to the database, and returns the bot's response along with generation time.
--   `GET /history`: Fetches all messages from the database, groups them by session, sorts them by the most recent activity, and renders the history page (`history.html`).
--   `DELETE /delete_message/<id>`: Deletes a specific message from the database.
+-   `POST /generate`: The primary endpoint for chat. It receives the conversation history, gets a response from `ollama_chat`, saves both user and bot messages to the primary database (ChromaDB or SQLite), and returns the bot's response along with generation time.
+-   `GET /history`: Fetches all messages from the primary database, groups them by session, sorts them by the most recent activity, and renders the history page (`history.html`).
+-   `DELETE /delete_message/<id>`: Deletes a specific message from the primary database.
 -   `POST /reset_thread`: Clears the current session ID, effectively starting a new conversation.
 -   `GET /health`: Gathers system statistics (CPU, memory, disk, GPU) and checks the connection to Ollama. Renders the health dashboard (`health.html`).
 -   `GET /settings`, `POST /settings`: Renders the settings page and handles updates to the model parameters in the database.
@@ -252,12 +271,12 @@ This is the core of the application, handling all server-side logic.
 | Method | Path                        | Description                                                                                             |
 |--------|-----------------------------|---------------------------------------------------------------------------------------------------------|
 | `GET`  | `/`                         | Renders the main chat page (`index.html`). Passes model info and connection status to the template.     |
-| `POST` | `/generate`                 | The main API for generating chat responses. It receives messages, saves the user's message, calls `ollama_chat`, saves the assistant's response, and returns the response as JSON. |
+| `POST` | `/generate`                 | The main API for generating chat responses. It receives messages, saves the user's message, calls `ollama_chat`, saves the assistant's response to the active database (ChromaDB or SQLite), and returns the response as JSON. |
 | `POST` | `/new-thread`, `/reset_thread` | Manages the chat session by generating a new `session_id`.                                              |
-| `GET`  | `/history`                  | Renders the `history.html` page, displaying all past conversations grouped by `session_id`.             |
-| `DELETE`| `/delete_message/<id>`      | Deletes a specific message from the database by its ID.                                                 |
+| `GET`  | `/history`                  | Renders the `history.html` page, displaying all past conversations from the active database (ChromaDB or SQLite), grouped by `session_id`.             |
+| `DELETE`| `/delete_message/<id>`      | Deletes a specific message from the active database (ChromaDB or SQLite) by its ID.                                                 |
 | `GET`  | `/health`                   | Renders the `health.html` page. It uses `psutil` and `GPUtil` to gather and display real-time system metrics (CPU, Memory, Disk, GPU). |
-| `GET`, `POST` | `/settings`                 | Renders the `settings.html` page. On `POST`, it updates the settings in the database and triggers `initialize_langfuse` to apply changes. |
+| `GET`, `POST` | `/settings`                 | Renders the `settings.html` page. On `POST`, it updates the settings in the active database (ChromaDB and SQLite) and triggers `initialize_langfuse` to apply changes. |
 
 
 ## 5. Frontend

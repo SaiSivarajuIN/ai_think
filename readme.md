@@ -1,11 +1,11 @@
 # AI Think | Ollama Chat
 
-AI Think is a web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs) hosted by Ollama. It features chat history, real-time system health monitoring, configurable model parameters, and optional integration with Langfuse for tracing and observability.
+AI Think is a web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs) hosted by Ollama. It features persistent chat history with ChromaDB, real-time system health monitoring, configurable model parameters, and optional integration with Langfuse for tracing and observability.
 ## ✨ Features
 
 - **Intuitive Chat Interface**: Clean and simple UI for chatting with your local LLMs.
 - **Model Selection**: Easily switch between any of the models available in your Ollama instance.
-- **Chat History**: Browse and review past conversations, organized by thread.
+- **Persistent Chat History**: Your conversations are saved using [ChromaDB](https://www.trychroma.com/) for scalable, persistent storage, with a seamless fallback to a local SQLite database.
 - **System Health Dashboard**: Monitor real-time CPU, memory, disk, and GPU usage.
 - **Configurable Parameters**: Adjust model parameters like temperature, top-p, and top-k through the settings page.
 - **Langfuse Integration**: Optional, powerful tracing and observability for your LLM interactions. Just add your credentials.
@@ -15,6 +15,7 @@ AI Think is a web-based chat application that provides a user-friendly interface
 
 - Python 3.8+
 - [Ollama](https://ollama.com) installed and running.
+- (Optional) [ChromaDB](https://www.trychroma.com/) account for cloud-based history.
 
 ## 🚀 Setup and Installation
 
@@ -87,7 +88,11 @@ pip install -r requirements.txt
 
 ### 4. Configure the Application
 
-Create a `.env` file in the root directory for basic Ollama configuration. Langfuse credentials are now configured through the **Settings** page in the web UI (`/settings`).
+Create a `.env` file in the root directory.
+
+- **Ollama**: Configure the base URL and default model.
+- **ChromaDB (Optional)**: Add your credentials to enable cloud-based persistent history. If you leave these blank, the application will fall back to a local SQLite database.
+- **Langfuse**: Credentials are no longer set here. They are configured through the **Settings** page in the web UI (`/settings`).
 
 ```dotenv
 # .env
@@ -96,11 +101,17 @@ Create a `.env` file in the root directory for basic Ollama configuration. Langf
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1
 
-# --- Default settings ---
+# --- Default Model Parameters ---
 NUM_PREDICT=2024
 TEMPERATURE=0.7
 TOP_P=0.8
 TOP_K=20
+
+# --- ChromaDB Configuration (Optional) ---
+# If you leave these blank, the app will use a local SQLite database.
+CHROMA_API_KEY=
+CHROMA_TENANT=
+CHROMA_DATABASE=
 ```
 
 ### 5. Run the Application

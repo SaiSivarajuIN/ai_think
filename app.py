@@ -3,10 +3,12 @@ import time
 import uuid
 import psutil 
 import GPUtil 
+import chromadb
 import logging
 import secrets
 import sqlite3
 import requests
+import httpx
 from uuid import uuid4
 from langfuse import Langfuse
 from datetime import datetime
@@ -68,6 +70,18 @@ DEFAULT_SETTINGS = {
     'top_p': os.getenv("TOP_P", " "),
     'top_k': os.getenv("TOP_K", " "),
 }
+
+# ChromaDB Configuration
+CHROMA_API_KEY = os.getenv("CHROMA_API_KEY", " ")
+CHROMA_TENANT = os.getenv("CHROMA_TENANT", " ")
+CHROMA_DATABASE = os.getenv("CHROMA_DATABASE", " ")
+CHROMA_COLLECTION_NAME = "chat_history"
+CHROMA_SETTINGS_COLLECTION_NAME = "app_settings"
+
+chroma_client = None
+chroma_collection = None
+chroma_connected = False
+chroma_settings_collection = None
 
 # Initialize SQLite database
 DATABASE = 'chat.db'
@@ -135,6 +149,101 @@ def init_db():
 langfuse = None
 langfuse_enabled = False
 
+def get_settings():
+    """Fetches settings from ChromaDB if connected, otherwise from SQLite."""
+    if chroma_connected:
+        try:
+            # Try to get the settings document. We'll use a fixed ID.
+            settings_doc = chroma_settings_collection.get(ids=["app_config_v1"], include=["metadatas"])
+            
+            if settings_doc and settings_doc['ids']:
+                meta = settings_doc['metadatas'][0]
+                # ChromaDB can return numbers as floats, ensure correct types
+                return {
+                    'num_predict': int(meta.get('num_predict', DEFAULT_SETTINGS['num_predict'])),
+                    'temperature': float(meta.get('temperature', DEFAULT_SETTINGS['temperature'])),
+                    'top_p': float(meta.get('top_p', DEFAULT_SETTINGS['top_p'])),
+                    'top_k': int(meta.get('top_k', DEFAULT_SETTINGS['top_k'])),
+                    'langfuse_public_key': meta.get('langfuse_public_key', ''),
+                    'langfuse_secret_key': meta.get('langfuse_secret_key', ''),
+                    'langfuse_host': meta.get('langfuse_host', 'https://us.cloud.langfuse.com')
+                }
+            else:
+                # Settings not found in Chroma, so we create them from SQLite as the source of truth for first run.
+                app.logger.info("Settings not found in ChromaDB, initializing from local DB or defaults.")
+                db = get_db()
+                settings_row = db.execute('SELECT * FROM settings WHERE id = 1').fetchone()
+                initial_settings = dict(settings_row) if settings_row else {
+                    **DEFAULT_SETTINGS, 
+                    'langfuse_public_key': '', 
+                    'langfuse_secret_key': '', 
+                    'langfuse_host': 'https://us.cloud.langfuse.com'
+                }
+                save_settings(initial_settings) # This will save to ChromaDB
+                return initial_settings
+        except Exception as e:
+            app.logger.error(f"Could not fetch/initialize settings from ChromaDB: {e}. Falling back to SQLite for this request.")
+            # Fallback handled below
+    
+    # Fallback or default case: use SQLite
+    db = get_db()
+    settings_row = db.execute('SELECT * FROM settings WHERE id = 1').fetchone()
+    if settings_row:
+        return dict(settings_row)
+    
+    # This should ideally not be reached if init_db works, but as a safeguard:
+    app.logger.warning("Settings not found in SQLite, returning hardcoded defaults.")
+    return {
+        'num_predict': int(DEFAULT_SETTINGS['num_predict']),
+        'temperature': float(DEFAULT_SETTINGS['temperature']),
+        'top_p': float(DEFAULT_SETTINGS['top_p']),
+        'top_k': int(DEFAULT_SETTINGS['top_k']),
+        'langfuse_public_key': '',
+        'langfuse_secret_key': '',
+        'langfuse_host': 'https://us.cloud.langfuse.com'
+    }
+
+def save_settings(settings_dict):
+    """Saves settings to ChromaDB if connected, and always to SQLite as a backup."""
+    typed_settings = {
+        'num_predict': int(settings_dict['num_predict']),
+        'temperature': float(settings_dict['temperature']),
+        'top_p': float(settings_dict['top_p']),
+        'top_k': int(settings_dict['top_k']),
+        'langfuse_public_key': str(settings_dict.get('langfuse_public_key', '')),
+        'langfuse_secret_key': str(settings_dict.get('langfuse_secret_key', '')),
+        'langfuse_host': str(settings_dict.get('langfuse_host', ''))
+    }
+
+    if chroma_connected:
+        try:
+            chroma_settings_collection.upsert(
+                ids=["app_config_v1"],
+                documents=["Application settings document"],
+                metadatas=[typed_settings]
+            )
+            app.logger.info("Settings saved to ChromaDB.")
+        except Exception as e:
+            app.logger.error(f"Could not save settings to ChromaDB: {e}. Saving to SQLite only.")
+
+    # Always save to SQLite as the primary fallback
+    try:
+        db = get_db()
+        db.execute(
+            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ? WHERE id = 1',
+            (
+                typed_settings['num_predict'], typed_settings['temperature'], typed_settings['top_p'], typed_settings['top_k'],
+                typed_settings['langfuse_public_key'], typed_settings['langfuse_secret_key'], typed_settings['langfuse_host']
+            )
+        )
+        db.commit()
+        if chroma_connected:
+            app.logger.info("SQLite settings updated as a backup.")
+        else:
+            app.logger.info("Settings saved to SQLite.")
+    except Exception as e:
+        app.logger.error(f"Failed to save settings to SQLite: {e}")
+
 def initialize_langfuse():
     """Initializes or re-initializes the Langfuse client from DB settings."""
     global langfuse, langfuse_enabled
@@ -149,8 +258,7 @@ def initialize_langfuse():
     langfuse_enabled = False
 
     with app.app_context():
-        db = get_db()
-        settings = db.execute('SELECT langfuse_public_key, langfuse_secret_key, langfuse_host FROM settings WHERE id = 1').fetchone()
+        settings = get_settings()
 
         if not settings:
             app.logger.warning("Could not load settings from DB for Langfuse initialization.")
@@ -181,8 +289,35 @@ def initialize_langfuse():
             app.logger.warning(f"An unexpected error occurred during Langfuse initialization: {e}")
             langfuse_enabled = False
 
+def initialize_chroma():
+    """Initializes the ChromaDB client and collection."""
+    global chroma_client, chroma_collection, chroma_settings_collection, chroma_connected
+    if CHROMA_API_KEY:
+        try:
+            app.logger.info("Attempting to connect to ChromaDB Cloud...")
+            chroma_client = chromadb.CloudClient(
+                api_key=CHROMA_API_KEY,
+                tenant=CHROMA_TENANT,
+                database=CHROMA_DATABASE
+            )
+            chroma_client.heartbeat()  # Check connection
+            chroma_collection = chroma_client.get_or_create_collection(name=CHROMA_COLLECTION_NAME)
+            chroma_settings_collection = chroma_client.get_or_create_collection(name=CHROMA_SETTINGS_COLLECTION_NAME)
+            chroma_connected = True
+            app.logger.info("Successfully connected to ChromaDB Cloud.")
+        except httpx.ConnectError as e:
+            app.logger.warning(f"Could not connect to ChromaDB Cloud. Please ensure your credentials are correct and the service is accessible. Error: {e}. Falling back to SQLite.")
+            chroma_connected = False
+        except Exception as e:
+            app.logger.warning(f"Failed to initialize ChromaDB, possibly due to invalid credentials or configuration. Error: {e}. Falling back to SQLite.")
+            chroma_connected = False
+    else:
+        app.logger.info("ChromaDB API key not provided. Falling back to SQLite.")
+        chroma_connected = False
+
 init_db()
 initialize_langfuse() # Initial call on startup
+initialize_chroma() # Initialize ChromaDB
 
 def check_ollama_connection():
     """Check if Ollama is running and accessible"""
@@ -209,10 +344,7 @@ def get_ollama_models():
 def ollama_chat(messages, model, session_id=None, max_retries=3):
     """Send chat messages to Ollama API and get response with Langfuse tracing"""
     
-    # Get settings from database
-    db = get_db()
-    settings_row = db.execute('SELECT * FROM settings WHERE id = 1').fetchone()
-    settings = dict(settings_row) if settings_row else DEFAULT_SETTINGS.copy()
+    settings = get_settings()
     
     for attempt in range(max_retries):
         try:
@@ -359,13 +491,30 @@ def generate():
 
     start_time = time.time()
 
+    db = None
+    if not chroma_connected:
+        db = get_db()
+
     # Save user message to database
-    db = get_db()
-    db.execute(
-        'INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
-        (session_id, 'user', user_message)
-    )
-    db.commit()
+    if chroma_connected:
+        try:
+            chroma_collection.add(
+                documents=[user_message],
+                metadatas=[{
+                    "sender": "user", 
+                    "session_id": session_id, 
+                    "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()
+                }],
+                ids=[str(uuid.uuid4())]
+            )
+        except Exception as e:
+            current_app.logger.error(f"Failed to save user message to ChromaDB: {e}")
+    else:
+        db.execute(
+            'INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
+            (session_id, 'user', user_message)
+        )
+        db.commit()
 
     try:
         # Get AI response from Ollama with Langfuse tracing
@@ -373,13 +522,23 @@ def generate():
         assistant_response = assistant_response_data['content']
         current_app.logger.info(f"Assistant response generated: '{assistant_response[:80]}...'")
         usage = assistant_response_data['usage']
-        
+
         # Save assistant message to database
-        db.execute(
-            'INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
-            (session_id, 'assistant', assistant_response)
-        )
-        db.commit()
+        if chroma_connected:
+            try:
+                chroma_collection.add(
+                    documents=[assistant_response],
+                    metadatas=[{"sender": "assistant", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}],
+                    ids=[str(uuid.uuid4())]
+                )
+            except Exception as e:
+                current_app.logger.error(f"Failed to save assistant message to ChromaDB: {e}")
+        else:
+            db.execute(
+                'INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
+                (session_id, 'assistant', assistant_response)
+            )
+            db.commit()
 
         elapsed = time.time() - start_time
 
@@ -411,30 +570,55 @@ def reset_thread():
 
 @app.route('/history')
 def history():
-    db = get_db()
-    messages = db.execute('SELECT id, session_id, sender, content, timestamp FROM messages ORDER BY timestamp ASC').fetchall()
     threads = defaultdict(list)
     session_start = {}
-
-    # Define timezones
     utc_tz = ZoneInfo("UTC")
-    
-    for msg in messages:
-        session_id = msg['session_id']
-        timestamp_str = msg['timestamp']
-        # Create a naive datetime, then make it timezone-aware (UTC)
-        naive_timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
-        utc_timestamp = naive_timestamp.replace(tzinfo=utc_tz)
+
+    if chroma_connected:
+        try:
+            results = chroma_collection.get(include=["metadatas", "documents"])
+            chroma_messages = []
+            for i, doc_id in enumerate(results['ids']):
+                meta = results['metadatas'][i]
+                chroma_messages.append({
+                    'id': doc_id,
+                    'session_id': meta['session_id'],
+                    'sender': meta['sender'],
+                    'content': results['documents'][i],
+                    'timestamp': datetime.fromisoformat(meta['timestamp'])
+                })
+            
+            sorted_messages = sorted(chroma_messages, key=lambda x: x['timestamp'])
+
+            for msg in sorted_messages:
+                session_id = msg['session_id']
+                threads[session_id].append(msg)
+                if session_id not in session_start:
+                    session_start[session_id] = msg['timestamp']
+
+        except Exception as e:
+            current_app.logger.error(f"Failed to fetch history from ChromaDB: {e}")
+            threads = defaultdict(list)
+    else:
+        db = get_db()
+        messages = db.execute('SELECT id, session_id, sender, content, timestamp FROM messages ORDER BY timestamp ASC').fetchall()
         
-        threads[session_id].append({
-            'id': msg['id'],  # Add message ID to the data
-            'sender': msg['sender'],
-            'content': msg['content'],
-            'timestamp': utc_timestamp
-        })
-        
-        if session_id not in session_start:
-            session_start[session_id] = utc_timestamp
+        for msg in messages:
+            session_id = msg['session_id']
+            timestamp_str = msg['timestamp']
+            # Create a naive datetime, then make it timezone-aware (UTC)
+            naive_timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+            utc_timestamp = naive_timestamp.replace(tzinfo=utc_tz)
+            
+            threads[session_id].append({
+                'id': msg['id'],
+                'sender': msg['sender'],
+                'content': msg['content'],
+                'timestamp': utc_timestamp
+            })
+            
+            if session_id not in session_start:
+                session_start[session_id] = utc_timestamp
 
     # Sort threads by the timestamp of the LAST message in each thread
     sorted_threads = sorted(
@@ -461,13 +645,19 @@ def history():
         newest_session_id=sorted_threads[0][0] if sorted_threads else None
     )
 
-@app.route('/delete_message/<int:message_id>', methods=['DELETE'])
+@app.route('/delete_message/<string:message_id>', methods=['DELETE'])
 def delete_message(message_id):
     try:
-        db = get_db()
-        db.execute('DELETE FROM messages WHERE id = ?', (message_id,))
-        db.commit()
-        current_app.logger.info(f"User deleted message with ID: {message_id}")
+        if chroma_connected:
+            chroma_collection.delete(ids=[message_id])
+            current_app.logger.info(f"User deleted message with ID from ChromaDB: {message_id}")
+        else:
+            db = get_db()
+            # The original route used int, so we cast it back for sqlite
+            db.execute('DELETE FROM messages WHERE id = ?', (int(message_id),))
+            db.commit()
+            current_app.logger.info(f"User deleted message with ID from SQLite: {message_id}")
+
         return jsonify({"success": True})
     except Exception as e:
         current_app.logger.error(f"Error deleting message: {e}")
@@ -578,36 +768,30 @@ def health():
         gpu_info=gpu_info,
         ollama_status=ollama_status,
         ollama_model=OLLAMA_MODEL,
-        langfuse_enabled=langfuse_enabled
+        langfuse_enabled=langfuse_enabled,
+        chroma_connected=chroma_connected
     )
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
-    db = get_db()
     if request.method == 'POST':
-        # Update settings in DB
-        # Note: A more robust solution would validate input types
-        db.execute(
-            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ? WHERE id = 1',
-            (
-                int(request.form['num_predict']), 
-                float(request.form['temperature']), 
-                float(request.form['top_p']), 
-                int(request.form['top_k']),
-                request.form.get('langfuse_public_key', ''),
-                request.form.get('langfuse_secret_key', ''),
-                request.form.get('langfuse_host', '')
-            )
-        )
-        db.commit()
-        current_app.logger.info(f"Settings updated in DB: {request.form.to_dict()}")
+        settings_to_save = {
+            'num_predict': request.form['num_predict'],
+            'temperature': request.form['temperature'],
+            'top_p': request.form['top_p'],
+            'top_k': request.form['top_k'],
+            'langfuse_public_key': request.form.get('langfuse_public_key', ''),
+            'langfuse_secret_key': request.form.get('langfuse_secret_key', ''),
+            'langfuse_host': request.form.get('langfuse_host', '')
+        }
+        save_settings(settings_to_save)
+        current_app.logger.info(f"Settings updated: {request.form.to_dict()}")
         # Re-initialize Langfuse with new settings
         initialize_langfuse()
         return redirect(url_for('settings'))
 
-    # Get current settings from DB
-    settings_row = db.execute('SELECT * FROM settings WHERE id = 1').fetchone()
-    current_settings = dict(settings_row) if settings_row else DEFAULT_SETTINGS.copy()
+    # Get current settings
+    current_settings = get_settings()
     
     return render_template('settings.html', settings=current_settings)
 
