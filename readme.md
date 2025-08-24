@@ -26,18 +26,18 @@ You can either follow the manual instructions below or use the automated scripts
 
 #### Automated Installation (Recommended)
 
-Navigate to the `installOllama` directory and run the appropriate script for your OS. These scripts will install Ollama and download the recommended models (`llama3.1`, `gemma2`, `mistral`).
+Navigate to the `ollamaSetup` directory and run the appropriate script for your OS. These scripts will install Ollama and download the recommended models (`llama3.1`, `gemma2`, `mistral`).
 
 - **For Windows**:
   Open Command Prompt and run:
   ```batch
-  install.bat
+  ollamaSetup/install.bat
   ```
 - **For macOS & Linux**:
   Open a terminal, make the script executable, and run it:
   ```bash
-  chmod +x install.sh
-  ./install.sh
+  chmod +x ollamaSetup/install.sh
+  .ollamaSetup/install.sh
   ```
 
 #### Manual Installation

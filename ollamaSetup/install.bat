@@ -41,4 +41,5 @@ ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M
 
 echo.
 echo Setup complete! You can see your models with 'ollama list'.
+ollama list
 endlocal
