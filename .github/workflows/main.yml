@@ -33,11 +33,16 @@ jobs:
         pip install -r requirements.txt
       # Install the required libraries
 
+    - name: Run ollamaSetup
+      run: |
+        chmod +x ./ollamaSetup/install.sh
+        ./ollamaSetup/install.sh
+
     - name: Wait for 10 seconds
       run: sleep 10
       shell: bash
 
-    - name: Run ollamaSetup
+    - name: Install ollamaSetup
       run: |
         chmod +x ./ollamaSetup/install.sh
         ./ollamaSetup/install.sh
