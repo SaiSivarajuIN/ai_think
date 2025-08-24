@@ -1,0 +1,56 @@
+name: "New Model Request"
+description: "Suggest a new model to be added to the application"
+title: "[Model]: "
+labels: ["model-request", "enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new model! Please provide the following information to help us evaluate your request.
+
+  - type: input
+    id: model-name
+    attributes:
+      label: "Model Name"
+      description: "What is the name of the model you are requesting? (e.g., `llama3:8b-instruct-q5_K_M`)"
+      placeholder: "namespace/model-name:tag"
+    validations:
+      required: true
+
+  - type: input
+    id: model-source
+    attributes:
+      label: "Model Source (URL)"
+      description: "Where can we find this model? Please provide a link to the model's page (e.g., Hugging Face, Ollama Library, a research paper)."
+      placeholder: "https://huggingface.co/..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: "Reason for Addition"
+      description: "Why should this model be added? What are its key features or benefits? What use cases does it enable?"
+      placeholder: "This model is particularly good at [task] because of [reason]..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "Additional Context"
+      description: "Add any other context, mockups, or screenshots about the model request here."
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "Checklist"
+      description: "Please confirm the following before submitting."
+      options:
+        - label: "I have searched the existing issues and have not found a similar model request."
+          required: true
+        - label: "I have checked that the model is compatible with Ollama."
+          required: true
+        - label: "I agree to follow this project's Code of Conduct."
+          required: true
+
