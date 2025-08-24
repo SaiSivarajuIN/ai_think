@@ -1,5 +1,3 @@
-[![Run AI Think in GitHub Actions](https://github.com/SaiSivarajuIN/ai_think/actions/workflows/main.yml/badge.svg)](https://github.com/SaiSivarajuIN/ai_think/actions/workflows/main.yml)
-
 # AI Think | Ollama Chat
 
 AI Think is a web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs) hosted by Ollama. It features chat history, real-time system health monitoring, configurable model parameters, and optional integration with Langfuse for tracing and observability.
