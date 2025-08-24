@@ -35,7 +35,7 @@ jobs:
 
     - name: Run ollamaSetup
       run: |
-        chmod +x run.sh
+        chmod +x ./ollamaSetup/install.sh
         ./ollamaSetup/install.sh
 
     - name: Archive ollama reports
