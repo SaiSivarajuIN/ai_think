@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
         margin: 10,
         filename: `chat-thread-${sessionId}.pdf`,
         html2canvas: { scale: 2 },
-        jsPDF: { orientation: 'portrait', format: 'a2' }
+        jsPDF: { orientation: 'portrait', format: 'a4' }
       }).save();
     }
   });

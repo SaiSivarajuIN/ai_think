@@ -16,8 +16,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body>
-    <div class="container">
+<body class="fixed-layout">
+    <div class="page-container">
         <header class="header">
             <h1>📚 Chat History</h1>
             <div class="header-nav">
@@ -27,45 +27,47 @@
             </div>
         </header>
 
-        {% if threads %}
-            {% for thread in threads %}
-                <details class="thread" {% if thread.session_id == newest_session_id %}open{% endif %}>
-                    <summary>
-                        <div class="summary-main" data-timestamp="{{ session_start[thread.session_id].isoformat() }}">
-                            Chat Session {{ thread.serial_number }} <small class="session-id-display">{{ thread.session_id }}</small> &mdash; <span class="session-start-time"></span>
-                        </div>
-                        <div class="summary-actions">
-                            <button class="download-pdf-btn icon-btn" data-session="{{ thread.session_id }}" title="Download PDF">
-                                <span class="material-icons">picture_as_pdf</span>
-                            </button>
-                            <span class="message-count">({{ thread.messages|length }} messages)</span>
-                        </div>
-                    </summary>
-                    <div class="thread-messages" id="thread-{{ thread.session_id }}">
-                        {% for msg in thread.messages %}
-                            <div class="message-container" data-message-id="{{ msg.id }}">
-                                <div class="history-meta">
-                                    <span class="history-sender {{ 'user-sender' if msg.sender == 'user' else 'assistant-sender' }}">
-                                        {{ '👤 You' if msg.sender == 'user' else '🤖 Bot' }}
-                                    </span>
-                                    <div class="history-actions">
-                                        <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
-                                        <button class="delete-btn icon-btn">
-                                            <span class="material-icons">delete</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="history-content">{{ msg.content }}</div>
+        <main class="page-content">
+            {% if threads %}
+                {% for thread in threads %}
+                    <details class="thread" {% if thread.session_id == newest_session_id %}open{% endif %}>
+                        <summary>
+                            <div class="summary-main" data-timestamp="{{ session_start[thread.session_id].isoformat() }}">
+                                Chat Session {{ thread.serial_number }} <small class="session-id-display">{{ thread.session_id }}</small> &mdash; <span class="session-start-time"></span>
                             </div>
-                        {% endfor %}
-                    </div>
-                </details>
-            {% endfor %}
-        {% else %}
-            <div class="card">
-                <p>No chat history found. Start a conversation to see your chat threads here.</p>
-            </div>
-        {% endif %}
+                            <div class="summary-actions">
+                                <button class="download-pdf-btn icon-btn" data-session="{{ thread.session_id }}" title="Download PDF">
+                                    <span class="material-icons">picture_as_pdf</span>
+                                </button>
+                                <span class="message-count">({{ thread.messages|length }} messages)</span>
+                            </div>
+                        </summary>
+                        <div class="thread-messages" id="thread-{{ thread.session_id }}">
+                            {% for msg in thread.messages %}
+                                <div class="message-container" data-message-id="{{ msg.id }}">
+                                    <div class="history-meta">
+                                        <span class="history-sender {{ 'user-sender' if msg.sender == 'user' else 'assistant-sender' }}">
+                                            {{ '👤 You' if msg.sender == 'user' else '🤖 Bot' }}
+                                        </span>
+                                        <div class="history-actions">
+                                            <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
+                                            <button class="delete-btn icon-btn">
+                                                <span class="material-icons">delete</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="history-content">{{ msg.content }}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endfor %}
+            {% else %}
+                <div class="card">
+                    <p>No chat history found. Start a conversation to see your chat threads here.</p>
+                </div>
+            {% endif %}
+        </main>
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
@@ -87,7 +89,31 @@
             const senderSpan = container.querySelector('.assistant-sender');
             const contentDiv = container.querySelector('.history-content');
             if (senderSpan && contentDiv) {
-                contentDiv.innerHTML = converter.makeHtml(contentDiv.textContent);
+                // Unescape HTML to get raw markdown with <think> tags
+                const tempEl = document.createElement('textarea');
+                tempEl.innerHTML = contentDiv.innerHTML;
+                const rawMarkdown = tempEl.value;
+
+                const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+                if (thinkRegex.test(rawMarkdown)) {
+                    thinkRegex.lastIndex = 0; // Reset regex
+                    const thoughts = [];
+                    const mainContent = rawMarkdown.replace(thinkRegex, (match, thoughtContent) => {
+                        thoughts.push(thoughtContent.trim());
+                        return ''; // Remove from main content
+                    }).trim();
+
+                    let newHtml = converter.makeHtml(mainContent);
+
+                    thoughts.forEach(thought => {
+                        if (thought) {
+                            newHtml += `<div class="thought"><strong>Thought Process</strong><div>${converter.makeHtml(thought)}</div></div>`;
+                        }
+                    });
+                    contentDiv.innerHTML = newHtml;
+                } else {
+                    contentDiv.innerHTML = converter.makeHtml(rawMarkdown);
+                }
             }
         });
 

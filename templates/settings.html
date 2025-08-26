@@ -6,51 +6,59 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
-<body>
-<div class="container">
-    <header class="header">
-        <h1>⚙️ Settings</h1>
-        <div class="header-nav">
-            <a href="/" class="nav-link" title="Back to Chat">
-                <span class="material-icons">chat</span>
-            </a>
-        </div>
-    </header>
-    <form class="card settings-form" method="POST">
-        <h2>Model Parameters</h2>
-        <div class="form-group">
-            <label for="num_predict">Tokens to Predict</label>
-            <input type="number" id="num_predict" name="num_predict" value="{{ settings['num_predict'] }}" min="1" max="40960" step="1" required>
-        </div>
-        <div class="form-group">
-            <label for="temperature">Temperature</label>
-            <input type="number" id="temperature" name="temperature" value="{{ settings['temperature'] }}" min="0" max="2" step="0.01" required>
-        </div>
-        <div class="form-group">
-            <label for="top_p">Top P</label>
-            <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
-        </div>
-        <!-- top_k -->
-        <div class="form-group">
-            <label for="top_k">Top K</label>
-            <input type="number" id="top_k" name="top_k" value="{{ settings['top_k'] }}" min="1" max="20" step="1" required>
-        </div>
-        <hr>
-        <h2>Langfuse Tracing</h2>
-        <div class="form-group">
-            <label for="langfuse_public_key">Public Key</label>
-            <input type="text" id="langfuse_public_key" name="langfuse_public_key" value="{{ settings['langfuse_public_key'] }}" placeholder="pk-lf-...">
-        </div>
-        <div class="form-group">
-            <label for="langfuse_secret_key">Secret Key</label>
-            <input type="password" id="langfuse_secret_key" name="langfuse_secret_key" value="{{ settings['langfuse_secret_key'] }}" placeholder="sk-lf-...">
-        </div>
-        <div class="form-group">
-            <label for="langfuse_host">Host</label>
-            <input type="url" id="langfuse_host" name="langfuse_host" value="{{ settings['langfuse_host'] }}" placeholder="https://cloud.langfuse.com">
-        </div>
-        <button type="submit" class="save-btn">Save Settings</button>
-    </form>
-</div>
+<body class="fixed-layout">
+    <div class="page-container">
+        <header class="header">
+            <h1>⚙️ Settings</h1>
+            <div class="header-nav">
+                <a href="/" class="nav-link" title="Back to Chat">
+                    <span class="material-icons">chat</span>
+                </a>
+            </div>
+        </header>
+        <main class="page-content">
+            <form class="card settings-form" method="POST">
+                <h2>Model Parameters</h2>
+                <div class="form-group">
+                    <label for="num_predict">Tokens to Predict</label>
+                    <input type="number" id="num_predict" name="num_predict" value="{{ settings['num_predict'] }}" min="1" max="40960" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="temperature">Temperature</label>
+                    <input type="number" id="temperature" name="temperature" value="{{ settings['temperature'] }}" min="0" max="2" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="top_p">Top P</label>
+                    <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
+                </div>
+                <!-- top_k -->
+                <div class="form-group">
+                    <label for="top_k">Top K</label>
+                    <input type="number" id="top_k" name="top_k" value="{{ settings['top_k'] }}" min="1" max="20" step="1" required>
+                </div>
+                <hr>
+                <h2>Ollama System Prompt</h2>
+                <div class="form-group">
+                    <label for="system_prompt">This prompt is sent to the model before your first message in a new conversation.</label>
+                    <textarea id="system_prompt" name="system_prompt" rows="5" placeholder="e.g., You are a helpful assistant.">{{ settings.get('system_prompt', '') }}</textarea>
+                </div>
+                <hr>
+                <h2>Langfuse Tracing (Optional)</h2>
+                <div class="form-group">
+                    <label for="langfuse_public_key">Public Key</label>
+                    <input type="text" id="langfuse_public_key" name="langfuse_public_key" value="{{ settings['langfuse_public_key'] }}" placeholder="pk-lf-...">
+                </div>
+                <div class="form-group">
+                    <label for="langfuse_secret_key">Secret Key</label>
+                    <input type="password" id="langfuse_secret_key" name="langfuse_secret_key" value="{{ settings['langfuse_secret_key'] }}" placeholder="sk-lf-...">
+                </div>
+                <div class="form-group">
+                    <label for="langfuse_host">Host</label>
+                    <input type="url" id="langfuse_host" name="langfuse_host" value="{{ settings['langfuse_host'] }}" placeholder="https://cloud.langfuse.com">
+                </div>
+                <button type="submit" class="save-btn">Save Settings</button>
+            </form>
+        </main>
+    </div>
 </body>
 </html>

@@ -69,6 +69,7 @@ DEFAULT_SETTINGS = {
     'temperature': os.getenv("TEMPERATURE", " "),
     'top_p': os.getenv("TOP_P", " "),
     'top_k': os.getenv("TOP_K", " "),
+    'system_prompt': os.getenv("OLLAMA_SYSTEM_PROMPT", "You are a helpful assistant.")
 }
 
 # ChromaDB Configuration
@@ -76,12 +77,10 @@ CHROMA_API_KEY = os.getenv("CHROMA_API_KEY", " ")
 CHROMA_TENANT = os.getenv("CHROMA_TENANT", " ")
 CHROMA_DATABASE = os.getenv("CHROMA_DATABASE", " ")
 CHROMA_COLLECTION_NAME = "chat_history"
-CHROMA_SETTINGS_COLLECTION_NAME = "app_settings"
 
 chroma_client = None
 chroma_collection = None
 chroma_connected = False
-chroma_settings_collection = None
 
 # Initialize SQLite database
 DATABASE = 'chat.db'
@@ -125,6 +124,8 @@ def init_db():
             cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_secret_key TEXT')
         if 'langfuse_host' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_host TEXT')
+        if 'system_prompt' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN system_prompt TEXT')
 
         cursor = db.cursor()
         cursor.execute('SELECT id FROM settings WHERE id = 1')
@@ -134,13 +135,14 @@ def init_db():
             public_key = ""
             secret_key = ""
             host = "https://us.cloud.langfuse.com"
-            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host))
+            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, system_prompt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, DEFAULT_SETTINGS['system_prompt']))
         else:
             # For existing installations, ensure langfuse columns have default values if they are NULL
             db.execute("UPDATE settings SET langfuse_public_key = '' WHERE langfuse_public_key IS NULL")
             db.execute("UPDATE settings SET langfuse_secret_key = '' WHERE langfuse_secret_key IS NULL")
             db.execute("UPDATE settings SET langfuse_host = 'https://us.cloud.langfuse.com' WHERE langfuse_host IS NULL OR langfuse_host = ''")
+            db.execute("UPDATE settings SET system_prompt = ? WHERE system_prompt IS NULL", (DEFAULT_SETTINGS['system_prompt'],))
 
         db.commit()
         app.logger.info("Database initialized")
@@ -150,42 +152,7 @@ langfuse = None
 langfuse_enabled = False
 
 def get_settings():
-    """Fetches settings from ChromaDB if connected, otherwise from SQLite."""
-    if chroma_connected:
-        try:
-            # Try to get the settings document. We'll use a fixed ID.
-            settings_doc = chroma_settings_collection.get(ids=["app_config_v1"], include=["metadatas"])
-            
-            if settings_doc and settings_doc['ids']:
-                meta = settings_doc['metadatas'][0]
-                # ChromaDB can return numbers as floats, ensure correct types
-                return {
-                    'num_predict': int(meta.get('num_predict', DEFAULT_SETTINGS['num_predict'])),
-                    'temperature': float(meta.get('temperature', DEFAULT_SETTINGS['temperature'])),
-                    'top_p': float(meta.get('top_p', DEFAULT_SETTINGS['top_p'])),
-                    'top_k': int(meta.get('top_k', DEFAULT_SETTINGS['top_k'])),
-                    'langfuse_public_key': meta.get('langfuse_public_key', ''),
-                    'langfuse_secret_key': meta.get('langfuse_secret_key', ''),
-                    'langfuse_host': meta.get('langfuse_host', 'https://us.cloud.langfuse.com')
-                }
-            else:
-                # Settings not found in Chroma, so we create them from SQLite as the source of truth for first run.
-                app.logger.info("Settings not found in ChromaDB, initializing from local DB or defaults.")
-                db = get_db()
-                settings_row = db.execute('SELECT * FROM settings WHERE id = 1').fetchone()
-                initial_settings = dict(settings_row) if settings_row else {
-                    **DEFAULT_SETTINGS, 
-                    'langfuse_public_key': '', 
-                    'langfuse_secret_key': '', 
-                    'langfuse_host': 'https://us.cloud.langfuse.com'
-                }
-                save_settings(initial_settings) # This will save to ChromaDB
-                return initial_settings
-        except Exception as e:
-            app.logger.error(f"Could not fetch/initialize settings from ChromaDB: {e}. Falling back to SQLite for this request.")
-            # Fallback handled below
-    
-    # Fallback or default case: use SQLite
+    """Fetches settings from SQLite."""
     db = get_db()
     settings_row = db.execute('SELECT * FROM settings WHERE id = 1').fetchone()
     if settings_row:
@@ -200,11 +167,12 @@ def get_settings():
         'top_k': int(DEFAULT_SETTINGS['top_k']),
         'langfuse_public_key': '',
         'langfuse_secret_key': '',
-        'langfuse_host': 'https://us.cloud.langfuse.com'
+        'langfuse_host': 'https://us.cloud.langfuse.com',
+        'system_prompt': DEFAULT_SETTINGS['system_prompt']
     }
 
 def save_settings(settings_dict):
-    """Saves settings to ChromaDB if connected, and always to SQLite as a backup."""
+    """Saves settings to SQLite."""
     typed_settings = {
         'num_predict': int(settings_dict['num_predict']),
         'temperature': float(settings_dict['temperature']),
@@ -212,35 +180,23 @@ def save_settings(settings_dict):
         'top_k': int(settings_dict['top_k']),
         'langfuse_public_key': str(settings_dict.get('langfuse_public_key', '')),
         'langfuse_secret_key': str(settings_dict.get('langfuse_secret_key', '')),
-        'langfuse_host': str(settings_dict.get('langfuse_host', ''))
+        'langfuse_host': str(settings_dict.get('langfuse_host', '')),
+        'system_prompt': str(settings_dict.get('system_prompt', ''))
     }
-
-    if chroma_connected:
-        try:
-            chroma_settings_collection.upsert(
-                ids=["app_config_v1"],
-                documents=["Application settings document"],
-                metadatas=[typed_settings]
-            )
-            app.logger.info("Settings saved to ChromaDB.")
-        except Exception as e:
-            app.logger.error(f"Could not save settings to ChromaDB: {e}. Saving to SQLite only.")
 
     # Always save to SQLite as the primary fallback
     try:
         db = get_db()
         db.execute(
-            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ? WHERE id = 1',
+            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, system_prompt = ? WHERE id = 1',
             (
                 typed_settings['num_predict'], typed_settings['temperature'], typed_settings['top_p'], typed_settings['top_k'],
-                typed_settings['langfuse_public_key'], typed_settings['langfuse_secret_key'], typed_settings['langfuse_host']
+                typed_settings['langfuse_public_key'], typed_settings['langfuse_secret_key'], typed_settings['langfuse_host'],
+                typed_settings['system_prompt']
             )
         )
         db.commit()
-        if chroma_connected:
-            app.logger.info("SQLite settings updated as a backup.")
-        else:
-            app.logger.info("Settings saved to SQLite.")
+        app.logger.info("Settings saved to SQLite.")
     except Exception as e:
         app.logger.error(f"Failed to save settings to SQLite: {e}")
 
@@ -291,7 +247,7 @@ def initialize_langfuse():
 
 def initialize_chroma():
     """Initializes the ChromaDB client and collection."""
-    global chroma_client, chroma_collection, chroma_settings_collection, chroma_connected
+    global chroma_client, chroma_collection, chroma_connected
     if CHROMA_API_KEY:
         try:
             app.logger.info("Attempting to connect to ChromaDB Cloud...")
@@ -302,7 +258,6 @@ def initialize_chroma():
             )
             chroma_client.heartbeat()  # Check connection
             chroma_collection = chroma_client.get_or_create_collection(name=CHROMA_COLLECTION_NAME)
-            chroma_settings_collection = chroma_client.get_or_create_collection(name=CHROMA_SETTINGS_COLLECTION_NAME)
             chroma_connected = True
             app.logger.info("Successfully connected to ChromaDB Cloud.")
         except httpx.ConnectError as e:
@@ -345,20 +300,19 @@ def ollama_chat(messages, model, session_id=None, max_retries=3):
     """Send chat messages to Ollama API and get response with Langfuse tracing"""
     
     settings = get_settings()
+    system_prompt = settings.get('system_prompt', '').strip()
     
     for attempt in range(max_retries):
         try:
-            # Format messages for Ollama
-            formatted_messages = []
-            for msg in messages:
-                formatted_messages.append({
-                    "role": msg.get("role", "user"),
-                    "content": msg.get("content", "")
-                })
+            # Prepend system prompt if it exists
+            final_messages = []
+            if system_prompt:
+                final_messages.append({"role": "system", "content": system_prompt})
+            final_messages.extend(messages)
             
             payload = {
                 "model": model,
-                "messages": formatted_messages,
+                "messages": final_messages,
                 "stream": False,
                 "options": {
                     "num_predict": int(settings.get('num_predict')),
@@ -372,7 +326,7 @@ def ollama_chat(messages, model, session_id=None, max_retries=3):
             if langfuse_enabled:
                 with langfuse.start_as_current_span(
                     name=f"{model}::chat_generation",
-                    input={"messages": formatted_messages}
+                    input={"messages": final_messages}
                 ) as span:
                     span.update_trace(
                         user_id="new-ollama-user", 
@@ -382,7 +336,7 @@ def ollama_chat(messages, model, session_id=None, max_retries=3):
                     with langfuse.start_as_current_generation(
                         name=f"{model}::generation",
                         model=model,
-                        input=formatted_messages,
+                        input=final_messages,
                         model_parameters=payload.get("options", {})
                     ) as gen:
                         # Make the API call with longer timeout
@@ -782,7 +736,8 @@ def settings():
             'top_k': request.form['top_k'],
             'langfuse_public_key': request.form.get('langfuse_public_key', ''),
             'langfuse_secret_key': request.form.get('langfuse_secret_key', ''),
-            'langfuse_host': request.form.get('langfuse_host', '')
+            'langfuse_host': request.form.get('langfuse_host', ''),
+            'system_prompt': request.form.get('system_prompt', '')
         }
         save_settings(settings_to_save)
         current_app.logger.info(f"Settings updated: {request.form.to_dict()}")
