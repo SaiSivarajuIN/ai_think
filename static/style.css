@@ -59,7 +59,7 @@ body.fixed-layout {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    max-width: 1200px;
+    max-width: 1355px;
     margin: 0 auto;
     background-color: var(--card);
 }
@@ -283,6 +283,24 @@ body.fixed-layout {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    max-width: 1200px; /* Wider to accommodate columns */
+    margin: 0 auto;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.settings-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* This will space out the h2 and form-groups */
+}
+
+.settings-column h2 {
+    margin-bottom: 0; /* The flex gap provides spacing */
 }
 
 .form-group {
