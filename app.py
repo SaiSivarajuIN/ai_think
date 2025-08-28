@@ -69,7 +69,7 @@ DEFAULT_SETTINGS = {
     'temperature': os.getenv("TEMPERATURE", " "),
     'top_p': os.getenv("TOP_P", " "),
     'top_k': os.getenv("TOP_K", " "),
-    'system_prompt': os.getenv("OLLAMA_SYSTEM_PROMPT", "You are a helpful assistant.")
+    'system_prompt': os.getenv("OLLAMA_SYSTEM_PROMPT", "You are a helpful assistant. Always avoid causing harm to the user. Provide clear, step‑by‑step guidance and useful information.")
 }
 
 # ChromaDB Configuration
