@@ -58,7 +58,7 @@ Once Ollama is running, pull the models you want to use. Here are some examples:
 ollama pull llama3.1
 ollama pull gemma2
 ollama pull mistral
-ollama pull gpt-oss:20b
+ollama pull hf.co/unsloth/gpt-oss-20b-GGUF:Q6_K_XL
 ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M
 ollama pull hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M
 ```
