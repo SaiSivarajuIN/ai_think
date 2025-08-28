@@ -349,14 +349,32 @@ document.addEventListener('DOMContentLoaded', function() {
       // Clone the actual thread node for printing, to avoid altering the UI
       const clone = threadDiv.cloneNode(true);
       // Apply styles if required to preserve the chat look
-
-      // Optional: Prepend a title/date to top of PDF
       const container = document.createElement('div');
-      const summary = btn.closest('summary');
+
+      // Create and style the header
+      const header = document.createElement('div');
+      header.style.borderBottom = '2px solid #ccc';
+      header.style.paddingBottom = '10px';
+      header.style.marginBottom = '20px';
+      header.style.textAlign = 'center';
       const heading = document.createElement('h2');
       heading.textContent = `Chat Session ${sessionId}`; // Construct the title with sessionId
-      container.appendChild(heading);
+      heading.style.margin = '0';
+      header.appendChild(heading);
+      container.appendChild(header);
+
+      // Add the chat content
       container.appendChild(clone);
+
+      // Create and style the footer
+      const footer = document.createElement('div');
+      footer.style.borderTop = '2px solid #ccc';
+      footer.style.paddingTop = '10px';
+      footer.style.marginTop = '20px';
+      footer.style.textAlign = 'center';
+      footer.style.fontSize = '10pt';
+      footer.textContent = `Generated on: ${new Date().toLocaleString()}`;
+      container.appendChild(footer);
 
       // Remove delete buttons from the clone so they don't appear in the PDF
       clone.querySelectorAll('.delete-btn').forEach(button => button.remove());
