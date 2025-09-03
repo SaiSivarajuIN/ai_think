@@ -21,6 +21,16 @@ until command -v ollama &> /dev/null; do
 done
 echo "✅ Ollama is available."
 
+echo ""
+echo "🚀 Starting Ollama server in the background..."
+ollama serve &
+
+# Wait a few seconds for the server to initialize
+sleep 5
+
+# Check if the server is running
+ollama ps > /dev/null 2>&1 || (echo "❌ Ollama server failed to start." && exit 1)
+echo "✅ Ollama server is running."
 
 echo ""
 echo "📦 Pulling recommended models (this may take some time)..."
