@@ -378,7 +378,7 @@ body.fixed-layout {
     text-align: center;
 }
 
-.status-badge.ok {
+.status-badge.stable {
     background: #e6f7e6;
     color: #2e7d32;
 }
