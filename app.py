@@ -618,20 +618,20 @@ def delete_message(message_id):
         return jsonify({"error": str(e)}), 500
 
 def get_component_status(usage, total, threshold=0.9):
-    """Return 'critical', 'warning', or 'ok' for a usage/total pair."""
+    """Return 'critical', 'warning', or 'stable' for a usage/total pair."""
     if usage / total >= threshold:
         return 'critical'
     elif (total - usage) / total < 0.1:
         return 'warning'
     else:
-        return 'ok'
+        return 'stable'
 
 def get_gpu_status(gpus):
-    """Return 'critical', 'warning', or 'ok' for GPU(s)."""
+    """Return 'critical', 'warning', or 'stable' for GPU(s)."""
     if not gpus:
-        return 'ok'
+        return 'stable'
     
-    status = 'ok'
+    status = 'stable'
     for gpu in gpus:
         load = float(gpu['load'].rstrip('%'))
         mem_used = int(float(gpu['memory_used'].rstrip('MB')))
@@ -664,7 +664,7 @@ def get_overall_status(cpu, memory, disk, gpu_info):
     elif 'warning' in statuses:
         return 'warning'
     else:
-        return 'ok'
+        return 'stable'
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -759,6 +759,3 @@ def flush_langfuse(error):
         except Exception as e:
             current_app.logger.warning(f"Error flushing Langfuse: {e}")
 
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
