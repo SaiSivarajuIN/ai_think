@@ -1,51 +1,23 @@
-name: "Feature"
+name: "Feature Request"
 description: "Suggest an idea for this project"
 title: "[Feature]: "
 labels: ["enhancement", "triage"]
 body:
   - type: markdown
     attributes:
-      value: |
-        Thanks for taking the time to fill out this feature request! Please provide as much detail as possible.
+      value: "Thanks for suggesting a new feature! Please provide a clear description below."
 
   - type: textarea
-    id: problem
+    id: description
     attributes:
-      label: "Is your feature request related to a problem?"
-      description: "A clear and concise description of what the problem is. For example: I'm always frustrated when [...]"
-      placeholder: "I'm trying to accomplish X, but I'm running into issues with Y because..."
-    validations:
-      required: true
-
-  - type: textarea
-    id: solution
-    attributes:
-      label: "Describe the solution you'd like"
-      description: "A clear and concise description of what you want to happen."
+      label: "Feature Description"
+      description: "A clear and concise description of the feature you'd like to see. What should it do? Why is it needed?"
       placeholder: "I would like a new feature that allows me to..."
     validations:
       required: true
-
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: "Describe alternatives you've considered"
-      description: "A clear and concise description of any alternative solutions or features you've considered."
 
   - type: textarea
     id: context
     attributes:
       label: "Additional Context"
       description: "Add any other context, mockups, or screenshots about the feature request here."
-
-  - type: checkboxes
-    id: checklist
-    attributes:
-      label: "Checklist"
-      description: "Please confirm the following before submitting."
-      options:
-        - label: "I have searched the existing issues and have not found a similar feature request."
-          required: true
-        - label: "I agree to follow this project's Code of Conduct."
-          required: true
-
