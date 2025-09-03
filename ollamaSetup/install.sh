@@ -21,8 +21,6 @@ until command -v ollama &> /dev/null; do
 done
 echo "✅ Ollama is available."
 
-echo ""
-ollama serve
 
 echo ""
 echo "📦 Pulling recommended models (this may take some time)..."
