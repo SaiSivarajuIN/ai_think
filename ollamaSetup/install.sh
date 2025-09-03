@@ -14,6 +14,17 @@ else
 fi
 
 echo ""
+# wait for ollama command to be available
+until command -v ollama &> /dev/null; do
+    echo "⏳ Waiting for Ollama to be available..."
+    sleep 2
+done
+echo "✅ Ollama is available."
+
+echo ""
+ollama serve
+
+echo ""
 echo "📦 Pulling recommended models (this may take some time)..."
 
 # Pull standard models
