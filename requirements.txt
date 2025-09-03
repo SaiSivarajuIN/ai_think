@@ -7,3 +7,5 @@ GPUtil
 langfuse
 setuptools
 tzdata
+tensorboard
+protobuf
