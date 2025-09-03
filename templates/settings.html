@@ -11,8 +11,20 @@
         <header class="header">
             <h1>⚙️ Settings</h1>
             <div class="header-nav">
-                <a href="/" class="nav-link" title="Back to Chat">
+                <a href="/" class="nav-link" title="New Chat">
                     <span class="material-icons">chat</span>
+                </a>
+                <a href="/history" class="nav-link" title="Chat History">
+                    <span class="material-icons">history</span>
+                </a>
+                <a href="/health" class="nav-link" title="System Health">
+                    <span class="material-icons">health_and_safety</span>
+                </a>
+                <a href="/settings" class="nav-link" title="Settings">
+                    <span class="material-icons">settings</span>
+                </a>
+                <a href="/models" class="nav-link" title="Models Hub">
+                    <span class="material-icons">hub</span>
                 </a>
             </div>
         </header>
@@ -41,6 +53,13 @@
                     </div>
                     <div class="settings-column card">
                         <h2>Langfuse Tracing (Optional)</h2>
+                        <div class="form-group toggle-group">
+                            <label for="langfuse_enabled">Enable Langfuse</label>
+                            <label class="switch">
+                                <input type="checkbox" id="langfuse_enabled" name="langfuse_enabled" {% if settings.get('langfuse_enabled') %}checked{% endif %}>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
                         <div class="form-group">
                             <label for="langfuse_public_key">Public Key</label>
                             <input type="text" id="langfuse_public_key" name="langfuse_public_key" value="{{ settings['langfuse_public_key'] }}" placeholder="pk-lf-...">
@@ -52,6 +71,28 @@
                         <div class="form-group">
                             <label for="langfuse_host">Host</label>
                             <input type="url" id="langfuse_host" name="langfuse_host" value="{{ settings['langfuse_host'] }}" placeholder="https://cloud.langfuse.com">
+                        </div>
+                    </div>
+                    <div class="settings-column card">
+                        <h2>ChromaDB Cloud (Optional)</h2>
+                        <div class="form-group toggle-group">
+                            <label for="chromadb_enabled">Enable ChromaDB</label>
+                            <label class="switch">
+                                <input type="checkbox" id="chromadb_enabled" name="chromadb_enabled" {% if settings.get('chromadb_enabled') %}checked{% endif %}>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="chroma_api_key">API Key</label>
+                            <input type="password" id="chroma_api_key" name="chroma_api_key" value="{{ settings.get('chroma_api_key', '') }}" placeholder="Enter your ChromaDB API key">
+                        </div>
+                        <div class="form-group">
+                            <label for="chroma_tenant">Tenant</label>
+                            <input type="text" id="chroma_tenant" name="chroma_tenant" value="{{ settings.get('chroma_tenant', '') }}" placeholder="default">
+                        </div>
+                        <div class="form-group">
+                            <label for="chroma_database">Database</label>
+                            <input type="text" id="chroma_database" name="chroma_database" value="{{ settings.get('chroma_database', '') }}" placeholder="default">
                         </div>
                     </div>
                 </div>

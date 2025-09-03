@@ -15,11 +15,21 @@
         <header class="header">
             <h1>{{ header_title }}</h1>
             <div class="header-nav">
-                {% for link in nav_links %}
-                <a href="{{ link.href }}" class="nav-link" title="{{ link.title }}">
-                    <span class="material-icons">{{ link.icon }}</span>
+                <a href="/" class="nav-link" title="New Chat">
+                    <span class="material-icons">chat</span>
                 </a>
-                {% endfor %}
+                <a href="/history" class="nav-link" title="Chat History">
+                    <span class="material-icons">history</span>
+                </a>
+                <a href="/health" class="nav-link" title="System Health">
+                    <span class="material-icons">health_and_safety</span>
+                </a>
+                <a href="/settings" class="nav-link" title="Settings">
+                    <span class="material-icons">settings</span>
+                </a>
+                <a href="/models" class="nav-link" title="Models Hub">
+                    <span class="material-icons">hub</span>
+                </a>
             </div>
         </header>
 

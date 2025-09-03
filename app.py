@@ -69,16 +69,12 @@ DEFAULT_SETTINGS = {
     'temperature': os.getenv("TEMPERATURE", " "),
     'top_p': os.getenv("TOP_P", " "),
     'top_k': os.getenv("TOP_K", " "),
-    'system_prompt': os.getenv("OLLAMA_SYSTEM_PROMPT", "You are a helpful assistant. Always avoid causing harm to the user. Provide clear, step‑by‑step guidance and useful information.")
+    'system_prompt': os.getenv("OLLAMA_SYSTEM_PROMPT", " ")
 }
 
-# ChromaDB Configuration
-CHROMA_API_KEY = os.getenv("CHROMA_API_KEY", " ")
-CHROMA_TENANT = os.getenv("CHROMA_TENANT", " ")
-CHROMA_DATABASE = os.getenv("CHROMA_DATABASE", " ")
 CHROMA_COLLECTION_NAME = "chat_history"
 
-chroma_client = None
+chroma_client = None    
 chroma_collection = None
 chroma_connected = False
 
@@ -126,22 +122,40 @@ def init_db():
             cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_host TEXT')
         if 'system_prompt' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN system_prompt TEXT')
+        if 'chroma_api_key' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN chroma_api_key TEXT')
+        if 'chroma_tenant' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN chroma_tenant TEXT')
+        if 'chroma_database' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN chroma_database TEXT')
+        if 'langfuse_enabled' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_enabled BOOLEAN DEFAULT 0')
+        if 'chromadb_enabled' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN chromadb_enabled BOOLEAN DEFAULT 0')
 
         cursor = db.cursor()
         cursor.execute('SELECT id FROM settings WHERE id = 1')
         if cursor.fetchone() is None:
             # First time setup, insert with defaults.
-            # Langfuse credentials are now managed exclusively via the UI.
+            # Credentials are now managed exclusively via the UI.
             public_key = ""
             secret_key = ""
             host = "https://us.cloud.langfuse.com"
-            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, system_prompt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, DEFAULT_SETTINGS['system_prompt']))
+            chroma_api_key = os.getenv("CHROMA_API_KEY", "")
+            chroma_tenant = os.getenv("CHROMA_TENANT", "")
+            chroma_database = os.getenv("CHROMA_DATABASE", "")
+            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, system_prompt, chroma_api_key, chroma_tenant, chroma_database, langfuse_enabled, chromadb_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, DEFAULT_SETTINGS['system_prompt'], chroma_api_key, chroma_tenant, chroma_database, 0, 0))
         else:
             # For existing installations, ensure langfuse columns have default values if they are NULL
+            db.execute("UPDATE settings SET chroma_api_key = '' WHERE chroma_api_key IS NULL")
+            db.execute("UPDATE settings SET chroma_tenant = '' WHERE chroma_tenant IS NULL")
+            db.execute("UPDATE settings SET chroma_database = '' WHERE chroma_database IS NULL")
             db.execute("UPDATE settings SET langfuse_public_key = '' WHERE langfuse_public_key IS NULL")
             db.execute("UPDATE settings SET langfuse_secret_key = '' WHERE langfuse_secret_key IS NULL")
             db.execute("UPDATE settings SET langfuse_host = 'https://us.cloud.langfuse.com' WHERE langfuse_host IS NULL OR langfuse_host = ''")
+            db.execute("UPDATE settings SET langfuse_enabled = 0 WHERE langfuse_enabled IS NULL")
+            db.execute("UPDATE settings SET chromadb_enabled = 0 WHERE chromadb_enabled IS NULL")
             db.execute("UPDATE settings SET system_prompt = ? WHERE system_prompt IS NULL", (DEFAULT_SETTINGS['system_prompt'],))
 
         db.commit()
@@ -168,7 +182,12 @@ def get_settings():
         'langfuse_public_key': '',
         'langfuse_secret_key': '',
         'langfuse_host': 'https://us.cloud.langfuse.com',
-        'system_prompt': DEFAULT_SETTINGS['system_prompt']
+        'system_prompt': DEFAULT_SETTINGS['system_prompt'],
+        'chroma_api_key': '',
+        'chroma_tenant': '',
+        'chroma_database': '',
+        'langfuse_enabled': False,
+        'chromadb_enabled': False
     }
 
 def save_settings(settings_dict):
@@ -181,18 +200,24 @@ def save_settings(settings_dict):
         'langfuse_public_key': str(settings_dict.get('langfuse_public_key', '')),
         'langfuse_secret_key': str(settings_dict.get('langfuse_secret_key', '')),
         'langfuse_host': str(settings_dict.get('langfuse_host', '')),
-        'system_prompt': str(settings_dict.get('system_prompt', ''))
+        'system_prompt': str(settings_dict.get('system_prompt', '')),
+        'chroma_api_key': str(settings_dict.get('chroma_api_key', '')),
+        'chroma_tenant': str(settings_dict.get('chroma_tenant', '')),
+        'chroma_database': str(settings_dict.get('chroma_database', '')),
+        'langfuse_enabled': bool(settings_dict.get('langfuse_enabled', False)),
+        'chromadb_enabled': bool(settings_dict.get('chromadb_enabled', False))
     }
 
     # Always save to SQLite as the primary fallback
     try:
         db = get_db()
         db.execute(
-            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, system_prompt = ? WHERE id = 1',
+            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, system_prompt = ?, chroma_api_key = ?, chroma_tenant = ?, chroma_database = ?, langfuse_enabled = ?, chromadb_enabled = ? WHERE id = 1',
             (
                 typed_settings['num_predict'], typed_settings['temperature'], typed_settings['top_p'], typed_settings['top_k'],
                 typed_settings['langfuse_public_key'], typed_settings['langfuse_secret_key'], typed_settings['langfuse_host'],
-                typed_settings['system_prompt']
+                typed_settings['system_prompt'], typed_settings['chroma_api_key'], typed_settings['chroma_tenant'],
+                typed_settings['chroma_database'], typed_settings['langfuse_enabled'], typed_settings['chromadb_enabled']
             )
         )
         db.commit()
@@ -224,7 +249,7 @@ def initialize_langfuse():
         secret_key = settings['langfuse_secret_key']
         host = settings['langfuse_host']
 
-        try:
+        if settings.get('langfuse_enabled'):
             if public_key and secret_key:
                 langfuse = Langfuse(
                     public_key=public_key,
@@ -239,22 +264,33 @@ def initialize_langfuse():
                     app.logger.warning("Langfuse authentication failed using DB credentials. Tracing will be disabled.")
                     langfuse_enabled = False
             else:
-                app.logger.info("Langfuse keys not provided in database, tracing disabled.")
+                app.logger.warning("Langfuse is enabled in settings, but keys are not provided. Tracing remains disabled.")
                 langfuse_enabled = False
-        except Exception as e:
-            app.logger.warning(f"An unexpected error occurred during Langfuse initialization: {e}")
+        else:
             langfuse_enabled = False
+            app.logger.info("Langfuse is disabled in settings.")
 
 def initialize_chroma():
     """Initializes the ChromaDB client and collection."""
     global chroma_client, chroma_collection, chroma_connected
-    if CHROMA_API_KEY:
+    with app.app_context():
+        settings = get_settings()
+        api_key = settings.get('chroma_api_key')
+        tenant = settings.get('chroma_tenant')
+        database = settings.get('chroma_database')
+
+    if not settings.get('chromadb_enabled'):
+        chroma_connected = False
+        app.logger.info("ChromaDB is disabled in settings. Falling back to SQLite.")
+        return
+
+    if api_key and tenant and database: # Now also checks if it's enabled
         try:
             app.logger.info("Attempting to connect to ChromaDB Cloud...")
             chroma_client = chromadb.CloudClient(
-                api_key=CHROMA_API_KEY,
-                tenant=CHROMA_TENANT,
-                database=CHROMA_DATABASE
+                api_key=api_key,
+                tenant=tenant,
+                database=database
             )
             chroma_client.heartbeat()  # Check connection
             chroma_collection = chroma_client.get_or_create_collection(name=CHROMA_COLLECTION_NAME)
@@ -267,7 +303,7 @@ def initialize_chroma():
             app.logger.warning(f"Failed to initialize ChromaDB, possibly due to invalid credentials or configuration. Error: {e}. Falling back to SQLite.")
             chroma_connected = False
     else:
-        app.logger.info("ChromaDB API key not provided. Falling back to SQLite.")
+        app.logger.warning("ChromaDB is enabled in settings, but credentials are not fully provided. Falling back to SQLite.")
         chroma_connected = False
 
 init_db()
@@ -624,6 +660,29 @@ def delete_message(message_id):
         current_app.logger.error(f"Error deleting message: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/delete_thread/<string:session_id>', methods=['DELETE'])
+def delete_thread(session_id):
+    """Deletes all messages associated with a session_id."""
+    try:
+        if chroma_connected:
+            # ChromaDB deletion by metadata filter
+            chroma_collection.delete(where={"session_id": session_id})
+            current_app.logger.info(f"User deleted thread with session ID from ChromaDB: {session_id}")
+        else:
+            # SQLite deletion
+            db = get_db()
+            db.execute('DELETE FROM messages WHERE session_id = ?', (session_id,))
+            db.commit()
+            current_app.logger.info(f"User deleted thread with session ID from SQLite: {session_id}")
+
+        return jsonify({"success": True, "message": f"Thread {session_id} deleted."})
+    except Exception as e:
+        current_app.logger.error(f"Error deleting thread {session_id}: {e}")
+        # It's good practice to return a more specific error message if possible,
+        # but for security, we'll keep it generic for the user.
+        return jsonify({"success": False, "error": "An internal error occurred while deleting the thread."}), 500
+
+
 def get_component_status(usage, total, threshold=0.9):
     """Return 'critical', 'warning', or 'stable' for a usage/total pair."""
     if usage / total >= threshold:
@@ -726,10 +785,6 @@ def health():
         page_title="System Health | Ollama Chat",
         page_id="health",
         header_title="🏥 System Health Dashboard",
-        nav_links=[
-            {"href": "/", "title": "Back to Chat", "icon": "chat"},
-            {"href": "/models", "title": "Models Hub", "icon": "hub"},
-        ],
         cpu={"count": cpu_count, "percent": cpu_percent},
         memory=memory,
         disk=disk,
@@ -749,10 +804,6 @@ def models_hub():
         page_title="Models Hub | Ollama Chat",
         page_id="models",
         header_title="📦 Models Hub",
-        nav_links=[
-            {"href": "/", "title": "Back to Chat", "icon": "chat"},
-            {"href": "/history", "title": "Chat History", "icon": "history"},
-        ],
         ollama_status=ollama_status
     )
 
@@ -821,12 +872,18 @@ def settings():
             'langfuse_public_key': request.form.get('langfuse_public_key', ''),
             'langfuse_secret_key': request.form.get('langfuse_secret_key', ''),
             'langfuse_host': request.form.get('langfuse_host', ''),
-            'system_prompt': request.form.get('system_prompt', '')
+            'system_prompt': request.form.get('system_prompt', ''),
+            'langfuse_enabled': 'langfuse_enabled' in request.form,
+            'chroma_api_key': request.form.get('chroma_api_key', ''),
+            'chroma_tenant': request.form.get('chroma_tenant', ''),
+            'chroma_database': request.form.get('chroma_database', ''),
+            'chromadb_enabled': 'chromadb_enabled' in request.form
         }
         save_settings(settings_to_save)
         current_app.logger.info(f"Settings updated: {request.form.to_dict()}")
-        # Re-initialize Langfuse with new settings
+        # Re-initialize services with new settings
         initialize_langfuse()
+        initialize_chroma()
         return redirect(url_for('settings'))
 
     # Get current settings
