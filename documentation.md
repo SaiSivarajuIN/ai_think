@@ -140,6 +140,22 @@ A comprehensive health monitoring page is now available.
     - **ChromaDB Status:** Shows whether the app is connected to ChromaDB or using the SQLite fallback.
 
 ### 2.5. Enhanced History Page (`/history`)
+A new page has been added to manage local Ollama models directly from the UI.
+
+- **Access:** Click the "Models Hub" icon (📦) on the main chat page or navigate to `/models`.
+- **Implementation:**
+    - The page is rendered by the `/models` endpoint.
+    - It uses a set of API endpoints under `/api/models` to interact with the Ollama service.
+    - `GET /api/models`: Fetches and lists all models currently available in the local Ollama instance.
+    - `POST /api/models/pull`: Streams the download progress of a new model from the Ollama library. The UI shows the status and a progress bar.
+    - `POST /api/models/delete`: Deletes a specified local model.
+- **Features:**
+    - **View Local Models:** See a list of all downloaded models, their size, and when they were last modified.
+    - **Pull New Models:** Enter a model name (e.g., `llama3:8b`) to download it from the Ollama library.
+    - **Delete Models:** Remove models you no longer need to free up disk space.
+
+
+### 2.6. Enhanced History Page (`/history`)
 
 The chat history page has been improved for better usability and correctness.
 
@@ -147,12 +163,13 @@ The chat history page has been improved for better usability and correctness.
 - **Improved Sorting:** Threads are now sorted by the timestamp of the **most recent message** in each thread, ensuring the latest conversations appear first.
 - **Timezone Handling:** All timestamps are now correctly handled and displayed in UTC for consistency, using Python's `zoneinfo` library.
 
-### 2.6. Improved Stability and Error Handling
+### 2.7. Improved Stability and Error Handling
 
 - **API Retries:** The `ollama_chat` function now includes a retry mechanism with exponential backoff. If a request fails (e.g., due to a temporary network issue or model loading), the application will automatically retry up to 3 times (waiting 1s, 2s, then 4s).
 - **Longer Timeout:** The timeout for Ollama API requests has been increased to 300 seconds (5 minutes) to accommodate slower models or long-running generation tasks.
+- **Model Deletion Fix:** The `/api/models/delete` endpoint was fixed to handle empty responses from the Ollama API upon successful deletion. This prevents a JSON parsing error on the frontend.
 
-### 2.7. Advanced Logging
+### 2.8. Advanced Logging
 
 The application's logging has been upgraded to use a `TimedRotatingFileHandler`.
 
@@ -176,6 +193,7 @@ The application's logging has been upgraded to use a `TimedRotatingFileHandler`.
 - **Chat Page (`/`):** The main interface for interacting with the model. You can select different models from the dropdown if they are available in your Ollama instance.
 - **History Page (`/history`):** View and manage past conversations.
 - **Settings Page (`/settings`):** Configure model and integration settings.
+- **Models Hub (`/models`):** View, pull, and delete local Ollama models.
 - **Health Page (`/health`):** Monitor system and service status.
 
 ## 4. File Structure
@@ -193,10 +211,12 @@ The application's logging has been upgraded to use a `TimedRotatingFileHandler`.
 │   └── app.log             # Current log file
 ├── static/                 # Static assets (CSS, JS, images)
 │   └── style.css
+│   └── models.js
 └── templates/              # HTML templates
     ├── health.html
     ├── history.html
     ├── index.html
+    ├── models.html
     └── settings.html
 ```
         ```bash

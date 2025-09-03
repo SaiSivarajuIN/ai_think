@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="fixed-layout">
+    <div class="page-container">
+        <header class="header">
+            <h1>{{ header_title }}</h1>
+            <div class="header-nav">
+                {% for link in nav_links %}
+                <a href="{{ link.href }}" class="nav-link" title="{{ link.title }}">
+                    <span class="material-icons">{{ link.icon }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </header>
+
+        <main class="page-content">
+            <div class="card">
+                <h2>Pull New Model</h2>
+                <p>Enter a model name from the <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., `llama3:8b` or `mistral`).</p>
+                <div class="form-group">
+                    <label for="model-name-input">Model Name</label>
+                    <div class="input-area" style="padding: 0; gap: 0;">
+                        <input type="text" id="model-name-input" placeholder="e.g., gemma:2b">
+                        <button id="pull-model-btn" class="send-button" title="Pull Model">
+                            <span class="material-icons">download</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="pull-status-container" class="pull-status-container" style="display: none;">
+                    <pre id="pull-status"></pre>
+                    <div class="progress-bar-container">
+                        <div id="progress-bar" class="progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Local Models</h2>
+                <p>
+                    Ollama Status:
+                    <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
+                        {{ ollama_status }}
+                    </span>
+                </p>
+                <table id="local-models-table" class="models-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Size</th>
+                            <th>Modified</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Models will be populated by JavaScript -->
+                    </tbody>
+                </table>
+                <div id="loading-models" style="text-align: center; padding: 1rem;">Loading...</div>
+            </div>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='models.js') }}"></script>
+</body>
+</html>

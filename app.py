@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
 from flask import Flask, jsonify, render_template, request, session, redirect, url_for, current_app
-
+from flask import Response, stream_with_context
 
 load_dotenv()
 
@@ -418,6 +418,13 @@ def index():
     available_models = get_ollama_models()
     return render_template(
         'index.html', 
+        page_title="AI Think | Ollama Chat",
+        page_id="chat",
+        header_title="💬 AI Think",
+        nav_links=[
+            {"href": "/history", "title": "Chat History", "icon": "history"},
+            {"href": "/models", "title": "Models Hub", "icon": "hub"},
+        ],
         model_id=OLLAMA_MODEL, 
         available_models=available_models,
         ollama_status=ollama_status,
@@ -716,6 +723,13 @@ def health():
     return render_template(
         'health.html',
         status=overall_status,
+        page_title="System Health | Ollama Chat",
+        page_id="health",
+        header_title="🏥 System Health Dashboard",
+        nav_links=[
+            {"href": "/", "title": "Back to Chat", "icon": "chat"},
+            {"href": "/models", "title": "Models Hub", "icon": "hub"},
+        ],
         cpu={"count": cpu_count, "percent": cpu_percent},
         memory=memory,
         disk=disk,
@@ -725,6 +739,76 @@ def health():
         langfuse_enabled=langfuse_enabled,
         chroma_connected=chroma_connected
     )
+
+@app.route('/models')
+def models_hub():
+    """Render the models hub page."""
+    ollama_status = "Connected" if check_ollama_connection() else "Disconnected"
+    return render_template(
+        'models.html',
+        page_title="Models Hub | Ollama Chat",
+        page_id="models",
+        header_title="📦 Models Hub",
+        nav_links=[
+            {"href": "/", "title": "Back to Chat", "icon": "chat"},
+            {"href": "/history", "title": "Chat History", "icon": "history"},
+        ],
+        ollama_status=ollama_status
+    )
+
+@app.route('/api/models', methods=['GET'])
+def api_get_models():
+    """API endpoint to get local Ollama models."""
+    if not check_ollama_connection():
+        return jsonify({"error": "Ollama service is not available."}), 503
+    try:
+        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags")
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.RequestException as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/models/pull', methods=['POST'])
+def api_pull_model():
+    """API endpoint to pull a model. Streams the response."""
+    data = request.get_json()
+    model_name = data.get('name')
+    if not model_name:
+        return Response('{"error": "Model name is required."}', status=400, mimetype='application/json')
+
+    def generate():
+        try:
+            # Use stream=True to get a streaming response from Ollama
+            pull_request = requests.post(
+                f"{OLLAMA_BASE_URL}/api/pull",
+                json={"name": model_name, "stream": True},
+                stream=True
+            )
+            pull_request.raise_for_status()
+            for line in pull_request.iter_lines():
+                if line:
+                    yield line.decode('utf-8') + '\n' # Yield each line of the JSON stream
+        except requests.RequestException as e:
+            yield f'{{"error": "Failed to pull model: {str(e)}"}}\n'
+
+    return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
+
+@app.route('/api/models/delete', methods=['POST'])
+def api_delete_model():
+    """API endpoint to delete a local model."""
+    data = request.get_json()
+    model_name = data.get('name')
+    if not model_name:
+        return jsonify({"error": "Model name is required."}), 400
+    try:
+        response = requests.delete(f"{OLLAMA_BASE_URL}/api/delete", json={"name": model_name})
+        # Check if the response has content before trying to parse it as JSON
+        if response.text:
+            return jsonify(response.json()), response.status_code
+        else:
+            return jsonify({"status": "success"}), response.status_code
+    except requests.RequestException as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -758,4 +842,3 @@ def flush_langfuse(error):
             langfuse.flush()
         except Exception as e:
             current_app.logger.warning(f"Error flushing Langfuse: {e}")
-
