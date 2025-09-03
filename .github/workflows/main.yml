@@ -39,7 +39,3 @@ jobs:
     - name: pull Ollama Model
       run: |
         ./ollamaSetup/install.sh
-    - name: Run python
-      run: |
-        python3 main.py
-      # Run your tests using pytest or any other testing framework
