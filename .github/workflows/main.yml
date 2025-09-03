@@ -35,7 +35,3 @@ jobs:
       run: |
         chmod +x ./ollamaSetup/install.sh
         ./ollamaSetup/install.sh
-    
-    - name: pull Ollama Model
-      run: |
-        ./ollamaSetup/install.sh
