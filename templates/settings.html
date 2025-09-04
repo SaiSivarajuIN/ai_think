@@ -70,6 +70,9 @@
                             <input type="url" id="langfuse_host" name="langfuse_host" value="{{ settings['langfuse_host'] }}" placeholder="https://cloud.langfuse.com">
                         </div>
                     </div>
+                    
+                </div>
+                <div class="settings-grid">
                     <div class="settings-column card">
                         <h2>ChromaDB Cloud (Optional)</h2>
                         <div class="form-group toggle-group">
@@ -92,6 +95,21 @@
                             <input type="text" id="chroma_database" name="chroma_database" value="{{ settings.get('chroma_database', '') }}" placeholder="default">
                         </div>
                     </div>
+                    <div class="settings-column card">
+                        <h2>SearXNG Integration (Optional)</h2>
+                        <div class="form-group toggle-group">
+                            <label for="searxng_enabled">Enable SearXNG</label>
+                            <label class="switch">
+                                <input type="checkbox" id="searxng_enabled" name="searxng_enabled" {% if settings.get('searxng_enabled') %}checked{% endif %}>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="searxng_url">SearXNG URL</label>
+                            <input type="url" id="searxng_url" name="searxng_url" value="{{ settings.get('searxng_url', '') }}" placeholder="http://localhost:8080">
+                        </div>
+                        <p><strong>Note</strong> http://localhost:8080 is the default</p>
+                    </div>
                 </div>
                 <div class="card">
                     <h2>Ollama System Prompt</h2>
@@ -103,17 +121,7 @@
 
                 <div class="settings-grid">
                     <div class="settings-column card">
-                        <h2>SearXNG Integration (Optional)</h2>
-                        <div class="form-group toggle-group">
-                            <label for="searxng_enabled">Enable SearXNG</label>
-                            <label class="switch">
-                                <input type="checkbox" id="searxng_enabled" name="searxng_enabled" {% if settings.get('searxng_enabled') %}checked{% endif %}>
-                                <span class="slider round"></span>
-                            </label>
-                            <label for="searxng_url">SearXNG URL</label>
-                            <input type="url" id="searxng_url" name="searxng_url" value="{{ settings.get('searxng_url', '') }}" placeholder="http://localhost:8080">
-                        </div>
-                        <p>note-http://localhost:8080 is the default</p>
+                        
                     </div>
                 </div>
 

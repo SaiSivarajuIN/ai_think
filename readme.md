@@ -27,14 +27,14 @@ You can either follow the manual instructions below or use the automated scripts
 
 #### Automated Installation (Recommended)
 
-Navigate to the `ollamaSetup` directory and run the appropriate script for your OS. These scripts will install Ollama and download the recommended models (`llama3.1`, `gemma2`, `mistral`).
+Navigate to the `setupOllama` directory and run the appropriate script for your OS. These scripts will install Ollama and download the recommended models (`llama3.1`, `gemma2`, `mistral`).
 
 - **For macOS & Linux**:
   Open a terminal, make the script executable, and run it:
-  
+
   ```bash
-  chmod +x ./ollamaSetup/ollamaSetup.sh
-  ./ollamaSetup/ollamaSetup.sh
+  chmod +x ./setupOllama.sh
+  ./setupOllama.sh
   ```
 
 #### Manual Installation
@@ -140,39 +140,26 @@ The application will be available at `http://localhost:5000`.
 
 ## 📄 Optional Features Setup
 
-### Setting Up SearXNG for Web Search
-
-#### Step 1: Clone the Repository
-
+#### Manually setting up SearXNG from
 ```bash
-git clone https://github.com/menloresearch/searxng-docker-for-mcp.git
-```
-<p> change directories to searxng-docker-for-mcp</p>
-
-```bash
-cd searxng-docker-for-mcp
+https://github.com/searxng/searxng-docker
 ```
 
-#### Step 2: Generate Security Key
-<p>For Linux/WSL:</p>
 
+#### Manually Edit searxng/settings.yml to configure SearXNG as needed.
 ```bash
-sed -i "s|ultrasecretkey|$(openssl rand -hex 32)|g" searxng/settings.yml
+  url: redis://redis:6379/0
+search:
+  formats:
+    - html
+    - json
 ```
 
-<p>For macOS:</p>
+ - <p>Your SearXNG instance will be available at http://localhost:8080 once the containers are running.</p>
+ - <p>Marke sure port 8080 is open</p>
+ - or use from [Setting Up SearXNG from Jan.ai](https://cookbook.jan.ai/articles/jan-v1/jan-v1-sear-xng-guide/)
 
-```bash
-sed -i '' "s|ultrasecretkey|$(openssl rand -hex 32)|g" searxng/settings.yml
-```
-#### Step 3: Start SearXNG
-
-```bash
-docker-compose up -d
-```
-
-<p>Your SearXNG instance will be available at http://localhost:8080 once the containers are running.</p>
-<p>Marke sure port 8080 is open</p>
+To perform a web search, type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`)
 
 ## 📄 Documentation
 

@@ -136,7 +136,8 @@ A comprehensive health monitoring page is now available.
     - **Disk:** Total, used, and free disk space for the root partition.
     - **GPU:** Detailed information for each available GPU, including name, load, memory usage, and temperature (requires `GPUtil` and NVIDIA drivers).
     - **Ollama Status:** Indicates whether the application can connect to the Ollama server via `check_ollama_connection()`.
-    - **Langfuse Status:** Indicates if tracing is enabled and authenticated.
+    - **Langfuse Status:** Shows whether the application is connected to Langfuse.
+    - **SearXNG Status:** Shows whether the application is connected to SearXNG.
     - **ChromaDB Status:** Shows whether the app is connected to ChromaDB or using the SQLite fallback.
 
 ### 2.5. Enhanced History Page (`/history`)
@@ -159,13 +160,12 @@ A new page has been added to manage local Ollama models directly from the UI.
 The application now supports web search capabilities through SearXNG, allowing the model to answer questions with up-to-date information from the internet.
 
 -   **Setup**:
-    1.  Clone the `searxng-docker-for-mcp` repository and follow its `README.md` to start the SearXNG service.
+    1.  Clone the `searxng-docker` repository and follow its `README.md` to start the SearXNG service.
     2.  Navigate to the **Settings** page (`/settings`) in the AI Think application.
     3.  Enable the "Enable SearXNG" toggle.
     4.  Ensure the SearXNG URL is correct (default is `http://localhost:8080`).
     5.  Save the settings. The connection status will be reflected on the `/health` page.
--   **Usage**:
-    -   To perform a web search, type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`).
+-   .
     -   The backend will use the configured SearXNG instance to fetch search results.
     -   The results are then formatted and prepended to your original query as context for the LLM, which will use them to formulate an answer.
 
