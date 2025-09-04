@@ -11,17 +11,17 @@ AI Think is a web-based chat application that provides a user-friendly interface
 - **Langfuse Integration**: Optional, powerful tracing and observability for your LLM interactions. Just add your credentials.
 - **Markdown & LaTeX Rendering**: Responses are rendered with support for markdown, including code blocks and LaTeX for mathematical notation.
 
-##  Prerequisites
+## 🚀 Setup and Installation
+
+Follow these steps to get the application running on your local machine.
+
+### 1. Prerequisites
 
 - Python 3.8+
 - [Ollama](https://ollama.com) installed and running.
 - (Optional) [ChromaDB](https://www.trychroma.com/) account for cloud-based history.
 
-## 🚀 Setup and Installation
-
-Follow these steps to get the application running on your local machine.
-
-### 1. Install Ollama and Pull Models
+### 2. Install Ollama
 
 You can either follow the manual instructions below or use the automated scripts.
 
@@ -29,16 +29,12 @@ You can either follow the manual instructions below or use the automated scripts
 
 Navigate to the `ollamaSetup` directory and run the appropriate script for your OS. These scripts will install Ollama and download the recommended models (`llama3.1`, `gemma2`, `mistral`).
 
-- **For Windows**:
-  Open Command Prompt and run:
-  ```batch
-  ollamaSetup/install.bat
-  ```
 - **For macOS & Linux**:
   Open a terminal, make the script executable, and run it:
+  
   ```bash
-  chmod +x ollamaSetup/install.sh
-  ./ollamaSetup/install.sh
+  chmod +x ./ollamaSetup/ollamaSetup.sh
+  ./ollamaSetup/ollamaSetup.sh
   ```
 
 #### Manual Installation
@@ -52,18 +48,27 @@ If you prefer to install manually:
 - **Windows & macOS**:
   Download from the [official Ollama website](https://ollama.com/download).
 
+### 3. Pull Models
+
 Once Ollama is running, pull the models you want to use. Here are some examples:
 
 ```bash
 ollama pull llama3.1
 ollama pull gemma2
 ollama pull mistral
+```
+
+#### Additional Recommended Models
+
+For more advanced use cases, consider these powerful models available from Hugging Face:
+
+```bash
 ollama pull hf.co/unsloth/gpt-oss-20b-GGUF:Q6_K_XL
 ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M
 ollama pull hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M
 ```
 
-### 2. Set Up Python Environment
+### 4. Set Up Python Environment
 
 It's recommended to use a virtual environment.
 
@@ -78,7 +83,7 @@ It's recommended to use a virtual environment.
   source .venv/bin/activate
   ```
 
-### 3. Install Dependencies
+### 5. Install Dependencies
 
 Install the required Python packages from `requirements.txt`:
 
@@ -86,7 +91,7 @@ Install the required Python packages from `requirements.txt`:
 pip install -r requirements.txt
 ```
 
-### 4. Configure the Application
+### 6. Configure the Application
 
 Create a `.env` file in the root directory.
 
@@ -114,7 +119,7 @@ CHROMA_TENANT=
 CHROMA_DATABASE=
 ```
 
-### 5. Run the Application
+### 7. Run the Application
 
 Start the Flask server:
 
@@ -131,6 +136,43 @@ The application will be available at `http://localhost:5000`.
 - **History**: Visit `/history` to see all your past conversations.
 - **System Health**: Go to `/health` to monitor system resources and the status of the Ollama service.
 - **Settings**: Navigate to `/settings` to configure default model parameters and set up Langfuse credentials.
+- **Web Search**: Once SearXNG is set up and enabled in Settings, type `/search` followed by your query in the chat input to get up-to-date answers from the web (e.g., `/search latest AI news`).
+
+## 📄 Optional Features Setup
+
+### Setting Up SearXNG for Web Search
+
+#### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/menloresearch/searxng-docker-for-mcp.git
+```
+<p> change directories to searxng-docker-for-mcp</p>
+
+```bash
+cd searxng-docker-for-mcp
+```
+
+#### Step 2: Generate Security Key
+<p>For Linux/WSL:</p>
+
+```bash
+sed -i "s|ultrasecretkey|$(openssl rand -hex 32)|g" searxng/settings.yml
+```
+
+<p>For macOS:</p>
+
+```bash
+sed -i '' "s|ultrasecretkey|$(openssl rand -hex 32)|g" searxng/settings.yml
+```
+#### Step 3: Start SearXNG
+
+```bash
+docker-compose up -d
+```
+
+<p>Your SearXNG instance will be available at http://localhost:8080 once the containers are running.</p>
+<p>Marke sure port 8080 is open</p>
 
 ## 📄 Documentation
 

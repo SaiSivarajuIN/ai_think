@@ -154,8 +154,38 @@ A new page has been added to manage local Ollama models directly from the UI.
     - **Pull New Models:** Enter a model name (e.g., `llama3:8b`) to download it from the Ollama library.
     - **Delete Models:** Remove models you no longer need to free up disk space.
 
+### 2.6. SearXNG Integration for Web Search
 
-### 2.6. Enhanced History Page (`/history`)
+The application now supports web search capabilities through SearXNG, allowing the model to answer questions with up-to-date information from the internet.
+
+-   **Setup**:
+    1.  Clone the `searxng-docker-for-mcp` repository and follow its `README.md` to start the SearXNG service.
+    2.  Navigate to the **Settings** page (`/settings`) in the AI Think application.
+    3.  Enable the "Enable SearXNG" toggle.
+    4.  Ensure the SearXNG URL is correct (default is `http://localhost:8080`).
+    5.  Save the settings. The connection status will be reflected on the `/health` page.
+-   **Usage**:
+    -   To perform a web search, type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`).
+    -   The backend will use the configured SearXNG instance to fetch search results.
+    -   The results are then formatted and prepended to your original query as context for the LLM, which will use them to formulate an answer.
+
+### 2.7. Enhanced History Page (`/history`)
+A new page has been added to manage local Ollama models directly from the UI.
+
+- **Access:** Click the "Models Hub" icon (📦) on the main chat page or navigate to `/models`.
+- **Implementation:**
+    - The page is rendered by the `/models` endpoint.
+    - It uses a set of API endpoints under `/api/models` to interact with the Ollama service.
+    - `GET /api/models`: Fetches and lists all models currently available in the local Ollama instance.
+    - `POST /api/models/pull`: Streams the download progress of a new model from the Ollama library. The UI shows the status and a progress bar.
+    - `POST /api/models/delete`: Deletes a specified local model.
+- **Features:**
+    - **View Local Models:** See a list of all downloaded models, their size, and when they were last modified.
+    - **Pull New Models:** Enter a model name (e.g., `llama3:8b`) to download it from the Ollama library.
+    - **Delete Models:** Remove models you no longer need to free up disk space.
+
+
+### 2.8. Enhanced History Page (`/history`)
 
 The chat history page has been improved for better usability and correctness.
 
@@ -163,13 +193,13 @@ The chat history page has been improved for better usability and correctness.
 - **Improved Sorting:** Threads are now sorted by the timestamp of the **most recent message** in each thread, ensuring the latest conversations appear first.
 - **Timezone Handling:** All timestamps are now correctly handled and displayed in UTC for consistency, using Python's `zoneinfo` library.
 
-### 2.7. Improved Stability and Error Handling
+### 2.9. Improved Stability and Error Handling
 
 - **API Retries:** The `ollama_chat` function now includes a retry mechanism with exponential backoff. If a request fails (e.g., due to a temporary network issue or model loading), the application will automatically retry up to 3 times (waiting 1s, 2s, then 4s).
 - **Longer Timeout:** The timeout for Ollama API requests has been increased to 300 seconds (5 minutes) to accommodate slower models or long-running generation tasks.
 - **Model Deletion Fix:** The `/api/models/delete` endpoint was fixed to handle empty responses from the Ollama API upon successful deletion. This prevents a JSON parsing error on the frontend.
 
-### 2.8. File Upload and Contextual Chat
+### 2.10. File Upload and Contextual Chat
 
 The application now supports uploading `.txt` files to provide context for a conversation.
 
@@ -179,7 +209,7 @@ The application now supports uploading `.txt` files to provide context for a con
     - In the `POST /generate` endpoint, if it's the first user message of a session that contains a file, the backend automatically prepends the file's content to the user's question, creating a contextual prompt for the model (e.g., "Based on the content of document X, answer question Y").
 - **User Experience:** The user receives a confirmation message in the chat when a file is successfully uploaded and can then ask questions about its content.
 
-### 2.8. Advanced Logging
+### 2.11. Advanced Logging
 
 The application's logging has been upgraded to use a `TimedRotatingFileHandler`.
 
@@ -212,11 +242,9 @@ The application's logging has been upgraded to use a `TimedRotatingFileHandler`.
 .
 ├── .env                    # Application configuration (you must create this)
 ├── .venv/                  # Python virtual environment
+├── ollamaSetup.sh          # Installer for macOS/Linux
 ├── app.py                  # Main Flask application file
 ├── chat.db                 # SQLite database for messages and settings
-├── ollamaSetup/            # Scripts to install & setup Ollama and models
-│   ├── install.bat         # Installer for Windows
-│   └── install.sh          # Installer for macOS/Linux
 ├── logger/                 # Directory for log files
 │   └── app.log             # Current log file
 ├── static/                 # Static assets (CSS, JS, images)

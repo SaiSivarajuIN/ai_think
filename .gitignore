@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# searxng-docker-for-mcp
+searxng-docker-for-mcp
+
+
 # logger files & sqlite db
 logger
 chat.db
@@ -134,7 +138,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/

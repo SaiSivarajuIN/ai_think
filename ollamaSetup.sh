@@ -36,8 +36,8 @@ echo ""
 echo "📦 Pulling recommended models (this may take some time)..."
 
 # Pull standard models
+ollama pull gemma:latest
 # ollama pull llama3:latest
-# ollama pull gemma:latest
 # ollama pull mistral:latest
 
 # Pull GGUF model from Hugging Face

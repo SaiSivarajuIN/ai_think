@@ -33,5 +33,5 @@ jobs:
 
     - name: Run Ollama Setup
       run: |
-        chmod +x ./ollamaSetup/install.sh
-        ./ollamaSetup/install.sh
+        chmod +x ./ollamaSetup.sh
+        ./ollamaSetup.sh

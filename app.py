@@ -62,6 +62,7 @@ def log_request_info():
 # Ollama Configuration
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", " ")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", " ")
+SEARXNG_URL = os.getenv("SEARXNG_URL", "http://localhost:8080")
 
 # Default settings
 DEFAULT_SETTINGS = {
@@ -69,7 +70,8 @@ DEFAULT_SETTINGS = {
     'temperature': os.getenv("TEMPERATURE", " "),
     'top_p': os.getenv("TOP_P", " "),
     'top_k': os.getenv("TOP_K", " "),
-    'system_prompt': os.getenv("OLLAMA_SYSTEM_PROMPT", " ")
+    'system_prompt': os.getenv("OLLAMA_SYSTEM_PROMPT", " "),
+    'searxng_url': SEARXNG_URL
 }
 
 CHROMA_COLLECTION_NAME = "chat_history"
@@ -132,6 +134,10 @@ def init_db():
             cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_enabled BOOLEAN DEFAULT 0')
         if 'chromadb_enabled' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN chromadb_enabled BOOLEAN DEFAULT 0')
+        if 'searxng_url' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN searxng_url TEXT')
+        if 'searxng_enabled' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN searxng_enabled BOOLEAN DEFAULT 0')
 
         cursor = db.cursor()
         cursor.execute('SELECT id FROM settings WHERE id = 1')
@@ -144,8 +150,8 @@ def init_db():
             chroma_api_key = os.getenv("CHROMA_API_KEY", "")
             chroma_tenant = os.getenv("CHROMA_TENANT", "")
             chroma_database = os.getenv("CHROMA_DATABASE", "")
-            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, system_prompt, chroma_api_key, chroma_tenant, chroma_database, langfuse_enabled, chromadb_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, DEFAULT_SETTINGS['system_prompt'], chroma_api_key, chroma_tenant, chroma_database, 0, 0))
+            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, system_prompt, chroma_api_key, chroma_tenant, chroma_database, langfuse_enabled, chromadb_enabled, searxng_url, searxng_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, DEFAULT_SETTINGS['system_prompt'], chroma_api_key, chroma_tenant, chroma_database, 0, 0, DEFAULT_SETTINGS['searxng_url'], 0))
         else:
             # For existing installations, ensure langfuse columns have default values if they are NULL
             db.execute("UPDATE settings SET chroma_api_key = '' WHERE chroma_api_key IS NULL")
@@ -157,6 +163,8 @@ def init_db():
             db.execute("UPDATE settings SET langfuse_enabled = 0 WHERE langfuse_enabled IS NULL")
             db.execute("UPDATE settings SET chromadb_enabled = 0 WHERE chromadb_enabled IS NULL")
             db.execute("UPDATE settings SET system_prompt = ? WHERE system_prompt IS NULL", (DEFAULT_SETTINGS['system_prompt'],))
+            db.execute("UPDATE settings SET searxng_url = ? WHERE searxng_url IS NULL", (DEFAULT_SETTINGS['searxng_url'],))
+            db.execute("UPDATE settings SET searxng_enabled = 0 WHERE searxng_enabled IS NULL")
 
         db.commit()
         app.logger.info("Database initialized")
@@ -187,7 +195,9 @@ def get_settings():
         'chroma_tenant': '',
         'chroma_database': '',
         'langfuse_enabled': False,
-        'chromadb_enabled': False
+        'chromadb_enabled': False,
+        'searxng_url': 'http://localhost:8080',
+        'searxng_enabled': False
     }
 
 def save_settings(settings_dict):
@@ -205,19 +215,22 @@ def save_settings(settings_dict):
         'chroma_tenant': str(settings_dict.get('chroma_tenant', '')),
         'chroma_database': str(settings_dict.get('chroma_database', '')),
         'langfuse_enabled': bool(settings_dict.get('langfuse_enabled', False)),
-        'chromadb_enabled': bool(settings_dict.get('chromadb_enabled', False))
+        'chromadb_enabled': bool(settings_dict.get('chromadb_enabled', False)),
+        'searxng_url': str(settings_dict.get('searxng_url', '')),
+        'searxng_enabled': bool(settings_dict.get('searxng_enabled', False))
     }
 
     # Always save to SQLite as the primary fallback
     try:
         db = get_db()
         db.execute(
-            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, system_prompt = ?, chroma_api_key = ?, chroma_tenant = ?, chroma_database = ?, langfuse_enabled = ?, chromadb_enabled = ? WHERE id = 1',
+            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, system_prompt = ?, chroma_api_key = ?, chroma_tenant = ?, chroma_database = ?, langfuse_enabled = ?, chromadb_enabled = ?, searxng_url = ?, searxng_enabled = ? WHERE id = 1',
             (
                 typed_settings['num_predict'], typed_settings['temperature'], typed_settings['top_p'], typed_settings['top_k'],
                 typed_settings['langfuse_public_key'], typed_settings['langfuse_secret_key'], typed_settings['langfuse_host'],
                 typed_settings['system_prompt'], typed_settings['chroma_api_key'], typed_settings['chroma_tenant'],
-                typed_settings['chroma_database'], typed_settings['langfuse_enabled'], typed_settings['chromadb_enabled']
+                typed_settings['chroma_database'], typed_settings['langfuse_enabled'], typed_settings['chromadb_enabled'],
+                typed_settings['searxng_url'], typed_settings['searxng_enabled']
             )
         )
         db.commit()
@@ -318,6 +331,21 @@ def check_ollama_connection():
     except requests.exceptions.RequestException:
         return False
 
+def check_searxng_connection():
+    """Check if SearXNG is running and accessible."""
+    settings = get_settings()
+    if not settings.get('searxng_enabled'):
+        return False
+    url = settings.get('searxng_url')
+    if not url:
+        return False
+    try:
+        # SearXNG's health endpoint or just the base URL
+        response = requests.get(url, timeout=3)
+        return response.status_code == 200
+    except requests.exceptions.RequestException:
+        return False
+
 def get_ollama_models():
     """Fetch the list of available models from the Ollama API."""
     if not check_ollama_connection():
@@ -331,6 +359,39 @@ def get_ollama_models():
     except (requests.exceptions.RequestException, ValueError) as e:
         current_app.logger.error(f"Could not fetch models from Ollama: {e}")
         return []
+
+def search_searxng(query):
+    """Perform a search using SearXNG and return formatted results."""
+    settings = get_settings()
+    if not settings.get('searxng_enabled'):
+        return "SearXNG is not enabled."
+
+    base_url = settings.get('searxng_url')
+    params = {
+        'q': query,
+        'format': 'json'
+    }
+    try:
+        response = requests.get(base_url, params=params, timeout=10)
+        response.raise_for_status()
+        results = response.json()
+        
+        if not results.get('results'):
+            return "No search results found."
+
+        # Format results for the LLM
+        formatted_results = f"Search results for '{query}':\n\n"
+        for i, result in enumerate(results['results'][:5], 1): # Top 5 results
+            formatted_results += f"{i}. {result.get('title', 'No Title')}\n"
+            formatted_results += f"   URL: {result.get('url', 'No URL')}\n"
+            formatted_results += f"   Snippet: {result.get('content', 'No snippet available.')}\n\n"
+        return formatted_results
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"SearXNG search failed: {e}")
+        return f"Error performing search: {e}"
+    except Exception as e:
+        current_app.logger.error(f"Error processing SearXNG results: {e}")
+        return "Error processing search results."
 
 def ollama_chat(messages, model, session_id=None, max_retries=3):
     """Send chat messages to Ollama API and get response with Langfuse tracing"""
@@ -533,6 +594,21 @@ def generate():
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     session_id = session['session_id']
+
+    # Handle /search command
+    if user_message.strip().startswith('/search'):
+        query = user_message.strip().replace('/search', '').strip()
+        if query:
+            current_app.logger.info(f"Performing SearXNG search for: '{query}'")
+            search_results = search_searxng(query)
+            # Prepend search results to the user's message for context
+            contextual_prompt = f"Based on the following web search results, please answer the user's question.\n\n--- SEARCH RESULTS ---\n{search_results}\n\n--- USER QUESTION ---\n{query}"
+            messages[-1]['content'] = contextual_prompt
+            # Update user_message to reflect the change for logging and storage
+            user_message = contextual_prompt
+        else:
+            # If no query, treat as a normal message
+            pass
 
     # Check if this is the first user message in a conversation that has a file.
     # We look for a "system" message (our file upload) and only one "user" message.
@@ -861,6 +937,7 @@ def health():
     
     # Check Ollama status
     ollama_status = "Connected" if check_ollama_connection() else "Disconnected"
+    searxng_status = "Connected" if check_searxng_connection() else "Disconnected"
     
     return render_template(
         'health.html',
@@ -875,7 +952,8 @@ def health():
         ollama_status=ollama_status,
         ollama_model=OLLAMA_MODEL,
         langfuse_enabled=langfuse_enabled,
-        chroma_connected=chroma_connected
+        chroma_connected=chroma_connected,
+        searxng_status=searxng_status
     )
 
 @app.route('/models')
@@ -960,7 +1038,9 @@ def settings():
             'chroma_api_key': request.form.get('chroma_api_key', ''),
             'chroma_tenant': request.form.get('chroma_tenant', ''),
             'chroma_database': request.form.get('chroma_database', ''),
-            'chromadb_enabled': 'chromadb_enabled' in request.form
+            'chromadb_enabled': 'chromadb_enabled' in request.form,
+            'searxng_url': request.form.get('searxng_url', ''),
+            'searxng_enabled': 'searxng_enabled' in request.form
         }
         save_settings(settings_to_save)
         current_app.logger.info(f"Settings updated: {request.form.to_dict()}")

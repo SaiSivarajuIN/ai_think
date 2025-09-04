@@ -102,6 +102,14 @@
                     </p>
                     <small>If connected, chat history is stored in ChromaDB. Otherwise, it falls back to the local SQLite database.</small>
                 </div>
+                <div class="card">
+                    <h2>🔍 SearXNG</h2>
+                    <p><strong>Status:</strong>
+                        <span class="status-indicator {{ 'connected' if searxng_status == 'Connected' else 'disconnected' }}">
+                            {{ searxng_status }}
+                        </span>
+                    </p>
+                </div>
             </div>
         </main>
             </div>
