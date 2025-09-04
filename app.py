@@ -467,6 +467,55 @@ def index():
         langfuse_enabled=langfuse_enabled
     )
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Handles file uploads and adds their content to the session."""
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+    session_id = session['session_id']
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    if file and file.filename.endswith('.txt'):
+        try:
+            content = file.read().decode('utf-8')
+            
+            # Store file content as a special message in the database
+            message_to_save = f"File uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
+            
+            if chroma_connected:
+                try:
+                    chroma_collection.add(
+                        documents=[message_to_save],
+                        metadatas=[{
+                            "sender": "system", # Special sender type for file context
+                            "session_id": session_id,
+                            "timestamp": datetime.now(ZoneInfo("UTC")).isoformat(),
+                            "is_file_context": True # Custom metadata flag
+                        }],
+                        ids=[str(uuid.uuid4())]
+                    )
+                except Exception as e:
+                    current_app.logger.error(f"Failed to save file context to ChromaDB: {e}")
+            else:
+                db = get_db()
+                db.execute(
+                    'INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
+                    (session_id, 'system', message_to_save)
+                )
+                db.commit()
+
+            current_app.logger.info(f"Uploaded file '{file.filename}' and stored it in the database for session {session_id}.")
+            return jsonify({"success": True, "filename": file.filename, "message": f"File '{file.filename}' uploaded. You can now ask questions about it."})
+        except Exception as e:
+            current_app.logger.error(f"Error reading uploaded file: {e}")
+            return jsonify({"error": "Failed to read file"}), 500
+    return jsonify({"error": "Invalid file type, please upload a .txt file"}), 400
+
 @app.route('/generate', methods=['POST'])
 def generate():
     if not check_ollama_connection():
@@ -479,14 +528,46 @@ def generate():
     model = data.get('model', OLLAMA_MODEL)
     messages = data['messages']
     user_message = messages[-1]['content'] if messages else ""
+
+    # Use session ID from Flask session (or generate new if not exists)
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+    session_id = session['session_id']
+
+    # Check if this is the first user message in a conversation that has a file.
+    # We look for a "system" message (our file upload) and only one "user" message.
+    user_message_count = sum(1 for m in messages if m['role'] == 'user')
+    
+    if user_message_count == 1:
+        file_context_message = None
+        if chroma_connected:
+            # This is more complex with Chroma and might require a different strategy
+            # For now, we'll rely on the frontend to build the context
+            pass
+        else:
+            db = get_db()
+            # Find the last uploaded file for this session
+            file_row = db.execute(
+                "SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1",
+                (session_id,)
+            ).fetchone()
+            if file_row:
+                file_context_message = file_row['content']
+
+        if file_context_message:
+            # Extract filename and content from the stored message
+            parts = file_context_message.split('\n\n--- CONTENT ---\n', 1)
+            if len(parts) == 2:
+                filename_line, file_content = parts
+                filename = filename_line.replace('File uploaded: ', '')
+                contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{user_message}"
+                messages[-1]['content'] = contextual_prompt
     current_app.logger.info(f"User message received for generation: '{user_message[:80]}...'")
     
     # Use session ID from Flask session (or generate new if not exists)
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     session_id = session['session_id']
-
-    start_time = time.time()
 
     db = None
     if not chroma_connected:
@@ -512,6 +593,8 @@ def generate():
             (session_id, 'user', user_message)
         )
         db.commit()
+
+    start_time = time.time()
 
     try:
         # Get AI response from Ollama with Langfuse tracing

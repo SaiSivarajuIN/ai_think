@@ -169,6 +169,16 @@ The chat history page has been improved for better usability and correctness.
 - **Longer Timeout:** The timeout for Ollama API requests has been increased to 300 seconds (5 minutes) to accommodate slower models or long-running generation tasks.
 - **Model Deletion Fix:** The `/api/models/delete` endpoint was fixed to handle empty responses from the Ollama API upon successful deletion. This prevents a JSON parsing error on the frontend.
 
+### 2.8. File Upload and Contextual Chat
+
+The application now supports uploading `.txt` files to provide context for a conversation.
+
+- **Implementation:**
+    - The main chat page (`/`) now includes an upload button that triggers a hidden file input.
+    - The `POST /upload` endpoint handles the file, reads its content, and stores it as a special "system" message in the database (SQLite or ChromaDB) associated with the current `session_id`.
+    - In the `POST /generate` endpoint, if it's the first user message of a session that contains a file, the backend automatically prepends the file's content to the user's question, creating a contextual prompt for the model (e.g., "Based on the content of document X, answer question Y").
+- **User Experience:** The user receives a confirmation message in the chat when a file is successfully uploaded and can then ask questions about its content.
+
 ### 2.8. Advanced Logging
 
 The application's logging has been upgraded to use a `TimedRotatingFileHandler`.

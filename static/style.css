@@ -585,6 +585,32 @@ input:checked + .slider:before {
     font-weight: 600;
 }
 
+.history-sender.system-sender {
+    color: #64748b;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.system-sender .material-icons {
+    font-size: 1.2rem;
+}
+
+.file-context-content {
+    background: var(--background);
+    border: 1px dashed var(--border);
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+.file-context-content strong {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
 .history-time {
     color: var(--theme-toggle-text);
     font-size: 0.8rem;
@@ -627,13 +653,16 @@ body.dark-theme .thought {
 pre, code {
     background: rgba(0, 0, 0, 0.05);
     color: var(--text);
-    border-radius: 4px;
     font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+    border-radius: 4px;
+    white-space: pre-wrap; /* Allow wrapping for preformatted text */
+    word-break: break-all;  /* Break long words/strings */
 }
 
 code {
     padding: 0.2em 0.4em;
     font-size: 0.9em;
+    word-break: break-word; /* More gentle breaking for inline code */
 }
 
 pre {
@@ -837,4 +866,29 @@ thead th {
     width: 0%;
     background-color: var(--primary);
     transition: width 0.2s ease-in-out;
+}
+
+/* Input group for model pull */
+.input-group {
+    display: flex;
+    align-items: flex-end; /* Align with send button */
+    gap: 0.75rem;
+}
+
+.input-group-input {
+    flex: 1;
+    border: 1px solid var(--border);
+    background: var(--background);
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    color: var(--text);
+    outline: none;
+    min-width: 0; /* Prevents input from overflowing flex container */
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    box-shadow: var(--shadow-sm);
+}
+
+.input-group .send-button {
+    border-radius: var(--radius-md); /* Match input radius */
 }

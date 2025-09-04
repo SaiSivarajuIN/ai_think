@@ -56,20 +56,32 @@
                         </summary>
                         <div class="thread-messages" id="thread-{{ thread.session_id }}">
                             {% for msg in thread.messages %}
-                                <div class="message-container" data-message-id="{{ msg.id }}">
-                                    <div class="history-meta">
-                                        <span class="history-sender {{ 'user-sender' if msg.sender == 'user' else 'assistant-sender' }}">
-                                            {{ '👤 You' if msg.sender == 'user' else '🤖 Bot' }}
-                                        </span>
-                                        <div class="history-actions">
-                                            <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
-                                            <button class="delete-btn icon-btn">
-                                                <span class="material-icons">delete</span>
-                                            </button>
+                                {% if msg.sender == 'system' %}
+                                    <div class="message-container system-message-container" data-message-id="{{ msg.id }}">
+                                        <div class="history-meta">
+                                            <span class="history-sender system-sender">
+                                                <span class="material-icons">description</span> File Context
+                                            </span>
+                                            <div class="history-actions">
+                                                <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
+                                            </div>
                                         </div>
+                                        <div class="history-content file-context-content">{{ msg.content }}</div>
                                     </div>
-                                    <div class="history-content">{{ msg.content }}</div>
-                                </div>
+                                {% else %}
+                                    <div class="message-container" data-message-id="{{ msg.id }}">
+                                        <div class="history-meta">
+                                            <span class="history-sender {{ 'user-sender' if msg.sender == 'user' else 'assistant-sender' }}">
+                                                {{ '👤 You' if msg.sender == 'user' else '🤖 Bot' }}
+                                            </span>
+                                            <div class="history-actions">
+                                                <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
+                                                <button class="delete-btn icon-btn" title="Delete Message"><span class="material-icons">delete</span></button>
+                                            </div>
+                                        </div>
+                                        <div class="history-content">{{ msg.content }}</div>
+                                    </div>
+                                {% endif %}
                             {% endfor %}
                         </div>
                     </details>
@@ -98,7 +110,7 @@
 
         // Render markdown for assistant messages
         document.querySelectorAll('.message-container').forEach(function(container) {
-            const senderSpan = container.querySelector('.assistant-sender');
+            const senderSpan = container.querySelector('.assistant-sender'); // Only process bot messages for markdown
             const contentDiv = container.querySelector('.history-content');
             if (senderSpan && contentDiv) {
                 // Unescape HTML to get raw markdown with <think> tags
@@ -126,6 +138,19 @@
                 } else {
                     contentDiv.innerHTML = converter.makeHtml(rawMarkdown);
                 }
+            }
+        });
+
+        // Format file context messages
+        document.querySelectorAll('.file-context-content').forEach(function(contentDiv) {
+            const rawText = contentDiv.textContent;
+            const parts = rawText.split('\n\n--- CONTENT ---\n');
+            if (parts.length === 2) {
+                const filenameLine = parts[0];
+                const fileContent = parts[1];
+                contentDiv.innerHTML = 
+                    `<strong>${filenameLine.replace('File uploaded: ', '')}</strong>` +
+                    `<pre><code>${fileContent.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>`;
             }
         });
 
@@ -163,7 +188,7 @@
         document.querySelectorAll('.delete-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const messageId = this.closest('.message-container').getAttribute('data-message-id');
-                if (messageId) {
+                if (messageId && !this.closest('.system-message-container')) { // Prevent deleting system messages
                     deleteMessage(messageId);
                 }
             });

@@ -36,12 +36,12 @@
                 <p>Enter a model name from the <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., `llama3:8b` or `mistral`).</p>
                 <div class="form-group">
                     <label for="model-name-input">Model Name</label>
-                    <div class="input-area" style="padding: 0; gap: 0;">
-                        <input type="text" id="model-name-input" placeholder="e.g., gemma:2b">
+                    <div class="input-group">
+                        <input type="text" id="model-name-input" class="input-group-input" placeholder="e.g., gemma:2b">
                         <button id="pull-model-btn" class="send-button" title="Pull Model">
-                            <span class="material-icons">download</span>
+                            <span class="material-icons">cloud_download</span>
                         </button>
-                    </div>
+                    </div>                    
                 </div>
                 <div id="pull-status-container" class="pull-status-container" style="display: none;">
                     <pre id="pull-status"></pre>

@@ -3,8 +3,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const userInput = document.getElementById('userMessage');
     const sendButton = document.getElementById('sendButton');
     const modelSelector = document.getElementById('model-selector');
+    const uploadButton = document.getElementById('uploadButton');
+    const fileInput = document.getElementById('fileUpload');
     let conversationHistory = [];
     let thinkingMessageId = null;
+    let fileContextActive = false;
 
     // Showdown converter for Markdown rendering
     const converter = new showdown.Converter({
@@ -207,10 +210,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (response.ok) {
                 conversationHistory = [];
+                fileContextActive = false;
                 chatbox.innerHTML = '';
                 addMessage('🆕 New conversation started!', false);
             }
         } catch (error) {
+            // Even if the server call fails, reset the frontend state
+            conversationHistory = [];
+            chatbox.innerHTML = '';
             console.error('Error resetting thread:', error);
             addMessage('❌ Error starting new conversation', false);
         }
@@ -315,6 +322,52 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // --- File Upload Logic ---
+    if (uploadButton && fileInput) {
+        uploadButton.addEventListener('click', () => {
+            fileInput.click(); // Trigger the hidden file input
+        });
+
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Show a temporary "uploading" message
+            const uploadingMsg = addMessage(`Uploading "${file.name}"...`, false);
+            uploadingMsg.classList.add('thinking');
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                // Remove the "uploading" message
+                uploadingMsg.remove();
+
+                if (response.ok && data.success) {
+                    // Notify user in the chatbox
+                    addMessage(`✅ **${data.message}**`, false);
+                    fileContextActive = true;
+                } else {
+                    throw new Error(data.error || 'File upload failed.');
+                }
+            } catch (error) {
+                uploadingMsg.remove();
+                addMessage(`❌ Error: ${error.message}`, false);
+            }
+            // Reset file input to allow uploading the same file again
+            event.target.value = '';
+        });
+    }
+
     // Auto-resize textarea
     userInput.addEventListener('input', function() {
         this.style.height = 'auto';
@@ -347,12 +400,22 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       // Clone the actual thread node for printing, to avoid altering the UI
-      const clone = threadDiv.cloneNode(true);
-      // Apply styles if required to preserve the chat look
+      const contentToPrint = threadDiv.cloneNode(true);
+
+      // Create a container for the PDF content
       const container = document.createElement('div');
+      container.style.padding = '20px'; // Add some padding for better layout
+      container.style.fontFamily = "'Inter', sans-serif";
+
+      // Clone and append stylesheets to the container to be printed
+      const stylesheets = document.querySelectorAll('link[rel="stylesheet"], style');
+      stylesheets.forEach(sheet => {
+        container.appendChild(sheet.cloneNode(true));
+      });
 
       // Create and style the header
       const header = document.createElement('div');
+      // Use existing CSS classes for consistency if possible, or inline styles
       header.style.borderBottom = '2px solid #ccc';
       header.style.paddingBottom = '10px';
       header.style.marginBottom = '20px';
@@ -364,35 +427,35 @@ document.addEventListener('DOMContentLoaded', function() {
       container.appendChild(header);
 
       // Add the chat content
-      container.appendChild(clone);
+      container.appendChild(contentToPrint);
 
       // Create and style the footer
       const footer = document.createElement('div');
       footer.style.borderTop = '2px solid #ccc';
       footer.style.paddingTop = '10px';
       footer.style.marginTop = '20px';
-      footer.style.textAlign = 'center';
-      footer.style.fontSize = '10pt';
+      footer.style.textAlign = 'right';
+      footer.style.fontSize = '10pt'; // 10pt is roughly 3.5mm, which is a good readable size.
       footer.textContent = `Generated on: ${new Date().toLocaleString()}`;
       container.appendChild(footer);
 
       // Remove delete buttons from the clone so they don't appear in the PDF
-      clone.querySelectorAll('.delete-btn').forEach(button => button.remove());
+      contentToPrint.querySelectorAll('.delete-btn, .delete-thread-btn, .download-pdf-btn').forEach(button => button.remove());
 
       // Wait for MathJax rendering if present
       if(window.MathJax && MathJax.typesetPromise){
-        await MathJax.typesetPromise([clone]);
+        await MathJax.typesetPromise([contentToPrint]);
       }
 
       // Set font size for PDF
-      container.style.fontSize = '12pt';
+      container.style.fontSize = '10pt'; // Adjusted for better fit on A4
 
       // Download PDF
       html2pdf().from(container).set({
-        margin: 10,
+        margin: 15,
         filename: `chat-thread-${sessionId}.pdf`,
-        html2canvas: { scale: 2 },
-        jsPDF: { orientation: 'portrait', format: 'a3' }
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a2', compressPDF: true }
       }).save();
     }
   });
