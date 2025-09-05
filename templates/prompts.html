@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Hub | Ollama Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        .prompt-hub-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .prompt-card, .add-prompt-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-sm);
+            height: 400px;
+            transition: all 0.2s ease;
+        }
+        .prompt-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .prompt-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        .prompt-card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .prompt-card-title .icon {
+            font-size: 1.5rem;
+        }
+        .prompt-card-actions .icon-btn {
+            color: var(--theme-toggle-text);
+        }
+        .prompt-card-content {
+            flex-grow: 1;
+            color: var(--text);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: var(--background);
+            overflow-y: auto;
+            padding: 1rem;
+            border-radius: var(--radius-md);
+        }
+        .add-prompt-card {
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border-style: dashed;
+        }
+        .add-prompt-card .material-icons {
+            font-size: 3rem;
+            color: var(--primary);
+        }
+        .add-prompt-card p {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-top: 0.5rem;
+        }
+        /* Modal styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: var(--card); margin: 10% auto; padding: 2rem; border: 1px solid var(--border); width: 80%; max-width: 600px; border-radius: var(--radius-lg); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .modal-header h2 { margin: 0; }
+        .close-btn { color: var(--text); font-size: 28px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body class="fixed-layout">
+    <div class="page-container">
+        <header class="header">
+            <h1>🚀 Prompt Hub</h1>
+            <div class="header-nav">
+                <a href="/" class="nav-link" title="Chat"><span class="material-icons">chat</span></a>
+                <a href="/history" class="nav-link" title="History"><span class="material-icons">history</span></a>
+                <a href="/health" class="nav-link" title="Health"><span class="material-icons">health_and_safety</span></a>
+                <a href="/settings" class="nav-link" title="Settings"><span class="material-icons">settings</span></a>
+                <a href="/models" class="nav-link" title="Models Hub"><span class="material-icons">hub</span></a>
+            </div>
+        </header>
+        <main class="page-content">
+            <div id="prompt-hub-grid" class="prompt-hub-grid">
+                <!-- Prompts will be loaded here by JavaScript -->
+                <div class="add-prompt-card" id="add-prompt-btn">
+                    <span class="material-icons">add_circle</span>
+                    <p>Create New Prompt</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Prompt Modal -->
+    <div id="prompt-modal" class="modal">
+        <div class="modal-content">
+            <input type="hidden" id="prompt-id" name="prompt_id">
+            <div class="modal-header">
+                <h2 id="modal-title">Create New Prompt</h2>
+                <span class="close-btn">&times;</span>
+            </div>
+            <form id="prompt-form" class="settings-form" style="gap: 1rem;">
+                <div class="form-group">
+                    <label for="prompt-title">Title</label>
+                    <input type="text" id="prompt-title" name="title" required placeholder="e.g., Python Code Reviewer">
+                </div>
+                <div class="form-group">
+                    <label for="prompt-type">Type</label>
+                    <select id="prompt-type" name="type" class="model-selector" style="width: 100%;">
+                        <option value="Text">📄 Text</option>
+                        <option value="Image">🖼️ Image</option>
+                        <option value="Research">🔬 Research</option>
+                        <option value="Code">💻 Code</option>
+                        <option value="Creative">🎨 Creative</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="prompt-content">Prompt Content</label>
+                    <textarea id="prompt-content" name="content" rows="8" required placeholder="You are an expert code reviewer..."></textarea>
+                </div>
+                <button type="submit" class="save-btn">Save Prompt</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='prompts.js') }}"></script>
+</body>
+</html>

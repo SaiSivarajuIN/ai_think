@@ -186,6 +186,22 @@ The application now supports web search capabilities through SearXNG, allowing t
     - The results are then formatted and prepended to your original query as context for the LLM, which will use them to formulate an answer.
 
 
+### 3.7. Prompts Hub (`/prompts`)
+
+A centralized hub for creating, managing, and using reusable prompts.
+
+-   **Access:** Click the "Prompt Hub" icon (🚀) on the main chat page or navigate to `/prompts`.
+-   **Implementation:**
+    -   The page is rendered by the `/prompts` endpoint.
+    -   It uses a set of API endpoints under `/api/prompts` to interact with the `prompts` table in the SQLite database.
+    -   `GET /api/prompts`: Fetches all saved prompts.
+    -   `POST /api/prompts/create`: Creates a new prompt.
+    -   `POST /api/prompts/update/<id>`: Updates an existing prompt.
+    -   `DELETE /api/prompts/delete/<id>`: Deletes a prompt.
+-   **Features:**
+    -   **Create and Edit Prompts:** A modal form allows users to create or edit prompts, giving them a title, type (e.g., Code, Research), and content.
+    -   **Use Prompts in Chat:** On the main chat page, a "Select a Prompt" dropdown allows users to instantly load a prompt's content as a system message for the current conversation.
+
 ### 3.7. History Page (`/history`)
 
 The chat history page has been improved for better usability and correctness.
@@ -254,6 +270,10 @@ The application now supports uploading `.txt` files to provide context for a con
 | `GET`  | `/api/models`               | Fetches and lists all models currently available in the local Ollama instance.                          |
 | `POST` | `/api/models/pull`          | Streams the download progress of a new model from the Ollama library.                                   |
 | `POST` | `/api/models/delete`        | Deletes a specified local model.                                                                        |
+| `GET`  | `/api/prompts`              | Fetches all saved prompts from the database.                                                            |
+| `POST` | `/api/prompts/create`       | Creates a new prompt in the database.                                                                   |
+| `POST` | `/api/prompts/update/<id>`  | Updates an existing prompt by its ID.                                                                   |
+| `DELETE`| `/api/prompts/delete/<id>`  | Deletes a specific prompt from the database by its ID.                                                  |
 
 ## 6. Frontend
 

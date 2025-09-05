@@ -102,6 +102,15 @@ def init_db():
             )
         ''')
         db.execute('''
+            CREATE TABLE IF NOT EXISTS prompts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        db.execute('''
             CREATE TABLE IF NOT EXISTS settings (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 num_predict INTEGER NOT NULL,
@@ -122,8 +131,6 @@ def init_db():
             cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_secret_key TEXT')
         if 'langfuse_host' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_host TEXT')
-        if 'system_prompt' not in column_names:
-            cursor.execute('ALTER TABLE settings ADD COLUMN system_prompt TEXT')
         if 'chroma_api_key' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN chroma_api_key TEXT')
         if 'chroma_tenant' not in column_names:
@@ -138,6 +145,14 @@ def init_db():
             cursor.execute('ALTER TABLE settings ADD COLUMN searxng_url TEXT')
         if 'searxng_enabled' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN searxng_enabled BOOLEAN DEFAULT 0')
+        
+        # Migration: Drop system_prompt if it exists
+        if 'system_prompt' in column_names:
+            app.logger.info("Migrating database: Dropping 'system_prompt' column from 'settings' table.")
+            # SQLite doesn't support DROP COLUMN directly in older versions.
+            # A more robust migration would recreate the table, but for this project, we assume a modern SQLite version or that this is acceptable.
+            # For simplicity, we'll just ignore it going forward. A proper migration is complex.
+            # A better approach is to not select it anymore.
 
         cursor = db.cursor()
         cursor.execute('SELECT id FROM settings WHERE id = 1')
@@ -150,8 +165,8 @@ def init_db():
             chroma_api_key = os.getenv("CHROMA_API_KEY", "")
             chroma_tenant = os.getenv("CHROMA_TENANT", "")
             chroma_database = os.getenv("CHROMA_DATABASE", "")
-            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, system_prompt, chroma_api_key, chroma_tenant, chroma_database, langfuse_enabled, chromadb_enabled, searxng_url, searxng_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, DEFAULT_SETTINGS['system_prompt'], chroma_api_key, chroma_tenant, chroma_database, 0, 0, DEFAULT_SETTINGS['searxng_url'], 0))
+            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, chroma_api_key, chroma_tenant, chroma_database, langfuse_enabled, chromadb_enabled, searxng_url, searxng_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, chroma_api_key, chroma_tenant, chroma_database, 0, 0, DEFAULT_SETTINGS['searxng_url'], 0))
         else:
             # For existing installations, ensure langfuse columns have default values if they are NULL
             db.execute("UPDATE settings SET chroma_api_key = '' WHERE chroma_api_key IS NULL")
@@ -162,7 +177,6 @@ def init_db():
             db.execute("UPDATE settings SET langfuse_host = 'https://us.cloud.langfuse.com' WHERE langfuse_host IS NULL OR langfuse_host = ''")
             db.execute("UPDATE settings SET langfuse_enabled = 0 WHERE langfuse_enabled IS NULL")
             db.execute("UPDATE settings SET chromadb_enabled = 0 WHERE chromadb_enabled IS NULL")
-            db.execute("UPDATE settings SET system_prompt = ? WHERE system_prompt IS NULL", (DEFAULT_SETTINGS['system_prompt'],))
             db.execute("UPDATE settings SET searxng_url = ? WHERE searxng_url IS NULL", (DEFAULT_SETTINGS['searxng_url'],))
             db.execute("UPDATE settings SET searxng_enabled = 0 WHERE searxng_enabled IS NULL")
 
@@ -190,7 +204,6 @@ def get_settings():
         'langfuse_public_key': '',
         'langfuse_secret_key': '',
         'langfuse_host': 'https://us.cloud.langfuse.com',
-        'system_prompt': DEFAULT_SETTINGS['system_prompt'],
         'chroma_api_key': '',
         'chroma_tenant': '',
         'chroma_database': '',
@@ -210,7 +223,6 @@ def save_settings(settings_dict):
         'langfuse_public_key': str(settings_dict.get('langfuse_public_key', '')),
         'langfuse_secret_key': str(settings_dict.get('langfuse_secret_key', '')),
         'langfuse_host': str(settings_dict.get('langfuse_host', '')),
-        'system_prompt': str(settings_dict.get('system_prompt', '')),
         'chroma_api_key': str(settings_dict.get('chroma_api_key', '')),
         'chroma_tenant': str(settings_dict.get('chroma_tenant', '')),
         'chroma_database': str(settings_dict.get('chroma_database', '')),
@@ -224,12 +236,12 @@ def save_settings(settings_dict):
     try:
         db = get_db()
         db.execute(
-            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, system_prompt = ?, chroma_api_key = ?, chroma_tenant = ?, chroma_database = ?, langfuse_enabled = ?, chromadb_enabled = ?, searxng_url = ?, searxng_enabled = ? WHERE id = 1',
+            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, chroma_api_key = ?, chroma_tenant = ?, chroma_database = ?, langfuse_enabled = ?, chromadb_enabled = ?, searxng_url = ?, searxng_enabled = ? WHERE id = 1',
             (
                 typed_settings['num_predict'], typed_settings['temperature'], typed_settings['top_p'], typed_settings['top_k'],
                 typed_settings['langfuse_public_key'], typed_settings['langfuse_secret_key'], typed_settings['langfuse_host'],
-                typed_settings['system_prompt'], typed_settings['chroma_api_key'], typed_settings['chroma_tenant'],
-                typed_settings['chroma_database'], typed_settings['langfuse_enabled'], typed_settings['chromadb_enabled'],
+                typed_settings['chroma_api_key'], typed_settings['chroma_tenant'], typed_settings['chroma_database'], 
+                typed_settings['langfuse_enabled'], typed_settings['chromadb_enabled'],
                 typed_settings['searxng_url'], typed_settings['searxng_enabled']
             )
         )
@@ -396,16 +408,15 @@ def search_searxng(query):
 def ollama_chat(messages, model, session_id=None, max_retries=3):
     """Send chat messages to Ollama API and get response with Langfuse tracing"""
     
-    settings = get_settings()
-    system_prompt = settings.get('system_prompt', '').strip()
+    settings = get_settings()    
     
     for attempt in range(max_retries):
         try:
-            # Prepend system prompt if it exists
-            final_messages = []
-            if system_prompt:
-                final_messages.append({"role": "system", "content": system_prompt})
-            final_messages.extend(messages)
+            # The system prompt is now part of the conversation history
+            # managed by the frontend, so we don't need to prepend it here.
+            # The first message can be a system prompt.
+            final_messages = messages
+            
             
             payload = {
                 "model": model,
@@ -513,6 +524,15 @@ thread_manager = ThreadManager()
 def index():
     ollama_status = "Connected" if check_ollama_connection() else "Disconnected"
     available_models = get_ollama_models()
+    
+    # Fetch prompts for the dropdown
+    prompts = []
+    try:
+        db = get_db()
+        prompts = db.execute('SELECT id, title, content FROM prompts ORDER BY title ASC').fetchall()
+    except Exception as e:
+        current_app.logger.error(f"Could not fetch prompts for index page: {e}")
+
     return render_template(
         'index.html', 
         page_title="AI Think | Ollama Chat",
@@ -525,7 +545,8 @@ def index():
         model_id=OLLAMA_MODEL, 
         available_models=available_models,
         ollama_status=ollama_status,
-        langfuse_enabled=langfuse_enabled
+        langfuse_enabled=langfuse_enabled,
+        prompts=prompts
     )
 
 @app.route('/upload', methods=['POST'])
@@ -1033,7 +1054,6 @@ def settings():
             'langfuse_public_key': request.form.get('langfuse_public_key', ''),
             'langfuse_secret_key': request.form.get('langfuse_secret_key', ''),
             'langfuse_host': request.form.get('langfuse_host', ''),
-            'system_prompt': request.form.get('system_prompt', ''),
             'langfuse_enabled': 'langfuse_enabled' in request.form,
             'chroma_api_key': request.form.get('chroma_api_key', ''),
             'chroma_tenant': request.form.get('chroma_tenant', ''),
@@ -1053,6 +1073,77 @@ def settings():
     current_settings = get_settings()
     
     return render_template('settings.html', settings=current_settings)
+
+# --- Prompt Hub Endpoints ---
+
+@app.route('/prompts')
+def prompts_hub():
+    """Render the prompts hub page."""
+    return render_template(
+        'prompts.html',
+        page_title="Prompt Hub | Ollama Chat",
+        page_id="prompts",
+        header_title="🚀 Prompt Hub"
+    )
+
+@app.route('/api/prompts', methods=['GET'])
+def api_get_prompts():
+    """API endpoint to get all prompts."""
+    try:
+        db = get_db()
+        prompts_cursor = db.execute('SELECT id, title, type, content, timestamp FROM prompts ORDER BY timestamp DESC').fetchall()
+        prompts = [dict(row) for row in prompts_cursor]
+        return jsonify(prompts)
+    except Exception as e:
+        current_app.logger.error(f"Error fetching prompts: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/prompts/create', methods=['POST'])
+def api_create_prompt():
+    """API endpoint to create a new prompt."""
+    data = request.get_json()
+    title = data.get('title')
+    prompt_type = data.get('type')
+    content = data.get('content')
+
+    if not all([title, prompt_type, content]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    try:
+        db = get_db()
+        cursor = db.execute('INSERT INTO prompts (title, type, content) VALUES (?, ?, ?)', (title, prompt_type, content))
+        db.commit()
+        return jsonify({"success": True, "id": cursor.lastrowid}), 201
+    except Exception as e:
+        current_app.logger.error(f"Error creating prompt: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/prompts/update/<int:prompt_id>', methods=['POST'])
+def api_update_prompt(prompt_id):
+    """API endpoint to update an existing prompt."""
+    data = request.get_json()
+    title = data.get('title')
+    prompt_type = data.get('type')
+    content = data.get('content')
+
+    if not all([title, prompt_type, content]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    try:
+        db = get_db()
+        db.execute('UPDATE prompts SET title = ?, type = ?, content = ? WHERE id = ?', (title, prompt_type, content, prompt_id))
+        db.commit()
+        return jsonify({"success": True, "id": prompt_id})
+    except Exception as e:
+        current_app.logger.error(f"Error updating prompt {prompt_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/prompts/delete/<int:prompt_id>', methods=['DELETE'])
+def api_delete_prompt(prompt_id):
+    db = get_db()
+    db.execute('DELETE FROM prompts WHERE id = ?', (prompt_id,))
+    db.commit()
+    return jsonify({'success': True})
 
 # Langfuse flush on app shutdown
 @app.teardown_appcontext

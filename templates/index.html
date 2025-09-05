@@ -50,8 +50,25 @@
                         {% endif %}
                     </select>
                 </div>
+                <div class="model-selector-wrapper">
+                    <label for="prompt-selector" class="visually-hidden">Prompt:</label>
+                    <select id="prompt-selector" class="model-selector">
+                        <option value="" data-content="">🚀 Select a Prompt...</option>
+                        {% for prompt in prompts %}
+                            <option value="{{ prompt.id }}" data-content="{{ prompt.content | e }}">
+                                {{ prompt.title }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <button onclick="resetThread()" class="nav-link" title="New Chat">
                     <span class="material-icons">add_comment</span>
+                </button>
+                <button id="search-button" class="nav-link" title="Web Search">
+                    <span class="material-icons">search</span>
+                </button>
+                <button id="search-button" class="nav-link" title="Web Search">
+                    <span class="material-icons">search</span>
                 </button>
                 <a href="/history" class="nav-link" title="Chat History">
                     <span class="material-icons">history</span>
@@ -64,6 +81,9 @@
                 </a>
                 <a href="/models" class="nav-link" title="Models Hub">
                     <span class="material-icons">hub</span>
+                </a>
+                <a href="/prompts" class="nav-link" title="Prompt Hub">
+                    <span class="material-icons">apps</span>
                 </a>
             </div>
         </header>

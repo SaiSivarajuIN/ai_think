@@ -138,7 +138,7 @@ The application will be available at `http://localhost:5000`.
 - **History**: Visit `/history` to see all your past conversations.
 - **System Health**: Go to `/health` to monitor system resources and the status of the Ollama service.
 - **Settings**: Navigate to `/settings` to configure default model parameters and set up Langfuse credentials.
-- **Web Search**: Once SearXNG is set up and enabled in Settings, type `/search` followed by your query in the chat input to get up-to-date answers from the web (e.g., `/search latest AI news`).
+- **Web Search**: Once SearXNG is set up and enabled in Settings, click the 🔍 icon or type `/search` followed by your query in the chat input to get up-to-date answers from the web (e.g., `/search latest AI news`).
 
 ## 📄 Optional Features Setup
 
@@ -161,7 +161,7 @@ docker compose up -d
  - <p>Your SearXNG instance will be available at http://127.0.0.1:8080 once the containers are running.</p>
  - <p>Marke sure port 8080 is open</p>
 
-To perform a web search, type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`)
+To perform a web search, click the 🔍 icon or type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`).
 
 ## 📄 Documentation
 

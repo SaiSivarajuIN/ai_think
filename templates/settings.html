@@ -23,6 +23,9 @@
                 <a href="/models" class="nav-link" title="Models Hub">
                     <span class="material-icons">hub</span>
                 </a>
+                <a href="/prompts" class="nav-link" title="Prompt Hub">
+                    <span class="material-icons">apps</span>
+                </a>
             </div>
         </header>
         <main class="page-content">
@@ -111,14 +114,6 @@
                         <p><strong>Note</strong> http://localhost:8080 is the default</p>
                     </div>
                 </div>
-                <div class="card">
-                    <h2>Ollama System Prompt</h2>
-                    <div class="form-group">
-                        <label for="system_prompt">This prompt is sent to the model before your first message in a new conversation.</label>
-                        <textarea id="system_prompt" name="system_prompt" rows="5" placeholder="e.g., You are a helpful assistant.">{{ settings.get('system_prompt', '') }}</textarea>
-                    </div>
-                </div>
-
                 <div class="settings-grid">
                     <div class="settings-column card">
                         

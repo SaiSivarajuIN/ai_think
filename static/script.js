@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const modelSelector = document.getElementById('model-selector');
     const uploadButton = document.getElementById('uploadButton');
     const fileInput = document.getElementById('fileUpload');
+    const promptSelector = document.getElementById('prompt-selector');
+    const searchButton = document.getElementById('search-button');
     let conversationHistory = [];
     let thinkingMessageId = null;
     let fileContextActive = false;
@@ -46,6 +48,44 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update the stored value whenever the user changes the selection.
         modelSelector.addEventListener('change', function() {
             localStorage.setItem('selectedOllamaModel', this.value);
+        });
+    }
+
+    // If the prompt selector exists, listen for changes to apply the prompt
+    if (promptSelector) {
+        promptSelector.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const promptContent = selectedOption.dataset.content;
+            if (promptContent) {
+                // Clear existing history and add the selected prompt as the system message
+                conversationHistory = [{ role: 'system', content: promptContent }];
+                chatbox.innerHTML = ''; // Clear the visual chat
+                addMessage(`🚀 **Prompt Activated:** ${selectedOption.textContent}`, false);
+            }
+        });
+    }
+
+    // If the search button exists, add a click listener to focus the input
+    // and pre-fill the search command.
+    if (searchButton && userInput) {
+        searchButton.addEventListener('click', function() {
+            userInput.focus();
+            // Only add the command if the input is empty to avoid overwriting user text
+            if (userInput.value.trim() === '') {
+                userInput.value = '/search ';
+            }
+        });
+    }
+
+    // If the search button exists, add a click listener to focus the input
+    // and pre-fill the search command.
+    if (searchButton && userInput) {
+        searchButton.addEventListener('click', function() {
+            userInput.focus();
+            // Only add the command if the input is empty to avoid overwriting user text
+            if (userInput.value.trim() === '') {
+                userInput.value = '/search ';
+            }
         });
     }
 
@@ -171,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
+                body: JSON.stringify({ 
                     messages: conversationHistory,
                     model: selectedModel
                 })
