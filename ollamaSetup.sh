@@ -8,7 +8,7 @@ set -e
 echo "🔍 Checking for Ollama installation..."
 if ! command -v ollama &> /dev/null; then
     echo "⬇️ Ollama not found. Installing..."
-    curl -fsSL https://ollama.ai/install.sh | sh
+    curl -fsSL https://ollama.com/install.sh | sh
 else
     echo "✅ Ollama is already installed."
 fi

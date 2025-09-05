@@ -1,6 +1,6 @@
 This document provides detailed technical information about the Ollama Chat application, its setup, features, and recent changes. The application is a web-based chat interface built with Flask that connects to a local Ollama instance to provide generative AI responses.
 
-## 1. Installation & Setup
+## 1. Installation and Setup
 
 Follow these steps to get the application running locally.
 
@@ -12,12 +12,12 @@ Follow these steps to get the application running locally.
 
 ### 1.2. Application Setup
 
-1.  **Clone the repository:**
+1.  **Clone the Repository:**
     ```bash
-    git clone <repository-url>
-    cd <repository-directory>
+    git clone https://github.com/SaiSivarajuIN/ai_think.git
+    cd ai_think
     ```
-2.  **Create and activate a virtual environment:**
+2.  **Create and Activate a Virtual Environment:**
     ```bash
     # For Windows
     python -m venv .venv
@@ -27,7 +27,7 @@ Follow these steps to get the application running locally.
     python3 -m venv .venv
     source .venv/bin/activate
     ```
-3.  **Install dependencies:**
+3.  **Install Dependencies:**
     (Based on `requirements.txt`)
     ```bash
     pip install -r requirements.txt
@@ -45,7 +45,7 @@ The application requires a running Ollama instance to function.
     You can replace `llama3` with any other model you prefer (e.g., `mistral`, `gemma`).
 3.  **Ensure Ollama is running:** The Ollama service should be running in the background. You can verify this by checking your system's task manager or by running `ollama list` in the terminal.
 
-### 1.4. Application Configuration
+### 1.4. Environment Configuration
 
 The application is configured using a `.env` file in the project root.
 
@@ -58,7 +58,7 @@ The application is configured using a `.env` file in the project root.
     # URL of your running Ollama instance
     OLLAMA_BASE_URL=http://localhost:11434
 
-    # The default model to use for chat
+    # The default model to use for chat (e.g., llama3, llama3.1)
     OLLAMA_MODEL=llama3
 
     # Default model parameters (these can be changed in the UI)
@@ -67,24 +67,41 @@ The application is configured using a `.env` file in the project root.
     TOP_P=0.9
     TOP_K=40
 
+    # Optional: Langfuse credentials for tracing
+    LANGFUSE_SECRET_KEY=your_langfuse_secret_key
+    LANGFUSE_PUBLIC_KEY=your_langfuse_public_key
+    LANGFUSE_HOST=https://cloud.langfuse.com
+
     # Optional: ChromaDB Cloud credentials for persistent vector storage
     CHROMA_API_KEY=
     CHROMA_TENANT=
     CHROMA_DATABASE=
     ```
 
-### 1.5. Database Initialization
+### 1.5. Database and Logging
 
 The application uses an SQLite database (`chat.db`).
 
 - The database and its tables (`messages`, `settings`) are created and initialized automatically the first time you run the application via `init_db()`.
 - The system handles database migrations automatically. For example, when Langfuse support was added, the `langfuse_public_key`, `langfuse_secret_key`, and `langfuse_host` columns were added to the `settings` table without manual intervention.
 - On first run, it populates the `settings` table with values from the `.env` file.
+- **Logging:** The application's logging uses a `TimedRotatingFileHandler`.
+    - **Location:** Logs are stored in the `logger/` directory.
+    - **Rotation:** A new log file (`app.log.YYYY-MM-DD.txt`) is created every day at midnight. Old logs are kept for 30 days (`backupCount=30`).
+    - **Content:** Logs include detailed information about incoming requests, application events, and errors, with timestamps and file/line numbers for easier debugging.
 
-## 2. New Features and Changes (Technical View)
+## 2. Running the Application
 
-### 2.1. Settings Page (`/settings`)
+1.  Ensure your virtual environment is activated and you are in the project root directory.
+2.  Run the Flask application:
+    ```bash
+    python app.py
+    ```
+3.  Open your web browser and navigate to `http://localhost:5000`.
 
+## 3. Features and Technical Details
+
+### 3.1. Settings Page (`/settings`)
 A new settings page has been added to provide runtime configuration of the application.
 
 - **Access:** Click the "Settings" icon (⚙️) on the main chat page or navigate to `/settings`.
@@ -100,7 +117,7 @@ A new settings page has been added to provide runtime configuration of the appli
         - `Top K` (`top_k`)
     - **Langfuse Tracing:** Configure credentials for observability.
 
-### 2.2. Langfuse Tracing Integration
+### 3.2. Langfuse Tracing Integration
 
 The application is now integrated with Langfuse for detailed tracing and observability of chat interactions.
 
@@ -111,8 +128,7 @@ The application is now integrated with Langfuse for detailed tracing and observa
     - To allow for runtime updates, it correctly shuts down and resets the Langfuse client singleton before re-initializing.
 - **Status:** The Langfuse connection status (`langfuse_enabled`) is displayed on the main chat page and the health page.
 
-### 2.3. System Health Page (`/health`)
-### 2.3. ChromaDB Integration for Persistent Storage
+### 3.3. ChromaDB Integration for Persistent Storage
 
 The application now supports ChromaDB as an optional, more scalable backend for storing chat history and application settings.
 
@@ -123,7 +139,7 @@ The application now supports ChromaDB as an optional, more scalable backend for 
     - **Application Settings:** Model parameters and Langfuse credentials are saved to a `app_settings` collection, ensuring they persist across application restarts.
 - **Status Indicator:** The connection status to ChromaDB is clearly displayed on the `/health` page.
 
-### 2.4. System Health Page (`/health`)
+### 3.4. System Health Page (`/health`)
 
 A comprehensive health monitoring page is now available.
 
@@ -140,7 +156,7 @@ A comprehensive health monitoring page is now available.
     - **SearXNG Status:** Shows whether the application is connected to SearXNG.
     - **ChromaDB Status:** Shows whether the app is connected to ChromaDB or using the SQLite fallback.
 
-### 2.5. Enhanced History Page (`/history`)
+### 3.5. Models Hub (`/models`)
 A new page has been added to manage local Ollama models directly from the UI.
 
 - **Access:** Click the "Models Hub" icon (📦) on the main chat page or navigate to `/models`.
@@ -155,7 +171,7 @@ A new page has been added to manage local Ollama models directly from the UI.
     - **Pull New Models:** Enter a model name (e.g., `llama3:8b`) to download it from the Ollama library.
     - **Delete Models:** Remove models you no longer need to free up disk space.
 
-### 2.6. SearXNG Integration for Web Search
+### 3.6. SearXNG Integration for Web Search
 
 The application now supports web search capabilities through SearXNG, allowing the model to answer questions with up-to-date information from the internet.
 
@@ -166,26 +182,11 @@ The application now supports web search capabilities through SearXNG, allowing t
     4.  Ensure the SearXNG URL is correct (default is `http://localhost:8080`).
     5.  Save the settings. The connection status will be reflected on the `/health` page.
 -   .
-    -   The backend will use the configured SearXNG instance to fetch search results.
-    -   The results are then formatted and prepended to your original query as context for the LLM, which will use them to formulate an answer.
-
-### 2.7. Enhanced History Page (`/history`)
-A new page has been added to manage local Ollama models directly from the UI.
-
-- **Access:** Click the "Models Hub" icon (📦) on the main chat page or navigate to `/models`.
-- **Implementation:**
-    - The page is rendered by the `/models` endpoint.
-    - It uses a set of API endpoints under `/api/models` to interact with the Ollama service.
-    - `GET /api/models`: Fetches and lists all models currently available in the local Ollama instance.
-    - `POST /api/models/pull`: Streams the download progress of a new model from the Ollama library. The UI shows the status and a progress bar.
-    - `POST /api/models/delete`: Deletes a specified local model.
-- **Features:**
-    - **View Local Models:** See a list of all downloaded models, their size, and when they were last modified.
-    - **Pull New Models:** Enter a model name (e.g., `llama3:8b`) to download it from the Ollama library.
-    - **Delete Models:** Remove models you no longer need to free up disk space.
+    - The backend will use the configured SearXNG instance to fetch search results.
+    - The results are then formatted and prepended to your original query as context for the LLM, which will use them to formulate an answer.
 
 
-### 2.8. Enhanced History Page (`/history`)
+### 3.7. History Page (`/history`)
 
 The chat history page has been improved for better usability and correctness.
 
@@ -193,13 +194,13 @@ The chat history page has been improved for better usability and correctness.
 - **Improved Sorting:** Threads are now sorted by the timestamp of the **most recent message** in each thread, ensuring the latest conversations appear first.
 - **Timezone Handling:** All timestamps are now correctly handled and displayed in UTC for consistency, using Python's `zoneinfo` library.
 
-### 2.9. Improved Stability and Error Handling
+### 3.8. Stability and Error Handling
 
 - **API Retries:** The `ollama_chat` function now includes a retry mechanism with exponential backoff. If a request fails (e.g., due to a temporary network issue or model loading), the application will automatically retry up to 3 times (waiting 1s, 2s, then 4s).
 - **Longer Timeout:** The timeout for Ollama API requests has been increased to 300 seconds (5 minutes) to accommodate slower models or long-running generation tasks.
 - **Model Deletion Fix:** The `/api/models/delete` endpoint was fixed to handle empty responses from the Ollama API upon successful deletion. This prevents a JSON parsing error on the frontend.
 
-### 2.10. File Upload and Contextual Chat
+### 3.9. File Upload and Contextual Chat
 
 The application now supports uploading `.txt` files to provide context for a conversation.
 
@@ -209,26 +210,7 @@ The application now supports uploading `.txt` files to provide context for a con
     - In the `POST /generate` endpoint, if it's the first user message of a session that contains a file, the backend automatically prepends the file's content to the user's question, creating a contextual prompt for the model (e.g., "Based on the content of document X, answer question Y").
 - **User Experience:** The user receives a confirmation message in the chat when a file is successfully uploaded and can then ask questions about its content.
 
-### 2.11. Advanced Logging
-
-The application's logging has been upgraded to use a `TimedRotatingFileHandler`.
-
-- **Location:** Logs are stored in the `logger/` directory.
-- **Rotation:** A new log file (`app.log.YYYY-MM-DD.txt`) is created every day at midnight. Old logs are kept for 30 days (`backupCount=30`).
-- **Content:** Logs include detailed information about incoming requests, application events, and errors, with timestamps and file/line numbers for easier debugging.
-
-## 3. Application Usage
-
-### 3.1. Running the Application
-
-1.  Ensure your virtual environment is activated and you are in the project root directory.
-2.  Run the Flask application:
-    ```bash
-    python app.py
-    ```
-3.  Open your web browser and navigate to `http://localhost:5000`.
-
-### 3.2. User Interface
+### 3.10. User Interface Overview
 
 - **Chat Page (`/`):** The main interface for interacting with the model. You can select different models from the dropdown if they are available in your Ollama instance.
 - **History Page (`/history`):** View and manage past conversations.
@@ -248,7 +230,8 @@ The application's logging has been upgraded to use a `TimedRotatingFileHandler`.
 ├── logger/                 # Directory for log files
 │   └── app.log             # Current log file
 ├── static/                 # Static assets (CSS, JS, images)
-│   └── style.css
+│   ├── style.css
+|   ├── script.js
 │   └── models.js
 └── templates/              # HTML templates
     ├── health.html
@@ -256,70 +239,8 @@ The application's logging has been upgraded to use a `TimedRotatingFileHandler`.
     ├── index.html
     ├── models.html
     └── settings.html
-```
-        ```bash
-        py -m venv .venv
-        .venv\Scripts\activate
-        ```
-    -   **Linux & macOS:**
-        ```bash
-        python3 -m venv .venv
-        source .venv/bin/activate
-        ```
 
-3.  **Install Python dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4.  **Configure Environment Variables:**
-    Create a `.env` file in the root directory and add the following variables.
-
-    ```env
-    # URL of your running Ollama instance
-    OLLAMA_BASE_URL=http://localhost:11434
-
-    # The Ollama model to use for chat
-    OLLAMA_MODEL=llama3.1
-
-    # Optional: Langfuse credentials for tracing
-    LANGFUSE_SECRET_KEY=your_langfuse_secret_key
-    LANGFUSE_PUBLIC_KEY=your_langfuse_public_key
-    LANGFUSE_HOST=https://cloud.langfuse.com
-    ```
-
-5.  **Run the application:**
-    ```bash
-    python main.py
-    ```
-    The application will be available at `http://localhost:5000`.
-
-## 4. Backend (`app.py`)
-
-This is the core of the application, handling all server-side logic.
-
-### Key Components
-
--   **Flask App Initialization**: Sets up the Flask app, logging, and secret key.
--   **Logging**: The `setup_logging` function configures a `TimedRotatingFileHandler` to create a new log file in the `logger/` directory every day. All important actions (requests, errors, generations) are logged.
--   **Database (`chat.db`)**: An SQLite database is used to persist:
-    -   `messages`: Stores all user and bot messages with a `session_id`.
-    -   `settings`: Stores the current model parameters and acts as a fallback if ChromaDB is not connected.
--   **ChromaDB Integration**: If configured, ChromaDB is used as the primary data store for chat history and settings, offering a more robust and scalable solution. The application falls back to SQLite if ChromaDB is unavailable.
--   **Langfuse Integration**: If Langfuse keys are provided in `.env`, it traces all LLM interactions, providing observability into model performance.
--   **Ollama Interaction (`ollama_chat`)**: This function is responsible for communicating with the Ollama API. It constructs the payload, sends the request, and handles retries with exponential backoff. It returns the bot's response and token usage.
-
-### API Routes
-
--   `GET /`: Renders the main chat page (`index.html`).
--   `POST /generate`: The primary endpoint for chat. It receives the conversation history, gets a response from `ollama_chat`, saves both user and bot messages to the primary database (ChromaDB or SQLite), and returns the bot's response along with generation time.
--   `GET /history`: Fetches all messages from the primary database, groups them by session, sorts them by the most recent activity, and renders the history page (`history.html`).
--   `DELETE /delete_message/<id>`: Deletes a specific message from the primary database.
--   `POST /reset_thread`: Clears the current session ID, effectively starting a new conversation.
--   `GET /health`: Gathers system statistics (CPU, memory, disk, GPU) and checks the connection to Ollama. Renders the health dashboard (`health.html`).
--   `GET /settings`, `POST /settings`: Renders the settings page and handles updates to the model parameters in the database.
-
-# API Endpoints (Tabular)
+## 5. API Endpoints
 
 | Method | Path                        | Description                                                                                             |
 |--------|-----------------------------|---------------------------------------------------------------------------------------------------------|
@@ -329,10 +250,12 @@ This is the core of the application, handling all server-side logic.
 | `GET`  | `/history`                  | Renders the `history.html` page, displaying all past conversations from the active database (ChromaDB or SQLite), grouped by `session_id`.             |
 | `DELETE`| `/delete_message/<id>`      | Deletes a specific message from the active database (ChromaDB or SQLite) by its ID.                                                 |
 | `GET`  | `/health`                   | Renders the `health.html` page. It uses `psutil` and `GPUtil` to gather and display real-time system metrics (CPU, Memory, Disk, GPU). |
-| `GET`, `POST` | `/settings`                 | Renders the `settings.html` page. On `POST`, it updates the settings in the active database (ChromaDB and SQLite) and triggers `initialize_langfuse` to apply changes. |
+| `GET`, `POST` | `/settings`                 | Renders `settings.html`. On `POST`, it updates settings in the active database (ChromaDB and SQLite) and triggers `initialize_langfuse` to apply changes. |
+| `GET`  | `/api/models`               | Fetches and lists all models currently available in the local Ollama instance.                          |
+| `POST` | `/api/models/pull`          | Streams the download progress of a new model from the Ollama library.                                   |
+| `POST` | `/api/models/delete`        | Deletes a specified local model.                                                                        |
 
-
-## 5. Frontend
+## 6. Frontend
 
 The frontend is built with standard HTML, CSS, and vanilla JavaScript.
 

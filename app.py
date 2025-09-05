@@ -438,7 +438,7 @@ def ollama_chat(messages, model, session_id=None, max_retries=3):
                     ) as gen:
                         # Make the API call with longer timeout
                         response = requests.post(
-                            f"{OLLAMA_BASE_URL}/api/chat", 
+                            f"{OLLAMA_BASE_URL}/api/chat",
                             json=payload, 
                             timeout=300,  # Increased to 5 minutes
                             headers={'Content-Type': 'application/json'}

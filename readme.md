@@ -1,15 +1,18 @@
 # AI Think | Ollama Chat
 
-AI Think is a web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs) hosted by Ollama. It features persistent chat history with ChromaDB, real-time system health monitoring, configurable model parameters, and optional integration with Langfuse for tracing and observability.
+AI Think is a web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs) hosted by a local Ollama instance. It features persistent chat history, real-time system health monitoring, configurable model parameters, web search capabilities, and optional integration with Langfuse for tracing and observability.
+
 ## ✨ Features
 
 - **Intuitive Chat Interface**: Clean and simple UI for chatting with your local LLMs.
 - **Model Selection**: Easily switch between any of the models available in your Ollama instance.
-- **Persistent Chat History**: Your conversations are saved using [ChromaDB](https://www.trychroma.com/) for scalable, persistent storage, with a seamless fallback to a local SQLite database.
-- **System Health Dashboard**: Monitor real-time CPU, memory, disk, and GPU usage.
-- **Configurable Parameters**: Adjust model parameters like temperature, top-p, and top-k through the settings page.
-- **Langfuse Integration**: Optional, powerful tracing and observability for your LLM interactions. Just add your credentials.
-- **Markdown & LaTeX Rendering**: Responses are rendered with support for markdown, including code blocks and LaTeX for mathematical notation.
+- **Models Hub**: Manage your local Ollama models directly from the UI—pull new models and delete old ones.
+- **Persistent Chat History**: Your conversations are saved using a local SQLite database, with optional support for a more scalable [ChromaDB](https://www.trychroma.com/) cloud instance.
+- **Web Search**: Get up-to-date answers from the internet by integrating with a local [SearXNG](https://github.com/searxng/searxng-docker) instance.
+- **System Health Dashboard**: Monitor real-time CPU, memory, disk, and GPU usage, along with connection statuses for all integrated services.
+- **Dynamic Configuration**: Adjust model parameters (temperature, top-p, etc.) and integration settings on the fly without restarting the server.
+- **Langfuse Integration**: Optional, powerful tracing and observability for your LLM interactions[Langfuse](https://us.cloud.langfuse.com/).
+- **Markdown Rendering**: Responses are rendered with support for markdown, including code blocks with syntax highlighting.
 
 ## 🚀 Setup and Installation
 
@@ -17,9 +20,8 @@ Follow these steps to get the application running on your local machine.
 
 ### 1. Prerequisites
 
-- Python 3.8+
+- Python 3.10+
 - [Ollama](https://ollama.com) installed and running.
-- (Optional) [ChromaDB](https://www.trychroma.com/) account for cloud-based history.
 
 ### 2. Install Ollama
 
@@ -27,14 +29,14 @@ You can either follow the manual instructions below or use the automated scripts
 
 #### Automated Installation (Recommended)
 
-Navigate to the `setupOllama` directory and run the appropriate script for your OS. These scripts will install Ollama and download the recommended models (`llama3.1`, `gemma2`, `mistral`).
+The `ollamaSetup.sh` script will install Ollama and download recommended models (`llama3`, `gemma`, `mistral`).
 
 - **For macOS & Linux**:
   Open a terminal, make the script executable, and run it:
 
   ```bash
-  chmod +x ./setupOllama.sh
-  ./setupOllama.sh
+  chmod +x ./ollamaSetup.sh
+  ./ollamaSetup.sh
   ```
 
 #### Manual Installation
@@ -154,7 +156,7 @@ search:
 ```
 ##### Start the SearXNG service with Docker Compose.
 ``` bash
-  docker compose up -d
+docker compose up -d
 ```
  - <p>Your SearXNG instance will be available at http://127.0.0.1:8080 once the containers are running.</p>
  - <p>Marke sure port 8080 is open</p>
