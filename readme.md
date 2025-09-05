@@ -144,9 +144,7 @@ The application will be available at `http://localhost:5000`.
 ```bash
 https://github.com/searxng/searxng-docker
 ```
-
-
-#### Manually Edit searxng/settings.yml to configure SearXNG as needed.
+##### Manually Edit searxng/settings.yml to configure SearXNG as needed.
 ```bash
   url: redis://redis:6379/0
 search:
@@ -154,10 +152,12 @@ search:
     - html
     - json
 ```
-
- - <p>Your SearXNG instance will be available at http://localhost:8080 once the containers are running.</p>
+##### Start the SearXNG service with Docker Compose.
+``` bash
+  docker compose up -d
+```
+ - <p>Your SearXNG instance will be available at http://127.0.0.1:8080 once the containers are running.</p>
  - <p>Marke sure port 8080 is open</p>
- - or use from [Setting Up SearXNG from Jan.ai](https://cookbook.jan.ai/articles/jan-v1/jan-v1-sear-xng-guide/)
 
 To perform a web search, type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`)
 
