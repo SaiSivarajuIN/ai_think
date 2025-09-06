@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Model Parameters</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+            background-color: #f9fafb;
+            color: #111827;
+        }
+        h1 {
+            color: #258;
+        }
+        h2 {
+            margin-top: 32px;
+            color: #4c51bf;
+        }
+        table {
+            border-collapse: collapse;
+            width: 90%;
+            width: 100%;
+            margin: 20px 0;
+            background: #fff;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f3f4f6;
+        }
+        tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        p, ul {
+            margin-bottom: 1em;
+        }
+        li {
+            margin-bottom: 0.5em;
+        }
+        b, strong {
+            color: #374151;
+        }
+        code {
+            background-color: #e5e7eb;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>A Guide to Model Parameters</h1>
+        <p>These settings control how the AI generates responses. Adjusting them can dramatically shift the output from concise and factual to imaginative and expansive. Here's a breakdown of what each parameter does and how to use it effectively.</p>
+
+        <h2>Tokens to Predict (<code>num_predict</code>)</h2>
+        <p>This setting controls the <strong>maximum length</strong> of the AI's response. A "token" is a piece of a word, roughly equivalent to 4 characters (100 tokens ≈ 75 words).</p>
+        <ul>
+            <li><b>Low Value (e.g., 50):</b> Produces a very short, concise answer.</li>
+            <li><b>High Value (e.g., 2000):</b> Allows for a much longer, more detailed response.</li>
+        </ul>
+        <p><strong>Recommendation:</strong> Use a high value like <code>2048</code> unless you specifically need a short answer.</p>
+
+        <h2>Temperature</h2>
+        <p>This setting controls the <strong>randomness</strong> or "creativity" of the response. It adjusts the probability of the AI choosing less likely words.</p>
+        <ul>
+            <li><b>Low Value (e.g., 0.2):</b> Makes the model more predictable and focused. It will stick to the most common and logical word choices. Good for factual answers, summarization, or code generation.</li>
+            <li><b>High Value (e.g., 1.0 or higher):</b> Makes the model more creative and surprising. It's more likely to use less common words, which can be great for storytelling, brainstorming, or creative writing.</li>
+        </ul>
+        <p><strong>Analogy:</strong> Think of it like a "risk" dial. Low temperature is low-risk and safe, while high temperature is high-risk and more adventurous.</p>
+        <p><strong>Recommendation:</strong> Use <code>0.7</code> for a good balance of creativity and reliability.</p>
+
+        <h2>Top K</h2>
+        <p>This setting limits the AI's word choices to the <strong>K most likely words</strong> at each step of the generation process.</p>
+        <ul>
+            <li><b>Low Value (e.g., 1):</b> The model can only choose the single most likely next word. This is very restrictive and can lead to repetitive text.</li>
+            <li><b>High Value (e.g., 100):</b> The model can choose from the top 100 most likely words, giving it more variety.</li>
+        </ul>
+        <p><strong>Analogy:</strong> Imagine asking for a restaurant recommendation. A Top K of 3 means you only get to hear the top 3 most popular options. A Top K of 50 gives you more choices, including some interesting niche spots.</p>
+        <p><strong>Recommendation:</strong> A value of <code>40</code> is a common and effective starting point.</p>
+
+        <h2>Top P (Nucleus Sampling)</h2>
+        <p>This is an alternative to Top K. Instead of picking from a fixed number of words (K), it picks from a group of words whose combined probability is at least P. This is more dynamic.</p>
+        <ul>
+            <li><b>Low Value (e.g., 0.1):</b> The model is very restricted, only choosing from a few very high-probability words.</li>
+            <li><b>High Value (e.g., 0.9):</b> The model has a large pool of words to choose from, allowing for more creativity.</li>
+        </ul>
+        <p><strong>Analogy:</strong> If Top K is like choosing from the "Top 40" music chart, Top P is like choosing from all songs that make up 90% of radio plays, which might be more or less than 40 songs depending on the current hits.</p>
+        <p><strong>Recommendation:</strong> A value of <code>0.9</code> is a good default. It's often recommended to use either Top P or Top K, but not both at the same time. If you set both, Top P is usually applied first.</p>
+
+        <h2>Summary Table</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th>What It Controls</th>
+                    <th>Low Value Effect</th>
+                    <th>High Value Effect</th>
+                    <th>Best For...</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><b>Tokens to Predict</b></td>
+                    <td>Maximum response length</td>
+                    <td>Short, concise output</td>
+                    <td>Longer, detailed output</td>
+                    <td>Controlling the length of the response</td>
+                </tr>
+                <tr>
+                    <td><b>Temperature</b></td>
+                    <td>Randomness & Creativity</td>
+                    <td>More predictable, focused</td>
+                    <td>More creative, surprising</td>
+                    <td>Factual answers (low), creative writing (high)</td>
+                </tr>
+                <tr>
+                    <td><b>Top K</b></td>
+                    <td>Limits choices to the top K words</td>
+                    <td>Very safe and predictable choices</td>
+                    <td>More variety and diverse wording</td>
+                    <td>Controlling the exact number of word choices.</td>
+                </tr>
+                <tr>
+                    <td><b>Top P</b></td>
+                    <td>Limits choices by probability score P</td>
+                    <td>Sticks to common, high-probability words</td>
+                    <td>Allows for more surprising word choices</td>
+                    <td>Balancing creativity and focus dynamically.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>When to Use Which</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Goal</th>
+                    <th>Use Top-k</th>
+                    <th>Use Top-p</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Deterministic behavior</td>
+                    <td>✅ Good</td>
+                    <td>❌ Less predictable</td>
+                </tr>
+                <tr>
+                    <td>High diversity / creativity</td>
+                    <td>❌ Limited</td>
+                    <td>✅ Excellent for creative tasks</td>
+                </tr>
+                <tr>
+                    <td>Context-aware generation</td>
+                    <td>⚠️ May miss low-probability contextually appropriate tokens</td>
+                    <td>✅ More adaptive to context</td>
+                </tr>
+                <tr>
+                    <td>Safety / Controlled outputs</td>
+                    <td>✅ More controllable</td>
+                    <td>⚠️ Can be riskier</td>
+                </tr>
+            </tbody>
+        </table>
+
+    </div>
+</body>
+</html>
