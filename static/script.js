@@ -459,7 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
       header.style.borderBottom = '2px solid #ccc';
       header.style.paddingBottom = '10px';
       header.style.marginBottom = '20px';
-      header.style.textAlign = 'center';
+      header.style.textAlign = 'left';
       const heading = document.createElement('h2');
       heading.textContent = `Chat Session ${sessionId}`; // Construct the title with sessionId
       heading.style.margin = '0';
@@ -488,11 +488,11 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       // Set font size for PDF
-      container.style.fontSize = '10pt'; // Adjusted for better fit on A4
+      container.style.fontSize = '11pt'; // Adjusted for better fit on A4
 
       // Download PDF
       html2pdf().from(container).set({
-        margin: 15,
+        margin: 10,
         filename: `chat-thread-${sessionId}.pdf`,
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a2', compressPDF: true }

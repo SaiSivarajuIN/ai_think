@@ -141,6 +141,32 @@
                 } else {
                     contentDiv.innerHTML = converter.makeHtml(rawMarkdown);
                 }
+            } else if (container.querySelector('.user-sender') && contentDiv) {
+                // Handle search results in user messages
+                const tempEl = document.createElement('textarea');
+                tempEl.innerHTML = contentDiv.innerHTML;
+                const rawText = tempEl.value;
+
+                const searchRegex = /^Based on the following web search results, please answer the user's question.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/;
+                const match = rawText.match(searchRegex);
+
+                if (match) {
+                    const searchResults = match[1].trim();
+                    const userQuestion = match[2].trim();
+
+                    // Display the original question first
+                    let newHtml = converter.makeHtml(userQuestion);
+
+                    // Add the collapsible search results section
+                    if (searchResults) {
+                        // Using the 'thought' class for similar styling
+                        newHtml += `<div class="thought"><strong>Search Results</strong><div><pre><code>${searchResults.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre></div></div>`;
+                    }
+                    contentDiv.innerHTML = newHtml;
+                } else {
+                    // It's a regular user message, just render as markdown
+                    contentDiv.innerHTML = converter.makeHtml(rawText);
+                }
             }
         });
 
