@@ -62,7 +62,10 @@ def log_request_info():
 # Ollama Configuration
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", " ")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", " ")
-SEARXNG_URL = os.getenv("SEARXNG_URL", "http://localhost:8080")
+SEARXNG_URL = os.getenv("SEARXNG_URL", " ")
+
+# Langfuse Configuration
+LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", " ")
 
 # Default settings
 DEFAULT_SETTINGS = {
@@ -161,7 +164,7 @@ def init_db():
             # Credentials are now managed exclusively via the UI.
             public_key = ""
             secret_key = ""
-            host = "https://us.cloud.langfuse.com"
+            host = LANGFUSE_HOST
             chroma_api_key = os.getenv("CHROMA_API_KEY", "")
             chroma_tenant = os.getenv("CHROMA_TENANT", "")
             chroma_database = os.getenv("CHROMA_DATABASE", "")
@@ -203,13 +206,13 @@ def get_settings():
         'top_k': int(DEFAULT_SETTINGS['top_k']),
         'langfuse_public_key': '',
         'langfuse_secret_key': '',
-        'langfuse_host': 'https://us.cloud.langfuse.com',
+        'langfuse_host': LANGFUSE_HOST,
         'chroma_api_key': '',
         'chroma_tenant': '',
         'chroma_database': '',
         'langfuse_enabled': False,
         'chromadb_enabled': False,
-        'searxng_url': 'http://localhost:8080',
+        'searxng_url': SEARXNG_URL,
         'searxng_enabled': False
     }
 
@@ -279,7 +282,7 @@ def initialize_langfuse():
                 langfuse = Langfuse(
                     public_key=public_key,
                     secret_key=secret_key,
-                    host=host or "https://us.cloud.langfuse.com",
+                    host=host or LANGFUSE_HOST,
                 )
 
                 if langfuse.auth_check():
