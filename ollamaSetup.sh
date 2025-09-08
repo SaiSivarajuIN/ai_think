@@ -7,7 +7,7 @@ set -e
 
 echo "🔍 Checking for Ollama installation..."
 if ! command -v ollama &> /dev/null; then
-    echo "⬇️ Ollama notollamaSetup.sh found. Installing..."
+    echo "⬇️ Ollama not found. Installing..."
     curl -fsSL https://ollama.com/install.sh | sh
 else
     echo "✅ Ollama is already installed."
@@ -36,7 +36,7 @@ echo ""
 echo "📦 Pulling recommended models (this may take some time)..."
 
 # Pull standard models
-ollama pull gemma:latest
+# ollama pull gemma:latest
 # ollama pull llama3:latest
 # ollama pull mistral:latest
 

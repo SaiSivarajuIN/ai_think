@@ -1148,10 +1148,6 @@ def api_delete_prompt(prompt_id):
     db.commit()
     return jsonify({'success': True})
 
-@app.route('/understanding_parameters')
-def understanding_parameters():
-    return render_template('understanding_parameters.html')
-
 # Langfuse flush on app shutdown
 @app.teardown_appcontext
 def flush_langfuse(error):
