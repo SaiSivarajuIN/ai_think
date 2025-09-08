@@ -257,6 +257,8 @@ The application now supports uploading `.txt` files to provide context for a con
     └── settings.html
 ```
 
+```
+
 ## 5. API Endpoints
 
 | Method | Path                        | Description                                                                                             |
