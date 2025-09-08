@@ -240,9 +240,12 @@ The application now supports uploading `.txt` files to provide context for a con
 .
 ├── .env                    # Application configuration (you must create this)
 ├── .venv/                  # Python virtual environment
+├── readme.md               # Project description and instructions
 ├── ollamaSetup.sh          # Installer for macOS/Linux
 ├── app.py                  # Main Flask application file
+├── main.py                 # Run this to start the application
 ├── chat.db                 # SQLite database for messages and settings
+├── LICENSE                 # License information
 ├── logger/                 # Directory for log files
 │   └── app.log             # Current log file
 ├── static/                 # Static assets (CSS, JS, images)
@@ -254,9 +257,9 @@ The application now supports uploading `.txt` files to provide context for a con
     ├── history.html
     ├── index.html
     ├── models.html
+    ├── models.html
+    ├── prompts.html    
     └── settings.html
-```
-
 ```
 
 ## 5. API Endpoints
