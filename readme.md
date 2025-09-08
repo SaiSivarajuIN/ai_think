@@ -139,12 +139,13 @@ The application will be available at `http://localhost:5000`.
 - **System Health**: Go to `/health` to monitor system resources and the status of the Ollama service.
 - **Settings**: Navigate to `/settings` to configure default model parameters and set up Langfuse credentials.
 - **Web Search**: Once SearXNG is set up and enabled in Settings, click the 🔍 icon or type `/search` followed by your query in the chat input to get up-to-date answers from the web (e.g., `/search latest AI news`).
-
+
+
 
 #### Manually setting up SearXNG from(Optional)
-```bash
-https://github.com/searxng/searxng-docker
-```
+
+From [searxng](https://github.com/searxng/searxng-docker)
+
 ##### Manually Edit searxng/settings.yml to configure SearXNG as needed.
 ```bash
   url: redis://redis:6379/0
