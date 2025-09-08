@@ -255,6 +255,7 @@ The application now supports uploading `.txt` files to provide context for a con
     ├── index.html
     ├── models.html
     └── settings.html
+```
 
 ## 5. API Endpoints
 
@@ -306,4 +307,5 @@ This file provides all the styling for the application.
 -   **Theming**: Supports both light and dark themes using CSS variables.
 -   **Message Bubbles**: Styles for user and bot messages to create a familiar chat look.
 -   **Responsiveness**: Includes media queries to ensure the application is usable on mobile devices.
+
 -   **Icons**: Uses Material Icons for a clean and consistent icon set.
