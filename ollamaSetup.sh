@@ -34,7 +34,7 @@ pull_models() {
     echo "📦 Pulling recommended models (this may take some time)..."
     
     # Pull standard models
-    ollama pull gemma:latest
+    # ollama pull gemma:latest
     # ollama pull llama3:latest  # Uncomment if needed
     # ollama pull mistral:latest  # Uncomment if needed
     
@@ -84,4 +84,4 @@ ollama list
 echo ""
 
 start_searxng_services
-start_ai_think_app
+# start_ai_think_app
