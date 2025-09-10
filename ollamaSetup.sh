@@ -45,14 +45,18 @@ pull_models() {
 
 # Function to handle SearXNG services
 start_searxng_services() {
-    echo "Navigating to searxng-docker directory..."
-    cd searxng-docker || { echo "❌ Failed to navigate to searxng-docker"; exit 1; }
+    if [ -d "searxng-docker" ]; then
+        echo "Navigating to searxng-docker directory..."
+        cd searxng-docker || { echo "❌ Failed to navigate to searxng-docker"; exit 1; }
 
-    echo "Stopping and starting SearXNG services..."
-    docker compose up -d
+        echo "Stopping and starting SearXNG services..."
+        docker compose up -d
 
-    echo "Navigating back to the project root..."
-    cd - || { echo "❌ Failed to navigate back to the project root"; exit 1; }
+        echo "Navigating back to the project root..."
+        cd - > /dev/null || { echo "❌ Failed to navigate back to the project root"; exit 1; }
+    else
+        echo "⚠️ SearXNG directory not found. Skipping SearXNG setup."
+    fi
 }
 
 # Function to start the AI Think application
