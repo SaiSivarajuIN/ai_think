@@ -57,7 +57,13 @@
             </div>
 
             <div class="card">
-                <h2>Local Models</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Local Models</h2>
+                    <button id="delete-all-models-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
+                        <span class="material-icons">delete_sweep</span>
+                        Delete All
+                    </button>
+                </div>
                 <p>
                     Ollama Status:
                     <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">

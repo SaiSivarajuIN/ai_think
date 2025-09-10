@@ -32,7 +32,7 @@ You can either follow the manual instructions below or use the automated scripts
 
 #### Automated Installation (Recommended)
 
-The `ollamaSetup.sh` script will install Ollama and download a recommended GGUF model.
+The `ollamaSetup.sh && ollamaSetup.bat` script will install Ollama and download a recommended GGUF model.
 
 - **For macOS & Linux**:
   Open a terminal, make the script executable, and run it. This will also start the Ollama server in the background.
@@ -40,6 +40,14 @@ The `ollamaSetup.sh` script will install Ollama and download a recommended GGUF 
   ```bash
   chmod +x ./ollamaSetup.sh
   ./ollamaSetup.sh
+  ```
+
+- **For Windows**:
+  Open a terminal, make the script executable, and run it. This will also start the Ollama server in the background.
+
+  ```bash
+  chmod +x ./ollamaSetup.bat
+  ./ollamaSetup.bat
   ```
 
 #### Manual Installation
@@ -146,7 +154,7 @@ hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M
 
 #### Manually setting up SearXNG(Optional)
 
-From [searxng](https://github.com/searxng/searxng-docker)
+From [searxng](https://github.com/searxng/searxng-docker#how-to-use-it)
 
 ##### Manually Edit searxng/settings.yml to configure SearXNG as needed.
 ```bash
@@ -160,7 +168,7 @@ search:
 ``` bash
 docker compose up -d
 ```
- - <p>Your SearXNG instance will be available at http://127.0.0.1:8080 once the containers are running.</p>
+ - <p>Your SearXNG instance will be available at http://localhost:8080 once the containers are running.</p>
  - <p>Marke sure port 8080 is open</p>
 
 To perform a web search, click the 🔍 icon or type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`).

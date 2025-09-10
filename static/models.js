@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const modelNameInput = document.getElementById('model-name-input');
     const pullStatusContainer = document.getElementById('pull-status-container');
     const pullStatus = document.getElementById('pull-status');
+    const deleteAllBtn = document.getElementById('delete-all-models-btn');
     const progressBar = document.getElementById('progress-bar');
 
     // --- Fetch and Display Local Models ---
@@ -143,12 +144,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // --- Delete All Models ---
+    async function deleteAllModels() {
+        if (!confirm('Are you sure you want to delete ALL local models? This action is irreversible and will permanently remove all model data.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/models/delete/all', {
+                method: 'POST',
+            });
+
+            if (response.ok) {
+                alert('All local models have been scheduled for deletion.');
+                // The list will refresh, but it might take a moment for Ollama to delete them all.
+                // We can add a small delay before refreshing to give it time.
+                setTimeout(() => {
+                    fetchModels();
+                }, 2000); 
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete all models.');
+            }
+        } catch (error) {
+            console.error('Error deleting all models:', error);
+            alert(`Error: ${error.message}`);
+        }
+    }
+
     // --- Utility ---
     function timeAgo(date) {
         const seconds = Math.floor((new Date() - date) / 1000);
         let interval = seconds / 31536000;
-        if (interval > 1) return Math.floor(interval) + " years ago";
-        interval = seconds / 2592000;
         if (interval > 1) return Math.floor(interval) + " months ago";
         interval = seconds / 86400;
         if (interval > 1) return Math.floor(interval) + " days ago";
@@ -168,6 +195,10 @@ document.addEventListener('DOMContentLoaded', function() {
             deleteModel(deleteBtn.dataset.modelName);
         }
     });
+    
+    if (deleteAllBtn) {
+        deleteAllBtn.addEventListener('click', deleteAllModels);
+    }
 
     // --- Initial Load ---
     fetchModels();

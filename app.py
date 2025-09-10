@@ -1046,6 +1046,28 @@ def api_delete_model():
     except requests.RequestException as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/models/delete/all', methods=['POST'])
+def api_delete_all_models():
+    """API endpoint to delete all local models."""
+    if not check_ollama_connection():
+        return jsonify({"error": "Ollama service is not available."}), 503
+
+    try:
+        # First, get the list of all local models
+        list_response = requests.get(f"{OLLAMA_BASE_URL}/api/tags")
+        list_response.raise_for_status()
+        models = list_response.json().get("models", [])
+
+        # Iterate and delete each model
+        for model in models:
+            model_name = model.get('name')
+            if model_name:
+                requests.delete(f"{OLLAMA_BASE_URL}/api/delete", json={"name": model_name})
+        
+        return jsonify({"status": "success", "message": "All models are being deleted."}), 200
+    except requests.RequestException as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
