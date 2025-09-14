@@ -35,11 +35,10 @@ pull_models() {
     
     # Pull standard models
     # ollama pull gemma:latest
-    # ollama pull llama3:latest  # Uncomment if needed
-    # ollama pull mistral:latest  # Uncomment if needed
+    ollama pull llama3:latest
     
     # Pull GGUF model from Hugging Face
-    ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M
+    ollama pull hf.co/janhq/Jan-v1-edge-gguf:Q8_0
     # ollama pull hf.co/unsloth/gpt-oss-20b-GGUF:Q4_K_M  # Uncomment if needed
 }
 
@@ -84,4 +83,4 @@ ollama list
 echo ""
 
 start_searxng_services
-# start_ai_think_app
+#start_ai_think_app

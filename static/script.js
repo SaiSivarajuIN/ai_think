@@ -498,5 +498,117 @@ document.addEventListener('DOMContentLoaded', function() {
         jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a2', compressPDF: true }
       }).save();
     }
+
+    if (e.target.closest('.download-doc-btn')) {
+        const btn = e.target.closest('.download-doc-btn');
+        const sessionId = btn.getAttribute('data-session');
+        const threadDiv = document.getElementById(`thread-${sessionId}`);
+
+        if (!threadDiv) {
+            alert('Thread messages not found!');
+            return;
+        }
+
+        // 1. Create the HTML content for the document
+        let content = `
+            <html xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <title>Chat History</title>
+                <style>
+                    body { font-family: 'Times New Roman', Times, serif; font-size: 10pt; }
+                    p { margin: 0; padding: 0; line-height: 1.15; }
+                    .user-msg { font-weight: bold; color: #000080; } /* Dark Blue */
+                    .bot-msg { font-weight: bold; color: #006400; } /* Dark Green */
+                    .message-block { margin-bottom: 8pt; }
+                    pre { 
+                        background-color: #f0f0f0; 
+                        border: 1px solid #ccc; 
+                        padding: 10px; 
+                        white-space: pre-wrap; 
+                        word-wrap: break-word;
+                        font-size: 8pt;
+                        font-family: 'Courier New', Courier, monospace;
+                    }
+                    .section-heading {
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        font-size: 9pt;
+                        margin-top: 10pt;
+                        margin-bottom: 5pt;
+                        color: #2121bbff; /* Dark Blue */
+                        border-bottom: 1px solid #999;
+                        padding-bottom: 2pt;
+                    }
+                    .thought-table {
+                        border: 1px solid #000000;
+                        border-collapse: collapse;
+                        width: 100%;
+                        margin: 5pt 0 10pt 0;
+                        background-color: #f0f0f0; /* Gray background */
+                    }
+                    .thought-table td {
+                        border: 1px solid #000000;
+                        padding: 5pt;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1 style="font-size: 16pt;">Chat Session ${sessionId}</h1>
+                <hr style="margin-bottom: 12pt;"/>
+        `;
+
+        threadDiv.querySelectorAll('.message-container').forEach(msgContainer => {
+            const sender = msgContainer.querySelector('.user-sender') ? 'You' : 'Bot';
+            const contentDiv = msgContainer.querySelector('.history-content');
+            const senderClass = sender === 'You' ? 'user-msg' : 'bot-msg';
+
+            // Start the message block
+            content += `<div class="message-block"><p class="${senderClass}">${sender}:</p>`;
+
+            // Use innerHTML to preserve formatting from showdown.js
+            const renderedContent = contentDiv.innerHTML;
+            if (sender === 'Bot' || (sender === 'You' && renderedContent.includes('<div class="thought"'))) {
+                // Create a temporary div to parse the rendered content
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = renderedContent;
+
+                // Replace web-specific thought/search divs with DOC-specific styled elements
+                tempDiv.querySelectorAll('.thought').forEach(thoughtDiv => {
+                    const headingElement = thoughtDiv.querySelector('strong');
+                    const contentElement = thoughtDiv.querySelector('div');
+                    if (headingElement && contentElement) {
+                        const headingText = headingElement.innerText;
+                        headingElement.outerHTML = `<p class="section-heading">${headingText}</p>`;
+                        
+                        if (headingText.toLowerCase().includes('thought process')) {
+                            contentElement.outerHTML = `<table class="thought-table"><tr><td>${contentElement.innerHTML}</td></tr></table>`;
+                        }
+                    }
+                });
+                // Add a line space after thought process tables
+                content += tempDiv.innerHTML.replace(/<\/table>/g, '</table><p>&nbsp;</p>');
+            } else {
+                // Regular message
+                content += `<p>${contentDiv.innerText}</p>`;
+            }
+
+            content += `</div>`; // Close message-block
+        });
+
+        // Add the generation date at the end of the document
+        content += `<hr style="margin-top: 12pt;"/><p style="font-size: 8pt; color: #888;">Generated on: ${new Date().toLocaleString()}</p>`;
+
+        content += '</body></html>'; // Close the document
+
+        // 2. Create a Blob and trigger download
+        const blob = new Blob([content], { type: 'application/msword' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `chat-session-${sessionId}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
   });
 });

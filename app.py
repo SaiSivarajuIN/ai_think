@@ -865,6 +865,25 @@ def delete_thread(session_id):
         # but for security, we'll keep it generic for the user.
         return jsonify({"success": False, "error": "An internal error occurred while deleting the thread."}), 500
 
+@app.route('/delete_all_threads', methods=['DELETE'])
+def delete_all_threads():
+    """Deletes all messages from the database."""
+    try:
+        if chroma_connected:
+            # This is a destructive operation. A safer way would be to delete and recreate the collection.
+            # For now, we fetch all IDs and delete them.
+            results = chroma_collection.get()
+            if results['ids']:
+                chroma_collection.delete(ids=results['ids'])
+        else:
+            db = get_db()
+            db.execute('DELETE FROM messages')
+            db.commit()
+        current_app.logger.info("User deleted all threads.")
+        return jsonify({"success": True, "message": "All threads deleted."})
+    except Exception as e:
+        current_app.logger.error(f"Error deleting all threads: {e}")
+        return jsonify({"success": False, "error": "An internal error occurred."}), 500
 
 def get_component_status(usage, total, threshold=0.9):
     """Return 'critical', 'warning', or 'stable' for a usage/total pair."""

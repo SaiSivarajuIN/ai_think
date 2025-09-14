@@ -166,10 +166,11 @@ A new page has been added to manage local Ollama models directly from the UI.
     - `GET /api/models`: Fetches and lists all models currently available in the local Ollama instance.
     - `POST /api/models/pull`: Streams the download progress of a new model from the Ollama library. The UI shows the status and a progress bar.
     - `POST /api/models/delete`: Deletes a specified local model.
+    - `POST /api/models/delete/all`: Deletes all local models from the Ollama instance.
 - **Features:**
     - **View Local Models:** See a list of all downloaded models, their size, and when they were last modified.
     - **Pull New Models:** Enter a model name (e.g., `llama3:8b`) to download it from the Ollama library.
-    - **Delete Models:** Remove models you no longer need to free up disk space.
+    - **Delete Models:** Remove individual models or use the "Delete All" button to clear all local models from your Ollama instance, freeing up disk space.
 
 ### 3.6. SearXNG Integration for Web Search
 
@@ -208,6 +209,7 @@ The chat history page has been improved for better usability and correctness.
 
 - **Delete Messages:** You can now delete individual messages from a conversation. This is handled by the `DELETE /delete_message/<int:message_id>` endpoint, which removes the corresponding row from the `messages` table.
 - **Improved Sorting:** Threads are now sorted by the timestamp of the **most recent message** in each thread, ensuring the latest conversations appear first.
+- **Delete All Sessions:** A "Delete All" button on the history page allows for the complete removal of all chat sessions from the database. This is handled by the `DELETE /delete_all_threads` endpoint.
 - **Timezone Handling:** All timestamps are now correctly handled and displayed in UTC for consistency, using Python's `zoneinfo` library.
 
 ### 3.8. Stability and Error Handling
@@ -272,10 +274,12 @@ The application now supports uploading `.txt` files to provide context for a con
 | `GET`  | `/history`                  | Renders the `history.html` page, displaying all past conversations from the active database (ChromaDB or SQLite), grouped by `session_id`.             |
 | `DELETE`| `/delete_message/<id>`      | Deletes a specific message from the active database (ChromaDB or SQLite) by its ID.                                                 |
 | `GET`  | `/health`                   | Renders the `health.html` page. It uses `psutil` and `GPUtil` to gather and display real-time system metrics (CPU, Memory, Disk, GPU). |
+| `DELETE`| `/delete_all_threads`       | Deletes all chat sessions from the active database.                                                     |
 | `GET`, `POST` | `/settings`                 | Renders `settings.html`. On `POST`, it updates settings in the active database (ChromaDB and SQLite) and triggers `initialize_langfuse` to apply changes. |
 | `GET`  | `/api/models`               | Fetches and lists all models currently available in the local Ollama instance.                          |
 | `POST` | `/api/models/pull`          | Streams the download progress of a new model from the Ollama library.                                   |
 | `POST` | `/api/models/delete`        | Deletes a specified local model.                                                                        |
+| `POST` | `/api/models/delete/all`    | Deletes all local models.                                                                               |
 | `GET`  | `/api/prompts`              | Fetches all saved prompts from the database.                                                            |
 | `POST` | `/api/prompts/create`       | Creates a new prompt in the database.                                                                   |
 | `POST` | `/api/prompts/update/<id>`  | Updates an existing prompt by its ID.                                                                   |
