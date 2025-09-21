@@ -43,11 +43,20 @@
                     <label for="model-selector" class="visually-hidden">Model:</label>
                     <select id="model-selector" class="model-selector">
                         {% if available_models %}
+                            <optgroup label="Local Models">
                             {% for model in available_models %}
                                 <option value="{{ model }}" {% if model == model_id %}selected{% endif %}>{{ model }}</option>
                             {% endfor %}
+                            </optgroup>
                         {% else %}
                             <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
+                        {% endif %}
+                        {% if cloud_models %}
+                            <optgroup label="Cloud Models">
+                            {% for model in cloud_models %}
+                                <option value="cloud::{{ model.id }}">{{ model.service }} / {{ model.model_name }}</option>
+                            {% endfor %}
+                            </optgroup>
                         {% endif %}
                     </select>
                 </div>
@@ -79,6 +88,9 @@
                 </a>
                 <a href="/models" class="nav-link" title="Models Hub">
                     <span class="material-icons">hub</span>
+                </a>
+                <a href="/cloud_models" class="nav-link" title="Cloud Models">
+                    <span class="material-icons">cloud</span>
                 </a>
                 <a href="/prompts" class="nav-link" title="Prompt Hub">
                     <span class="material-icons">apps</span>

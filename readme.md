@@ -9,6 +9,7 @@ AI Think is a self-hosted, web-based chat application that provides a user-frien
 - **Intuitive Chat Interface**: Clean and simple UI for chatting with your local LLMs.
 - **Model Selection**: Easily switch between any of the models available in your Ollama instance.
 - **Models Hub**: Manage your local Ollama models directly from the UI—pull new models and delete old ones.
+- **Cloud Model Integration**: Connect to external model providers like OpenAI, Perplexity, and more via their APIs.
 - **Persistent Chat History**: Conversations are saved using a local SQLite database, with optional support for a more scalable [ChromaDB](https://www.trychroma.com/) cloud instance.
 - **Prompt Hub**: Create, manage, and reuse system prompts to streamline your workflows.
 - **Web Search**: Get up-to-date answers from the internet by integrating with a local [SearXNG](https://github.com/searxng/searxng-docker) instance.
@@ -168,7 +169,7 @@ search:
 ``` bash
 docker compose up -d
 ```
- - <p>Your SearXNG instance will be available at http://localhost:8080 once the containers are running.</p>
+ - <p>Your SearXNG instance will be available at <b>http://localhost:8080</b> once the containers are running.</p>
  - <p>Marke sure port 8080 is open</p>
 
 To perform a web search, click the 🔍 icon or type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`).

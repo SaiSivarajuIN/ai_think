@@ -117,7 +117,23 @@ A new settings page has been added to provide runtime configuration of the appli
         - `Top K` (`top_k`)
     - **Langfuse Tracing:** Configure credentials for observability.
 
-### 3.2. Langfuse Tracing Integration
+### 3.2. Cloud Model Management
+
+The application allows users to integrate external AI models by connecting to services such as Perplexity, OpenAI, DeepSeek, or Google Gemini via their respective APIs.
+
+-   **Access:** Click the "Cloud Model" icon (☁️) on the main chat page or navigate to `/cloud_models`.
+-   **Implementation:**
+    -   A new `cloud_models` table in the SQLite database stores the configuration for each external model.
+    -   The `/cloud_models` page provides a UI to view, add, edit, and remove model configurations.
+    -   API endpoints under `/api/cloud_models` handle the CRUD operations.
+-   **Configuration Fields:**
+    -   **Service Name:** A dropdown to select the provider (e.g., OpenAI, Perplexity).
+    -   **Base URL:** The API base URL for the service.
+    -   **API Key:** The authentication key for the service.
+    -   **Model Name:** The specific model identifier (e.g., `gpt-4`, `llama-3-sonar-large-32k-online`).
+-   **Usage:** Once configured, cloud models appear in the model selector on the main chat page and can be used for generation just like local Ollama models.
+
+### 3.3. Langfuse Tracing Integration
 
 The application is now integrated with Langfuse for detailed tracing and observability of chat interactions.
 
@@ -128,7 +144,7 @@ The application is now integrated with Langfuse for detailed tracing and observa
     - To allow for runtime updates, it correctly shuts down and resets the Langfuse client singleton before re-initializing.
 - **Status:** The Langfuse connection status (`langfuse_enabled`) is displayed on the main chat page and the health page.
 
-### 3.3. ChromaDB Integration for Persistent Storage
+### 3.4. ChromaDB Integration for Persistent Storage
 
 The application now supports ChromaDB as an optional, more scalable backend for storing chat history and application settings.
 
@@ -139,7 +155,7 @@ The application now supports ChromaDB as an optional, more scalable backend for 
     - **Application Settings:** Model parameters and Langfuse credentials are saved to a `app_settings` collection, ensuring they persist across application restarts.
 - **Status Indicator:** The connection status to ChromaDB is clearly displayed on the `/health` page.
 
-### 3.4. System Health Page (`/health`)
+### 3.5. System Health Page (`/health`)
 
 A comprehensive health monitoring page is now available.
 
@@ -156,7 +172,7 @@ A comprehensive health monitoring page is now available.
     - **SearXNG Status:** Shows whether the application is connected to SearXNG.
     - **ChromaDB Status:** Shows whether the app is connected to ChromaDB or using the SQLite fallback.
 
-### 3.5. Models Hub (`/models`)
+### 3.6. Models Hub (`/models`)
 A new page has been added to manage local Ollama models directly from the UI.
 
 - **Access:** Click the "Models Hub" icon (📦) on the main chat page or navigate to `/models`.
@@ -172,7 +188,7 @@ A new page has been added to manage local Ollama models directly from the UI.
     - **Pull New Models:** Enter a model name (e.g., `llama3:8b`) to download it from the Ollama library.
     - **Delete Models:** Remove individual models or use the "Delete All" button to clear all local models from your Ollama instance, freeing up disk space.
 
-### 3.6. SearXNG Integration for Web Search
+### 3.7. SearXNG Integration for Web Search
 
 The application now supports web search capabilities through SearXNG, allowing the model to answer questions with up-to-date information from the internet.
 
@@ -187,7 +203,7 @@ The application now supports web search capabilities through SearXNG, allowing t
     - The results are then formatted and prepended to your original query as context for the LLM, which will use them to formulate an answer.
 
 
-### 3.7. Prompts Hub (`/prompts`)
+### 3.8. Prompts Hub (`/prompts`)
 
 A centralized hub for creating, managing, and using reusable prompts.
 
@@ -203,7 +219,7 @@ A centralized hub for creating, managing, and using reusable prompts.
     -   **Create and Edit Prompts:** A modal form allows users to create or edit prompts, giving them a title, type (e.g., Code, Research), and content.
     -   **Use Prompts in Chat:** On the main chat page, a "Select a Prompt" dropdown allows users to instantly load a prompt's content as a system message for the current conversation.
 
-### 3.7. History Page (`/history`)
+### 3.9. History Page (`/history`)
 
 The chat history page has been improved for better usability and correctness.
 
@@ -212,13 +228,13 @@ The chat history page has been improved for better usability and correctness.
 - **Delete All Sessions:** A "Delete All" button on the history page allows for the complete removal of all chat sessions from the database. This is handled by the `DELETE /delete_all_threads` endpoint.
 - **Timezone Handling:** All timestamps are now correctly handled and displayed in UTC for consistency, using Python's `zoneinfo` library.
 
-### 3.8. Stability and Error Handling
+### 3.10. Stability and Error Handling
 
 - **API Retries:** The `ollama_chat` function now includes a retry mechanism with exponential backoff. If a request fails (e.g., due to a temporary network issue or model loading), the application will automatically retry up to 3 times (waiting 1s, 2s, then 4s).
 - **Longer Timeout:** The timeout for Ollama API requests has been increased to 300 seconds (5 minutes) to accommodate slower models or long-running generation tasks.
 - **Model Deletion Fix:** The `/api/models/delete` endpoint was fixed to handle empty responses from the Ollama API upon successful deletion. This prevents a JSON parsing error on the frontend.
 
-### 3.9. File Upload and Contextual Chat
+### 3.11. File Upload and Contextual Chat
 
 The application now supports uploading `.txt` files to provide context for a conversation.
 
@@ -228,7 +244,7 @@ The application now supports uploading `.txt` files to provide context for a con
     - In the `POST /generate` endpoint, if it's the first user message of a session that contains a file, the backend automatically prepends the file's content to the user's question, creating a contextual prompt for the model (e.g., "Based on the content of document X, answer question Y").
 - **User Experience:** The user receives a confirmation message in the chat when a file is successfully uploaded and can then ask questions about its content.
 
-### 3.10. User Interface Overview
+### 3.12. User Interface Overview
 
 - **Chat Page (`/`):** The main interface for interacting with the model. You can select different models from the dropdown if they are available in your Ollama instance.
 - **History Page (`/history`):** View and manage past conversations.
@@ -253,13 +269,16 @@ The application now supports uploading `.txt` files to provide context for a con
 ├── static/                 # Static assets (CSS, JS, images)
 │   ├── style.css
 |   ├── script.js
+│   ├── cloud_models.js
 │   └── models.js
 └── templates/              # HTML templates
+    ├── cloud_models.html
     ├── health.html
     ├── history.html
     ├── index.html
     ├── models.html
     ├── models.html
+    ├── cloud_models.html
     ├── prompts.html    
     └── settings.html
 ```
@@ -284,6 +303,10 @@ The application now supports uploading `.txt` files to provide context for a con
 | `POST` | `/api/prompts/create`       | Creates a new prompt in the database.                                                                   |
 | `POST` | `/api/prompts/update/<id>`  | Updates an existing prompt by its ID.                                                                   |
 | `DELETE`| `/api/prompts/delete/<id>`  | Deletes a specific prompt from the database by its ID.                                                  |
+| `GET`  | `/api/cloud_models`         | Fetches all configured cloud models.                                                                    |
+| `POST` | `/api/cloud_models/create`  | Creates a new cloud model configuration.                                                                |
+| `POST` | `/api/cloud_models/update/<id>` | Updates an existing cloud model configuration.                                                        |
+| `DELETE`| `/api/cloud_models/delete/<id>` | Deletes a cloud model configuration.                                                                  |
 
 ## 6. Frontend
 

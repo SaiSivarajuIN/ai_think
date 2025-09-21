@@ -114,6 +114,16 @@ def init_db():
             )
         ''')
         db.execute('''
+            CREATE TABLE IF NOT EXISTS cloud_models (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service TEXT NOT NULL,
+                base_url TEXT NOT NULL,
+                api_key TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        db.execute('''
             CREATE TABLE IF NOT EXISTS settings (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 num_predict INTEGER NOT NULL,
@@ -375,6 +385,21 @@ def get_ollama_models():
         current_app.logger.error(f"Could not fetch models from Ollama: {e}")
         return []
 
+def get_cloud_models():
+    """Fetch all configured cloud models from the database."""
+    try:
+        db = get_db()
+        models_cursor = db.execute('SELECT id, service, base_url, api_key, model_name FROM cloud_models ORDER BY service, model_name').fetchall()
+        # Return a list of dicts, but don't expose the full API key
+        models = []
+        for row in models_cursor:
+            model_dict = dict(row)
+            models.append(model_dict)
+        return models
+    except Exception as e:
+        current_app.logger.error(f"Could not fetch cloud models: {e}")
+        return []
+
 def search_searxng(query):
     """Perform a search using SearXNG and return formatted results."""
     settings = get_settings()
@@ -407,6 +432,111 @@ def search_searxng(query):
     except Exception as e:
         current_app.logger.error(f"Error processing SearXNG results: {e}")
         return "Error processing search results."
+
+def cloud_model_chat(messages, model_config, session_id=None, max_retries=3):
+    """Send chat messages to a configured cloud API and get a response with Langfuse tracing."""
+    settings = get_settings()
+    model_name = model_config['model_name']
+
+    for attempt in range(max_retries):
+        try:
+            payload = {
+                "model": model_name,
+                "messages": messages,
+                "stream": False,
+                # Some cloud providers might use these, others might not.
+                # This is a generic payload.
+                "max_tokens": int(settings.get('num_predict')),
+                "temperature": float(settings.get('temperature')),
+                "top_p": float(settings.get('top_p')),
+            }
+
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f"Bearer {model_config['api_key']}"
+            }
+
+            # Use the base_url from the model config
+            api_url = f"{model_config['base_url'].rstrip('/')}/chat/completions"
+            # Use the base_url from the model config and append the correct path.
+            base_url = model_config['base_url'].rstrip('/')
+            if base_url.endswith('/chat/completions'):
+                api_url = base_url
+            else:
+                api_url = f"{base_url}/chat/completions"
+
+            if langfuse_enabled:
+                with langfuse.start_as_current_span(
+                    name=f"{model_name}::cloud_chat_generation",
+                    input={"messages": messages}
+                ) as span:
+                    span.update_trace(
+                        user_id="cloud-model-user",
+                        session_id=session_id or str(uuid4())
+                    )
+
+                    with langfuse.start_as_current_generation(
+                        name=f"{model_name}::generation",
+                        model=model_name,
+                        input=messages,
+                        model_parameters={k: v for k, v in payload.items() if k != 'messages'}
+                    ) as gen:
+                        response = requests.post(
+                            api_url,
+                            json=payload,
+                            headers=headers,
+                            timeout=300
+                        )
+                        response.raise_for_status()
+
+                        data = response.json()
+                        # OpenAI/Perplexity/DeepSeek compatible response format
+                        assistant_response = data.get("choices", [{}])[0].get("message", {}).get("content", "Sorry, I couldn't get a response.")
+                        usage = data.get("usage", {
+                            "prompt_tokens": 0,
+                            "completion_tokens": 0
+                        })
+
+                        gen.update(output=assistant_response, usage_details=usage)
+
+                    span.update(output={"generated_text": assistant_response})
+                    return {"content": assistant_response, "usage": usage}
+            else:
+                response = requests.post(
+                    api_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=300
+                )
+                response.raise_for_status()
+
+                data = response.json()
+                assistant_response = data.get("choices", [{}])[0].get("message", {}).get("content", "Sorry, I couldn't get a response.")
+                usage = data.get("usage", {
+                    "prompt_tokens": data.get("usage", {}).get("prompt_tokens", 0),
+                    "completion_tokens": data.get("usage", {}).get("completion_tokens", 0)
+                })
+                return {"content": assistant_response, "usage": usage}
+
+        except requests.exceptions.Timeout as e:
+            current_app.logger.warning(f"Cloud model attempt {attempt + 1} timed out: {e}")
+            if attempt == max_retries - 1:
+                return {"content": f"Request timed out after {max_retries} attempts.", "usage": {}}
+        except requests.exceptions.RequestException as e:
+            current_app.logger.error(f"Cloud model API error on attempt {attempt + 1}: {e} - Response: {e.response.text if e.response else 'N/A'}")
+            if attempt == max_retries - 1:
+                return {"content": f"Error connecting to the cloud model after {max_retries} attempts: {str(e)}", "usage": {}}
+        except Exception as e:
+            current_app.logger.error(f"Unexpected error with cloud model on attempt {attempt + 1}: {e}")
+            if attempt == max_retries - 1:
+                return {"content": f"An unexpected error occurred after {max_retries} attempts.", "usage": {}}
+
+        if attempt < max_retries - 1:
+            wait_time = 2 ** attempt
+            current_app.logger.info(f"Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
+
+    return {"content": "Maximum retry attempts reached for cloud model.", "usage": {}}
 
 def ollama_chat(messages, model, session_id=None, max_retries=3):
     """Send chat messages to Ollama API and get response with Langfuse tracing"""
@@ -527,6 +657,7 @@ thread_manager = ThreadManager()
 def index():
     ollama_status = "Connected" if check_ollama_connection() else "Disconnected"
     available_models = get_ollama_models()
+    cloud_models = get_cloud_models()
     
     # Fetch prompts for the dropdown
     prompts = []
@@ -543,10 +674,12 @@ def index():
         header_title="💬 AI Think",
         nav_links=[
             {"href": "/history", "title": "Chat History", "icon": "history"},
+            {"href": "/cloud_models", "title": "Cloud Models", "icon": "cloud"},
             {"href": "/models", "title": "Models Hub", "icon": "hub"},
         ],
         model_id=OLLAMA_MODEL, 
         available_models=available_models,
+        cloud_models=cloud_models,
         ollama_status=ollama_status,
         langfuse_enabled=langfuse_enabled,
         prompts=prompts
@@ -612,6 +745,10 @@ def generate():
 
     model = data.get('model', OLLAMA_MODEL)
     messages = data['messages']
+    # The model identifier might be prefixed with "cloud::"
+    is_cloud_model = model.startswith('cloud::')
+    model_id = model.replace('cloud::', '')
+
     user_message = messages[-1]['content'] if messages else ""
 
     # Use session ID from Flask session (or generate new if not exists)
@@ -697,8 +834,22 @@ def generate():
     start_time = time.time()
 
     try:
-        # Get AI response from Ollama with Langfuse tracing
-        assistant_response_data = ollama_chat(messages, model, session_id)
+        assistant_response_data = None
+        if is_cloud_model:
+            # Fetch the specific cloud model's config
+            db = get_db()
+            model_config_row = db.execute('SELECT * FROM cloud_models WHERE id = ?', (int(model_id),)).fetchone()
+            if not model_config_row:
+                return jsonify({"error": f"Cloud model with ID {model_id} not found."}), 404
+            
+            model_config = dict(model_config_row)
+            current_app.logger.info(f"Routing to cloud model: {model_config['service']} - {model_config['model_name']}")
+            assistant_response_data = cloud_model_chat(messages, model_config, session_id)
+        else:
+            # It's an Ollama model
+            current_app.logger.info(f"Routing to Ollama model: {model}")
+            assistant_response_data = ollama_chat(messages, model, session_id)
+
         assistant_response = assistant_response_data['content']
         current_app.logger.info(f"Assistant response generated: '{assistant_response[:80]}...'")
         usage = assistant_response_data['usage']
@@ -1008,6 +1159,7 @@ def models_hub():
         page_title="Models Hub | Ollama Chat",
         page_id="models",
         header_title="📦 Models Hub",
+        nav_links=[{"href": "/cloud_models", "title": "Cloud Models", "icon": "cloud"}],
         ollama_status=ollama_status
     )
 
@@ -1188,6 +1340,94 @@ def api_delete_prompt(prompt_id):
     db.execute('DELETE FROM prompts WHERE id = ?', (prompt_id,))
     db.commit()
     return jsonify({'success': True})
+
+# --- Cloud Model Endpoints ---
+
+@app.route('/cloud_models')
+def cloud_models_page():
+    """Render the Cloud Models management page."""
+    return render_template(
+        'cloud_models.html',
+        page_title="Cloud Models | Ollama Chat",
+        page_id="cloud_models",
+        header_title="☁️ Cloud Model Management"
+    )
+
+@app.route('/api/cloud_models', methods=['GET'])
+def api_get_cloud_models():
+    """API endpoint to get all configured cloud models."""
+    try:
+        models = get_cloud_models()
+        # For the API, we'll return a partial key for display purposes
+        for model in models:
+            if model.get('api_key'):
+                model['api_key_partial'] = f"***{model['api_key'][-4:]}"
+            del model['api_key'] # Don't send the full key to the client
+        return jsonify(models)
+    except Exception as e:
+        current_app.logger.error(f"Error fetching cloud models: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cloud_models/create', methods=['POST'])
+def api_create_cloud_model():
+    """API endpoint to create a new cloud model configuration."""
+    data = request.get_json()
+    service = data.get('service')
+    base_url = data.get('base_url')
+    api_key = data.get('api_key')
+    model_name = data.get('model_name')
+
+    if not all([service, base_url, api_key, model_name]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    try:
+        db = get_db()
+        cursor = db.execute('INSERT INTO cloud_models (service, base_url, api_key, model_name) VALUES (?, ?, ?, ?)',
+                            (service, base_url, api_key, model_name))
+        db.commit()
+        return jsonify({"success": True, "id": cursor.lastrowid}), 201
+    except Exception as e:
+        current_app.logger.error(f"Error creating cloud model: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cloud_models/update/<int:model_id>', methods=['POST'])
+def api_update_cloud_model(model_id):
+    """API endpoint to update an existing cloud model configuration."""
+    data = request.get_json()
+    
+    # Only update fields that are provided
+    updates = {k: v for k, v in data.items() if v is not None and k in ['service', 'base_url', 'api_key', 'model_name']}
+    
+    if not updates:
+        return jsonify({"error": "No fields to update"}), 400
+    # If api_key is empty, it means the user didn't want to change it.
+    # We should not update it to an empty string.
+    if 'api_key' in updates and not updates['api_key']:
+        del updates['api_key']
+
+    set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
+    values = list(updates.values()) + [model_id]
+
+    try:
+        db = get_db()
+        db.execute(f'UPDATE cloud_models SET {set_clause} WHERE id = ?', tuple(values))
+        db.commit()
+        return jsonify({"success": True, "id": model_id})
+    except Exception as e:
+        current_app.logger.error(f"Error updating cloud model {model_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cloud_models/delete/<int:model_id>', methods=['DELETE'])
+def api_delete_cloud_model(model_id):
+    """API endpoint to delete a cloud model configuration."""
+    try:
+        db = get_db()
+        db.execute('DELETE FROM cloud_models WHERE id = ?', (model_id,))
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        current_app.logger.error(f"Error deleting cloud model {model_id}: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # Langfuse flush on app shutdown
 @app.teardown_appcontext

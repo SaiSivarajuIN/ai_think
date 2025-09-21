@@ -1,0 +1,131 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        /* Modal styles from prompts.html, slightly adapted */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: var(--card); margin: 10% auto; padding: 2rem; border: 1px solid var(--border); width: 80%; max-width: 600px; border-radius: var(--radius-lg); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .modal-header h2 { margin: 0; }
+        .close-btn { color: var(--text); font-size: 28px; font-weight: bold; cursor: pointer; }
+        .model-name-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .model-name-group input {
+            flex-grow: 1;
+        }
+        #model-names-container .form-group {
+            margin-bottom: 0; /* Remove bottom margin from individual model name groups */
+        }
+    </style>
+</head>
+<body class="fixed-layout">
+    <div class="page-container">
+        <header class="header">
+            <h1>{{ header_title }}</h1>
+            <div class="header-nav">
+                <a href="/" class="nav-link" title="New Chat">
+                    <span class="material-icons">chat</span>
+                </a>
+                <a href="/history" class="nav-link" title="Chat History">
+                    <span class="material-icons">history</span>
+                </a>
+                <a href="/health" class="nav-link" title="System Health">
+                    <span class="material-icons">health_and_safety</span>
+                </a>
+                <a href="/settings" class="nav-link" title="Settings">
+                    <span class="material-icons">settings</span>
+                </a>
+                <a href="/models" class="nav-link" title="Models Hub">
+                    <span class="material-icons">hub</span>
+                </a>
+                <a href="/cloud_models" class="nav-link" title="Cloud Models">
+                    <span class="material-icons">cloud</span>
+                </a>
+                <a href="/prompts" class="nav-link" title="Prompt Hub">
+                    <span class="material-icons">apps</span>
+                </a>
+            </div>
+        </header>
+
+        <main class="page-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Configured Cloud Models</h2>
+                    <button id="add-model-btn" class="send-button">
+                        Add Model
+                    </button>
+                </div>
+                <p>Configure external models from providers like OpenAI, Perplexity, etc. These models will appear in the dropdown on the main chat page.</p>
+                <table id="cloud-models-table" class="models-table">
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Model Name</th>
+                            <th>Base URL</th>
+                            <th>API Key</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Models will be populated by JavaScript -->
+                    </tbody>
+                </table>
+                <div id="loading-models" style="text-align: center; padding: 1rem;">Loading...</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Model Modal -->
+    <div id="model-modal" class="modal">
+        <div class="modal-content">
+            <input type="hidden" id="model-id" name="model_id">
+            <div class="modal-header">
+                <h2 id="modal-title">Add New Cloud Model</h2>
+                <span class="close-btn">&times;</span>
+            </div>
+            <form id="model-form" class="settings-form" style="gap: 1rem;">
+                <div class="form-group">
+                    <label for="model-service">Service Name</label>
+                    <select id="model-service" name="service" class="model-selector" style="width: 100%;">
+                        <option value="DeepSeek">DeepSeek</option>
+                        <option value="Google Gemini">Google Gemini</option>
+                        <option value="OpenAI">OpenAI</option>
+                        <option value="OpenRouter">OpenRouter</option>
+                        <option value="Perplexity">Perplexity</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group" id="other-service-group" style="display: none;">
+                    <label for="model-service-other">Custom Service Name</label>
+                    <input type="text" id="model-service-other" name="service_other" placeholder="Enter custom service name">
+                </div>
+                <div class="form-group">
+                    <label for="model-base-url">Base URL</label>
+                    <input type="url" id="model-base-url" name="base_url" required placeholder="e.g., https://api.perplexity.ai">
+                </div>
+                <div class="form-group">
+                    <label for="model-api-key">API Key</label>
+                    <input type="password" id="model-api-key" name="api_key" placeholder="Leave blank to keep existing key">
+                </div>
+                <div class="form-group">
+                    <label for="model-name">Model Name</label>
+                    <input type="text" id="model-name" name="model_name" required placeholder="e.g., llama-3-sonar-large-32k-online">
+                </div>
+                <button type="submit" class="save-btn">Save Model</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='cloud_models.js') }}"></script>
+</body>
+</html>
