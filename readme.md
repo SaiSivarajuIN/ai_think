@@ -173,9 +173,7 @@ docker compose up -d
 
 To perform a web search, click the 🔍 icon or type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`).
 
-## ⌨️ Keyboard Shortcuts
 
--   **`Alt + S`**: Expand or collapse the sidebar.
 
 ## 📄 Documentation
 
