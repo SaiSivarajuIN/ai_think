@@ -47,7 +47,6 @@ The `ollamaSetup.sh && ollamaSetup.bat` script will install Ollama and download 
   Open a terminal, make the script executable, and run it. This will also start the Ollama server in the background.
 
   ```bash
-  chmod +x ./ollamaSetup.bat
   ./ollamaSetup.bat
   ```
 
@@ -169,10 +168,14 @@ search:
 ``` bash
 docker compose up -d
 ```
- - <p>Your SearXNG instance will be available at <b>http://localhost:8080</b> once the containers are running.</p>
- - <p>Marke sure port 8080 is open</p>
+ - Your SearXNG instance will be available at `http://localhost:8080` once the containers are running.
+ - Marke sure port 8080 is open
 
 To perform a web search, click the 🔍 icon or type `/search` followed by your query in the chat input (e.g., `/search latest news on AI`).
+
+## ⌨️ Keyboard Shortcuts
+
+-   **`Alt + S`**: Expand or collapse the sidebar.
 
 ## 📄 Documentation
 
