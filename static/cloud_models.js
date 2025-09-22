@@ -125,6 +125,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    async function copyKey(modelId) {
+        const copyBtn = document.querySelector(`tr[data-id="${modelId}"] .copy-key-btn`);
+        if (!copyBtn) return;
+ 
+        try {
+            const response = await fetch(`/api/cloud_models/${modelId}`);
+            if (!response.ok) throw new Error('Failed to fetch key');
+            const modelDetails = await response.json();
+            const fullKey = modelDetails.api_key;
+ 
+            copyToClipboard(fullKey, copyBtn);
+        } catch (error) {
+            console.error('Error fetching API key:', error);
+            alert('Could not retrieve the full API key.');
+        }
+    }
     async function deleteModel(modelId) {
         if (!confirm('Are you sure you want to delete this cloud model configuration?')) return;
 
@@ -140,6 +156,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function copyToClipboard(text, buttonElement) {
+        navigator.clipboard.writeText(text).then(() => {
+            const icon = buttonElement.querySelector('.material-icons');
+            const originalIcon = icon.textContent;
+            icon.textContent = 'done'; // Change to checkmark
+            buttonElement.disabled = true;
+            setTimeout(() => {
+                icon.textContent = originalIcon; // Change back
+                buttonElement.disabled = false;
+            }, 1500);
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            alert('Failed to copy API key.');
+        });
+    }
     // --- Rendering ---
     function renderModels(models) {
         modelsTableBody.innerHTML = ''; // Clear existing rows
@@ -156,7 +187,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${model.service}</td>
                 <td>${model.model_name}</td>
                 <td>${model.base_url}</td>
-                <td>${model.api_key_partial || 'Not set'}</td>
+                <td style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="api-key-text">${model.api_key_partial || 'Not set'}</span>
+                    <button class="copy-key-btn icon-btn" title="Copy Key">
+                        <span class="material-icons">content_copy</span>
+                    </button>
+                </td>
                 <td>
                     <button class="edit-model-btn icon-btn" title="Edit Model">
                         <span class="material-icons">edit</span>
@@ -171,6 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add event listeners for the new buttons
             row.querySelector('.edit-model-btn').addEventListener('click', () => openModalForEdit(model));
             row.querySelector('.delete-model-btn').addEventListener('click', () => deleteModel(model.id));
+            row.querySelector('.copy-key-btn').addEventListener('click', () => copyKey(model.id));
         });
     }
 

@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const promptSelector = document.getElementById('prompt-selector');
     const searchButton = document.getElementById('search-button');
     let conversationHistory = [];
+    const sidebarToggle = document.querySelector('.sidebar-toggle-btn');
     let thinkingMessageId = null;
     let fileContextActive = false;
 
@@ -98,7 +99,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (isUser) {
-            messageDiv.textContent = content;
+            // Escape HTML for user messages to prevent XSS
+            messageDiv.innerHTML = formatMessage(escapeHtml(content));
         } else {
             messageDiv.innerHTML = formatMessage(content);
         }
@@ -423,6 +425,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initial welcome message
     addMessage('👋 Hello! I\'m your Ollama-powered assistant. How can I help you today?', false);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarToggle = document.querySelector('.sidebar-toggle-btn');
+    const pageContainer = document.querySelector('.page-container');
+
+    // The initial state is now handled by a script in <head> and a CSS class.
+    // Here, we just need to sync the .page-container class with the pre-load state.
+    if (localStorage.getItem('sidebarCollapsed') === 'true') {
+        pageContainer.classList.add('sidebar-collapsed');
+    }
+    // Clean up the pre-load class from <html> so it doesn't interfere with other things.
+    document.documentElement.classList.remove('sidebar-collapsed-preload');
+
+    if (sidebarToggle && pageContainer) {
+        sidebarToggle.addEventListener('click', () => {
+            // Toggle the class on the main container for transitions
+            pageContainer.classList.toggle('sidebar-collapsed');
+            // Save the state to localStorage
+            localStorage.setItem('sidebarCollapsed', pageContainer.classList.contains('sidebar-collapsed'));
+        });
+    }
+
+    // Add keyboard shortcut for sidebar toggle (Alt + S)
+    document.addEventListener('keydown', (event) => {
+        if (event.altKey && event.key.toLowerCase() === 's') {
+            event.preventDefault(); // Prevent browser's default "Save" action
+            if (sidebarToggle) {
+                sidebarToggle.click();
+            }
+        }
+    });
 });
 
 document.addEventListener('DOMContentLoaded', function() {

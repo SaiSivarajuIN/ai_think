@@ -1,11 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prompt Hub | Ollama Chat</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block header_title %}{{ header_title }}{% endblock %}
+
+{% block head_extra %}
     <style>
         .prompt-hub-grid {
             display: grid;
@@ -81,46 +80,21 @@
         .modal-header h2 { margin: 0; }
         .close-btn { color: var(--text); font-size: 28px; font-weight: bold; cursor: pointer; }
     </style>
-</head>
-<body class="fixed-layout">
-    <div class="page-container">
-        <header class="header">
-            <h1>🚀 Prompt Hub</h1>
-            <div class="header-nav">
-                <a href="/" class="nav-link" title="New Chat">
-                    <span class="material-icons">chat</span>
-                </a>
-                <a href="/history" class="nav-link" title="Chat History">
-                    <span class="material-icons">history</span>
-                </a>
-                <a href="/health" class="nav-link" title="System Health">
-                    <span class="material-icons">health_and_safety</span>
-                </a>
-                <a href="/settings" class="nav-link" title="Settings">
-                    <span class="material-icons">settings</span>
-                </a>
-                <a href="/models" class="nav-link" title="Models Hub">
-                    <span class="material-icons">hub</span>
-                </a>
-                <a href="/cloud_models" class="nav-link" title="Cloud Models">
-                    <span class="material-icons">cloud</span>
-                </a>
-                <a href="/prompts" class="nav-link" title="Prompt Hub">
-                    <span class="material-icons">apps</span>
-                </a>
-            </div>
-        </header>
-        <main class="page-content">
-            <div id="prompt-hub-grid" class="prompt-hub-grid">
-                <!-- Prompts will be loaded here by JavaScript -->
-                <div class="add-prompt-card" id="add-prompt-btn">
-                    <span class="material-icons">add_circle</span>
-                    <p>Create New Prompt</p>
-                </div>
-            </div>
-        </main>
-    </div>
+{% endblock %}
 
+
+
+{% block content %}
+                <div id="prompt-hub-grid" class="prompt-hub-grid">
+                    <!-- Prompts will be loaded here by JavaScript -->
+                    <div class="add-prompt-card" id="add-prompt-btn">
+                        <span class="material-icons">add_circle</span>
+                        <p>Create New Prompt</p>
+                    </div>
+                </div>
+{% endblock %}
+
+{% block after_content %}
     <!-- Add/Edit Prompt Modal -->
     <div id="prompt-modal" class="modal">
         <div class="modal-content">
@@ -152,7 +126,9 @@
             </form>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script src="{{ url_for('static', filename='prompts.js') }}"></script>
-</body>
-</html>
+    {{ super() }}
+{% endblock %}

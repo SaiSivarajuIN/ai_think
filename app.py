@@ -669,7 +669,7 @@ def index():
 
     return render_template(
         'index.html', 
-        page_title="AI Think | Ollama Chat",
+        page_title="AI Think | AI Think Chat",
         page_id="chat",
         header_title="💬 AI Think",
         nav_links=[
@@ -771,34 +771,6 @@ def generate():
             # If no query, treat as a normal message
             pass
 
-    # Check if this is the first user message in a conversation that has a file.
-    # We look for a "system" message (our file upload) and only one "user" message.
-    user_message_count = sum(1 for m in messages if m['role'] == 'user')
-    
-    if user_message_count == 1:
-        file_context_message = None
-        if chroma_connected:
-            # This is more complex with Chroma and might require a different strategy
-            # For now, we'll rely on the frontend to build the context
-            pass
-        else:
-            db = get_db()
-            # Find the last uploaded file for this session
-            file_row = db.execute(
-                "SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1",
-                (session_id,)
-            ).fetchone()
-            if file_row:
-                file_context_message = file_row['content']
-
-        if file_context_message:
-            # Extract filename and content from the stored message
-            parts = file_context_message.split('\n\n--- CONTENT ---\n', 1)
-            if len(parts) == 2:
-                filename_line, file_content = parts
-                filename = filename_line.replace('File uploaded: ', '')
-                contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{user_message}"
-                messages[-1]['content'] = contextual_prompt
     current_app.logger.info(f"User message received for generation: '{user_message[:80]}...'")
     
     # Use session ID from Flask session (or generate new if not exists)
@@ -842,11 +814,45 @@ def generate():
             if not model_config_row:
                 return jsonify({"error": f"Cloud model with ID {model_id} not found."}), 404
             
+            # For cloud models, add file context as a system message if it's the first user message
+            if sum(1 for m in messages if m['role'] == 'user') == 1:
+                file_context_message = None
+                if chroma_connected:
+                    try:
+                        results = chroma_collection.get(where={"session_id": session_id, "sender": "system"}, include=["documents"])
+                        if results['documents']:
+                            file_context_message = results['documents'][-1]
+                    except Exception as e:
+                        current_app.logger.error(f"Error fetching file context from ChromaDB for session {session_id}: {e}")
+                else:
+                    file_row = db.execute(
+                        "SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1",
+                        (session_id,)
+                    ).fetchone()
+                    if file_row:
+                        file_context_message = file_row['content']
+                
+                if file_context_message and '\n\n--- CONTENT ---\n' in file_context_message:
+                    filename_line, file_content = file_context_message.split('\n\n--- CONTENT ---\n', 1)
+                    filename = filename_line.replace('File uploaded: ', '')
+                    # Create a system message with the file content
+                    system_context_prompt = f"You are an expert assistant. The user has provided a document named '{filename}'. Use its content to answer the user's question. The document content is as follows:\n\n---\n{file_content}\n---"
+                    # Insert the system message at the beginning of the conversation
+                    messages.insert(0, {"role": "system", "content": system_context_prompt})
+
             model_config = dict(model_config_row)
             current_app.logger.info(f"Routing to cloud model: {model_config['service']} - {model_config['model_name']}")
             assistant_response_data = cloud_model_chat(messages, model_config, session_id)
         else:
             # It's an Ollama model
+            # For local models, prepend context to the user message
+            if sum(1 for m in messages if m['role'] == 'user') == 1:
+                file_row = get_db().execute("SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1", (session_id,)).fetchone()
+                if file_row and '\n\n--- CONTENT ---\n' in file_row['content']:
+                    filename_line, file_content = file_row['content'].split('\n\n--- CONTENT ---\n', 1)
+                    filename = filename_line.replace('File uploaded: ', '')
+                    contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{user_message}"
+                    messages[-1]['content'] = contextual_prompt
             current_app.logger.info(f"Routing to Ollama model: {model}")
             assistant_response_data = ollama_chat(messages, model, session_id)
 
@@ -971,6 +977,9 @@ def history():
 
     return render_template(
         'history.html',
+        page_title="Chat History | AI Think Chat",
+        page_id="health",
+        header_title="📚 Chat History",
         threads=threads_with_sn,
         session_start=session_start,
         newest_session_id=sorted_threads[0][0] if sorted_threads else None
@@ -1136,7 +1145,7 @@ def health():
     return render_template(
         'health.html',
         status=overall_status,
-        page_title="System Health | Ollama Chat",
+        page_title="System Health | AI Think Chat",
         page_id="health",
         header_title="🏥 System Health Dashboard",
         cpu={"count": cpu_count, "percent": cpu_percent},
@@ -1156,7 +1165,7 @@ def models_hub():
     ollama_status = "Connected" if check_ollama_connection() else "Disconnected"
     return render_template(
         'models.html',
-        page_title="Models Hub | Ollama Chat",
+        page_title="Models Hub | AI Think Chat",
         page_id="models",
         header_title="📦 Models Hub",
         nav_links=[{"href": "/cloud_models", "title": "Cloud Models", "icon": "cloud"}],
@@ -1268,7 +1277,7 @@ def settings():
     # Get current settings
     current_settings = get_settings()
     
-    return render_template('settings.html', settings=current_settings)
+    return render_template('settings.html',  page_title="Settings | AI Think Chat", page_id="settings", header_title="⚙️ Settings", settings=current_settings)
 
 # --- Prompt Hub Endpoints ---
 
@@ -1277,7 +1286,7 @@ def prompts_hub():
     """Render the prompts hub page."""
     return render_template(
         'prompts.html',
-        page_title="Prompt Hub | Ollama Chat",
+        page_title="Prompt Hub | AI Think Chat",
         page_id="prompts",
         header_title="🚀 Prompt Hub"
     )
@@ -1348,7 +1357,7 @@ def cloud_models_page():
     """Render the Cloud Models management page."""
     return render_template(
         'cloud_models.html',
-        page_title="Cloud Models | Ollama Chat",
+        page_title="Cloud Models | AI Think Chat",
         page_id="cloud_models",
         header_title="☁️ Cloud Model Management"
     )
@@ -1366,6 +1375,19 @@ def api_get_cloud_models():
         return jsonify(models)
     except Exception as e:
         current_app.logger.error(f"Error fetching cloud models: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cloud_models/<int:model_id>', methods=['GET'])
+def api_get_cloud_model_details(model_id):
+    """API endpoint to get full details for a single cloud model, including the API key."""
+    try:
+        db = get_db()
+        model_row = db.execute('SELECT * FROM cloud_models WHERE id = ?', (model_id,)).fetchone()
+        if not model_row:
+            return jsonify({"error": "Model not found"}), 404
+        return jsonify(dict(model_row))
+    except Exception as e:
+        current_app.logger.error(f"Error fetching details for cloud model {model_id}: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cloud_models/create', methods=['POST'])

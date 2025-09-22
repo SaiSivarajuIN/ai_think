@@ -1,122 +1,77 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Think | Ollama Chat</title>
+{% block title %}{{ page_title }}{% endblock %}
 
-    <!-- Stylesheets -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+{% block header_title %}{{ header_title }}{% endblock %}
 
+{% block head_extra %}
     <!-- Markdown Converter -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
 
     <!-- MathJax v3 for LaTeX rendering -->
     <script>
         window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                packages: {'[+]': ['ams']},
-                processEscapes: true
-            },
-            options: {
-                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-            }
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], packages: {'[+]': ['ams']}, processEscapes: true },
+            options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
-</head>
+{% endblock %}
 
-<body class="fixed-layout">
-    <div class="page-container">
-        <!-- Header -->
-        <header class="header">
-            <h2>💬 AI Think</h2>
-            <div class="header-nav">
-                <div class="model-selector-wrapper">
-                    <label for="model-selector" class="visually-hidden">Model:</label>
-                    <select id="model-selector" class="model-selector">
-                        {% if available_models %}
-                            <optgroup label="Local Models">
-                            {% for model in available_models %}
-                                <option value="{{ model }}" {% if model == model_id %}selected{% endif %}>{{ model }}</option>
+{% block header_nav %}
+                     <div class="model-selector-wrapper">
+                        <label for="model-selector" class="visually-hidden">Model:</label>
+                        <select id="model-selector" class="model-selector">
+                            {% if available_models %}
+                                <optgroup label="Local Models">
+                                {% for model in available_models %}
+                                    <option value="{{ model }}" {% if model == model_id %}selected{% endif %}>{{ model }}</option>
+                                {% endfor %}
+                                </optgroup>
+                            {% else %}
+                                <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
+                            {% endif %}
+                            {% if cloud_models %}
+                                <optgroup label="Cloud Models">
+                                {% for model in cloud_models %}
+                                    <option value="cloud::{{ model.id }}">{{ model.service }} / {{ model.model_name }}</option>
+                                {% endfor %}
+                                </optgroup>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="model-selector-wrapper">
+                        <label for="prompt-selector" class="visually-hidden">Prompt:</label>
+                        <select id="prompt-selector" class="model-selector">
+                            <option value="" data-content="">🚀 Select a Prompt...</option>
+                            {% for prompt in prompts %}
+                                <option value="{{ prompt.id }}" data-content="{{ prompt.content | e }}">
+                                    {{ prompt.title }}
+                                </option>
                             {% endfor %}
-                            </optgroup>
-                        {% else %}
-                            <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
-                        {% endif %}
-                        {% if cloud_models %}
-                            <optgroup label="Cloud Models">
-                            {% for model in cloud_models %}
-                                <option value="cloud::{{ model.id }}">{{ model.service }} / {{ model.model_name }}</option>
-                            {% endfor %}
-                            </optgroup>
-                        {% endif %}
-                    </select>
-                </div>
-                <div class="model-selector-wrapper">
-                    <label for="prompt-selector" class="visually-hidden">Prompt:</label>
-                    <select id="prompt-selector" class="model-selector">
-                        <option value="" data-content="">🚀 Select a Prompt...</option>
-                        {% for prompt in prompts %}
-                            <option value="{{ prompt.id }}" data-content="{{ prompt.content | e }}">
-                                {{ prompt.title }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button onclick="resetThread()" class="nav-link" title="New Chat">
-                    <span class="material-icons">add_comment</span>
-                </button>
-                <button id="search-button" class="nav-link" title="Web Search">
-                    <span class="material-icons">search</span>
-                </button>
-                <a href="/history" class="nav-link" title="Chat History">
-                    <span class="material-icons">history</span>
-                </a>
-                <a href="/health" class="nav-link" title="System Health">
-                    <span class="material-icons">health_and_safety</span>
-                </a>
-                <a href="/settings" class="nav-link" title="Settings">
-                    <span class="material-icons">settings</span>
-                </a>
-                <a href="/models" class="nav-link" title="Models Hub">
-                    <span class="material-icons">hub</span>
-                </a>
-                <a href="/cloud_models" class="nav-link" title="Cloud Models">
-                    <span class="material-icons">cloud</span>
-                </a>
-                <a href="/prompts" class="nav-link" title="Prompt Hub">
-                    <span class="material-icons">apps</span>
-                </a>
-            </div>
-        </header>
+                        </select>
+                    </div>
+                    <button onclick="resetThread()" class="nav-link" title="New Chat">
+                        <span class="material-icons">add_comment</span>
+                    </button>
+                    <button id="search-button" class="nav-link" title="Web Search">
+                        <span class="material-icons">search</span>
+                    </button>
+{% endblock %}
 
-        <!-- Chat Box -->
-        <div id="chatbox" class="page-content"></div>
+{% block content %}
+    <!-- Chat Box -->
+    <div id="chatbox" class="page-content" style="padding: 0;"></div>
+{% endblock %}
 
-        <!-- Input Area -->
-        <div class="input-area-wrapper">
-            <div class="input-area">
-                <input type="file" id="fileUpload" accept=".txt" title="Upload TXT File" style="display: none;" />
-                <button id="uploadButton" class="nav-link" title="Upload TXT File">
-                    <span class="material-icons">attach_file</span>
-                </button>
-                <textarea id="userMessage" placeholder="Type your message..." rows="1"></textarea>
-                <button id="sendButton" class="send-button" title="Send">
-                   <span class="material-icons">send</span>
-                </button>
-            </div>
+{% block after_content %}
+    <!-- Input Area -->
+    <div class="input-area-wrapper">
+        <div class="input-area">
+            <input type="file" id="fileUpload" accept=".txt" title="Upload TXT File" style="display: none;" />
+            <button id="uploadButton" class="nav-link" title="Upload TXT File"><span class="material-icons">attach_file</span></button>
+            <textarea id="userMessage" placeholder="Type your message..." rows="1"></textarea>
+            <button id="sendButton" class="send-button" title="Send"><span class="material-icons">send</span></button>
         </div>
     </div>
-
-    <!-- Scripts -->
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
-</body>
-</html>
+{% endblock %}

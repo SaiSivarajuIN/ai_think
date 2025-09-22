@@ -1,10 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Settings | Ollama Chat</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block header_title %}{{ header_title }}{% endblock %}
+
+{% block head_extra %}
     <style>
         .info-link {
             color: black;
@@ -29,142 +29,128 @@
             margin-bottom: 0.5rem;
         }
     </style>
-</head>
-<body class="fixed-layout">
-    <div class="page-container">
-        <header class="header">
-            <h1>⚙️ Settings</h1>
-            <div class="header-nav">
-                <a href="/" class="nav-link" title="New Chat">
-                    <span class="material-icons">chat</span>
-                </a>
-                <a href="/history" class="nav-link" title="Chat History">
-                    <span class="material-icons">history</span>
-                </a>
-                <a href="/health" class="nav-link" title="System Health">
-                    <span class="material-icons">health_and_safety</span>
-                </a>
-                <a href="/settings" class="nav-link" title="Settings">
-                    <span class="material-icons">settings</span>
-                </a>
-                <a href="/models" class="nav-link" title="Models Hub">
-                    <span class="material-icons">hub</span>
-                </a>
-                <a href="/cloud_models" class="nav-link" title="Cloud Models">
-                    <span class="material-icons">cloud</span>
-                </a>
-                <a href="/prompts" class="nav-link" title="Prompt Hub">
-                    <span class="material-icons">apps</span>
-                </a>
-            </div>
-        </header>
-        <main class="page-content">
-            <form class="settings-form" method="POST">
-                <div class="settings-grid">
-                    <div class="settings-column card">
-                        <h2>Model Parameters</h2>
-                        <div class="form-group">
-                            <label for="num_predict">Tokens to Predict</label>
-                            <input type="number" id="num_predict" name="num_predict" value="{{ settings['num_predict'] }}" min="1" max="40960" step="1" required>
+{% endblock %}
+
+{% block content %}
+                <form class="settings-form" method="POST">
+                    <div class="settings-grid">
+                        <div class="settings-column card">
+                            <h2>Model Parameters</h2>
+                            <div class="form-group">
+                                <label for="num_predict">Tokens to Predict</label>
+                                <input type="number" id="num_predict" name="num_predict" value="{{ settings['num_predict'] }}" min="1" max="40960" step="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="temperature">Temperature</label>
+                                <input type="number" id="temperature" name="temperature" value="{{ settings['temperature'] }}" min="0" max="2" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="top_p">Top P</label>
+                                <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="top_k">Top K</label>
+                                <input type="number" id="top_k" name="top_k" value="{{ settings['top_k'] }}" min="1" max="100" step="1" required>
+                            </div>
+                            
                         </div>
-                        <div class="form-group">
-                            <label for="temperature">Temperature</label>
-                            <input type="number" id="temperature" name="temperature" value="{{ settings['temperature'] }}" min="0" max="2" step="0.01" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="top_p">Top P</label>
-                            <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="top_k">Top K</label>
-                            <input type="number" id="top_k" name="top_k" value="{{ settings['top_k'] }}" min="1" max="100" step="1" required>
+                        <div class="settings-column card">
+                            <h2>Langfuse Tracing (Optional)</h2>
+                            <div class="form-group toggle-group">
+                                <label for="langfuse_enabled">Enable Langfuse</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="langfuse_enabled" name="langfuse_enabled" {% if settings.get('langfuse_enabled') %}checked{% endif %}>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="langfuse_public_key">Public Key</label>
+                                <input type="text" id="langfuse_public_key" name="langfuse_public_key" value="{{ settings['langfuse_public_key'] }}" placeholder="pk-lf-...">
+                            </div>
+                            <div class="form-group">
+                                <label for="langfuse_secret_key">Secret Key</label>
+                                <input type="password" id="langfuse_secret_key" name="langfuse_secret_key" value="{{ settings['langfuse_secret_key'] }}" placeholder="sk-lf-...">
+                            </div>
+                            <div class="form-group">
+                                <label for="langfuse_host">Host</label>
+                                <input type="url" id="langfuse_host" name="langfuse_host" value="{{ settings['langfuse_host'] }}" placeholder="https://cloud.langfuse.com">
+                            </div>
                         </div>
                         
                     </div>
-                    <div class="settings-column card">
-                        <h2>Langfuse Tracing (Optional)</h2>
-                        <div class="form-group toggle-group">
-                            <label for="langfuse_enabled">Enable Langfuse</label>
-                            <label class="switch">
-                                <input type="checkbox" id="langfuse_enabled" name="langfuse_enabled" {% if settings.get('langfuse_enabled') %}checked{% endif %}>
-                                <span class="slider round"></span>
-                            </label>
+                    <div class="settings-grid">
+                        <div class="settings-column card">
+                            <h2>ChromaDB Cloud (Optional)</h2>
+                            <div class="form-group toggle-group">
+                                <label for="chromadb_enabled">Enable ChromaDB</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="chromadb_enabled" name="chromadb_enabled" {% if settings.get('chromadb_enabled') %}checked{% endif %}>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="chroma_api_key">API Key</label>
+                                <input type="password" id="chroma_api_key" name="chroma_api_key" value="{{ settings.get('chroma_api_key', '') }}" placeholder="Enter your ChromaDB API key">
+                            </div>
+                            <div class="form-group">
+                                <label for="chroma_tenant">Tenant</label>
+                                <input type="text" id="chroma_tenant" name="chroma_tenant" value="{{ settings.get('chroma_tenant', '') }}" placeholder="default">
+                            </div>
+                            <div class="form-group">
+                                <label for="chroma_database">Database</label>
+                                <input type="text" id="chroma_database" name="chroma_database" value="{{ settings.get('chroma_database', '') }}" placeholder="default">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="langfuse_public_key">Public Key</label>
-                            <input type="text" id="langfuse_public_key" name="langfuse_public_key" value="{{ settings['langfuse_public_key'] }}" placeholder="pk-lf-...">
-                        </div>
-                        <div class="form-group">
-                            <label for="langfuse_secret_key">Secret Key</label>
-                            <input type="password" id="langfuse_secret_key" name="langfuse_secret_key" value="{{ settings['langfuse_secret_key'] }}" placeholder="sk-lf-...">
-                        </div>
-                        <div class="form-group">
-                            <label for="langfuse_host">Host</label>
-                            <input type="url" id="langfuse_host" name="langfuse_host" value="{{ settings['langfuse_host'] }}" placeholder="https://cloud.langfuse.com">
-                        </div>
-                    </div>
-                    
-                </div>
-                <div class="settings-grid">
-                    <div class="settings-column card">
-                        <h2>ChromaDB Cloud (Optional)</h2>
-                        <div class="form-group toggle-group">
-                            <label for="chromadb_enabled">Enable ChromaDB</label>
-                            <label class="switch">
-                                <input type="checkbox" id="chromadb_enabled" name="chromadb_enabled" {% if settings.get('chromadb_enabled') %}checked{% endif %}>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label for="chroma_api_key">API Key</label>
-                            <input type="password" id="chroma_api_key" name="chroma_api_key" value="{{ settings.get('chroma_api_key', '') }}" placeholder="Enter your ChromaDB API key">
-                        </div>
-                        <div class="form-group">
-                            <label for="chroma_tenant">Tenant</label>
-                            <input type="text" id="chroma_tenant" name="chroma_tenant" value="{{ settings.get('chroma_tenant', '') }}" placeholder="default">
-                        </div>
-                        <div class="form-group">
-                            <label for="chroma_database">Database</label>
-                            <input type="text" id="chroma_database" name="chroma_database" value="{{ settings.get('chroma_database', '') }}" placeholder="default">
+                        <div class="settings-column card">
+                            <h2>SearXNG Integration (Optional)</h2>
+                            <div class="form-group toggle-group">
+                                <label for="searxng_enabled">Enable SearXNG</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="searxng_enabled" name="searxng_enabled" {% if settings.get('searxng_enabled') %}checked{% endif %}>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="searxng_url">SearXNG URL</label>
+                                <input type="url" id="searxng_url" name="searxng_url" value="{{ settings.get('searxng_url', '') }}" placeholder="http://localhost:8080">
+                            </div>
+                            <p><strong>Note</strong> http://localhost:8080 is the default</p>
                         </div>
                     </div>
-                    <div class="settings-column card">
-                        <h2>SearXNG Integration (Optional)</h2>
-                        <div class="form-group toggle-group">
-                            <label for="searxng_enabled">Enable SearXNG</label>
-                            <label class="switch">
-                                <input type="checkbox" id="searxng_enabled" name="searxng_enabled" {% if settings.get('searxng_enabled') %}checked{% endif %}>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label for="searxng_url">SearXNG URL</label>
-                            <input type="url" id="searxng_url" name="searxng_url" value="{{ settings.get('searxng_url', '') }}" placeholder="http://localhost:8080">
-                        </div>
-                        <p><strong>Note</strong> http://localhost:8080 is the default</p>
+                    <div class="settings-grid">
+                        <!--Model Parameters Notes-->
+                            <div class="notes" style="color: black;">
+                                <h3>🧠 Understanding Model Parameters</h3>
+                                <dl style="display: flex; flex-direction: column; gap: 1rem;">
+                                    <div>
+                                        <dt><strong>Tokens to Predict:</strong></dt>
+                                        <dd>Tokens are the pieces of text the model reads and generates (words, parts of words, or punctuation). This setting controls the maximum number of tokens the model can generate in a single response.
+                                        <br><br>Example: The sentence "Hello, world!" might be split into tokens like: <code>["Hello", ",", " world", "!"]</code>.
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt><strong>Temperature (0–2):</strong></dt>
+                                        <dd>Controls the randomness of the model's output.
+                                        <br>- A <strong>low value</strong> (e.g., 0.1) makes the output more focused and predictable.
+                                        <br>- A <strong>high value</strong> (e.g., 1.0) makes it more random and creative.
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt><strong>Top-K (1+):</strong></dt>
+                                        <dd>Limits the model's choices to the top <code>K</code> most likely tokens at each step of generation, ignoring all other less probable tokens.
+                                        <br><br>Example: If <code>K=3</code>, and the top predicted tokens are "cat" (40%), "dog" (30%), and "mouse" (20%), the model will only choose from those three.
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt><strong>Top-P (0–1):</strong></dt>
+                                        <dd>Also called Nucleus Sampling, this selects from the smallest set of tokens whose combined probability is at least <code>P</code>. This provides a more dynamic way to control randomness.
+                                        
+                                        <br><br>Example: If <code>P=0.7</code>, and "cat" has a 40% probability and "dog" has 30%, the model will choose only between "cat" and "dog" since their combined probability is 70%.
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
                     </div>
-                </div>
-                <div class="settings-grid">
-                    <!--Model Parameters Notes-->
-                        <div class="notes">
-                            <h3>🧠 Note on Model Parameters</h3>
-                            <ul>
-                                <li><strong>Tokens to Predict:</strong> The maximum number of tokens (words/characters) the model can generate.</li>
-                                <li>
-                                    <strong>Temperature (0–2):</strong> Controls creativity. Low values are more focused; high values are more random.
-                                </li>
-                                <li>
-                                    <strong>Top-P (0–1):</strong> Selects from the smallest possible set of words whose cumulative probability exceeds the value `p`.
-                                </li>
-                                <li>
-                                    <strong>Top-K (1+):</strong> Narrows the model's choices to the `K` most likely words at each step.
-                                </li>
-                            </ul>
-                        </div>
-                </div>
-                <button type="submit" class="save-btn">Save Settings</button>
-            </form>
-        </main>
-    </div>
-</body>
-</html>
+                    <button type="submit" class="save-btn">Save Settings</button>
+                </form>
+{% endblock %}

@@ -1,98 +1,64 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_title }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-</head>
-<body class="fixed-layout">
-    <div class="page-container">
-        <header class="header">
-            <h1>{{ header_title }}</h1>
-            <div class="header-nav">
-                <a href="/" class="nav-link" title="New Chat">
-                    <span class="material-icons">chat</span>
-                </a>
-                <a href="/history" class="nav-link" title="Chat History">
-                    <span class="material-icons">history</span>
-                </a>
-                <a href="/health" class="nav-link" title="System Health">
-                    <span class="material-icons">health_and_safety</span>
-                </a>
-                <a href="/settings" class="nav-link" title="Settings">
-                    <span class="material-icons">settings</span>
-                </a>
-                <a href="/models" class="nav-link" title="Models Hub">
-                    <span class="material-icons">hub</span>
-                </a>
-                <a href="/cloud_models" class="nav-link" title="Cloud Models">
-                    <span class="material-icons">cloud</span>
-                </a>
-                <a href="/prompts" class="nav-link" title="Prompt Hub">
-                    <span class="material-icons">apps</span>
-                </a>
-            </div>
-        </header>
+{% extends "base.html" %}
 
-        <main class="page-content">
-            <div class="card">
-                <h2>Pull New Model</h2>
-                <p>Enter a model name from the <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., `mistral:latest`).<br>
-                Get Models from <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face</a> (e.g., `ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M`).
-                </p>
-                <div class="form-group">
-                    <label for="model-name-input">Model Name</label>
-                    <div class="input-group">
-                        <input type="text" id="model-name-input" class="input-group-input" placeholder="e.g., gemma:2b">
-                        <button id="pull-model-btn" class="send-button" title="Pull Model">
-                            <span class="material-icons">cloud_download</span>
-                        </button>
-                    </div>                    
-                </div>
-                <div id="pull-status-container" class="pull-status-container" style="display: none;">
-                    <pre id="pull-status"></pre>
-                    <div class="progress-bar-container">
-                        <div id="progress-bar" class="progress-bar"></div>
-                    </div>
-                </div>
-            </div>
+{% block title %}{{ page_title }}{% endblock %}
 
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2>Local Models</h2>
-                    <button id="delete-all-models-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
-                        <span class="material-icons">delete_sweep</span>
-                        Delete All
-                    </button>
-                </div>
-                <p>
-                    Ollama Status:
-                    <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
-                        {{ ollama_status }}
-                    </span>
-                </p>
-                <table id="local-models-table" class="models-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Size</th>
-                            <th>Modified</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Models will be populated by JavaScript -->
-                    </tbody>
-                </table>
-                <div id="loading-models" style="text-align: center; padding: 1rem;">Loading...</div>
-            </div>
-        </main>
+{% block header_title %}{{ header_title }}{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <h2>Pull New Model</h2>
+        <p>Enter a model name from the <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., `mistral:latest`).<br>
+    Get Models from <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face</a> (e.g., `ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M`).
+    </p>
+    <div class="form-group">
+        <label for="model-name-input">Model Name</label>
+        <div class="input-group">
+            <input type="text" id="model-name-input" class="input-group-input" placeholder="e.g., gemma:2b">
+            <button id="pull-model-btn" class="send-button" title="Pull Model">
+                <span class="material-icons">cloud_download</span>
+            </button>
+        </div>
     </div>
+    <div id="pull-status-container" class="pull-status-container" style="display: none;">
+        <pre id="pull-status"></pre>
+        <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+    </div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2>Local Models</h2>
+            <button id="delete-all-models-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
+                <span class="material-icons">delete_sweep</span>
+                Delete All
+            </button>
+        </div>
+        <p>
+            Ollama Status:
+            <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
+                {{ ollama_status }}
+            </span>
+        </p>
+        <table id="local-models-table" class="models-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Size</th>
+                    <th>Modified</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Models will be populated by JavaScript -->
+            </tbody>
+        </table>
+        <div id="loading-models" style="text-align: center; padding: 1rem;">Loading...</div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
     <script src="{{ url_for('static', filename='models.js') }}"></script>
-</body>
-</html>
+    {{ super() }}
+{% endblock %}

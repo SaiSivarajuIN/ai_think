@@ -57,11 +57,42 @@ body.fixed-layout {
 }
 .page-container {
     display: flex;
-    flex-direction: column;
+    flex-direction: row; /* Changed to row for sidebar layout */
     height: 100vh;
     max-width: 1600px;
     margin: 0 auto;
     background-color: var(--card);
+}
+
+.sidebar {
+    width: 200px;
+    background-color: var(--background);
+    border-right: 1px solid var(--border);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    transition: width 0.3s ease, padding 0.3s ease;
+    overflow: hidden; /* Hide content when collapsing */
+}
+
+.sidebar-header {
+    font-size: 1.0rem;
+    font-weight: 600;
+    padding: 0.75rem 0.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.main-content-wrapper {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent wrapper from causing scrollbars */
+    transition: margin-left 0.3s ease;
 }
 
 .page-content {
@@ -73,12 +104,11 @@ body.fixed-layout {
 .header {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1.5rem;
     border-bottom: 1px solid var(--border);
+    gap: 0.75rem;
     flex-shrink: 0;
-    gap: 1rem;
 }
 
 .header h1, .header h2 {
@@ -97,26 +127,51 @@ body.fixed-layout {
 .nav-link {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 8px;
+    justify-content: flex-start; /* Align text to the left */
+    gap: 1rem; /* Space between icon and text */
+    width: 100%;
+    padding: 0.75rem 1rem;
     margin: 0;
     color: var(--primary);
     cursor: pointer;
-    border: none;
+    border: none; 
     background: none;
     text-decoration: none;
-    flex-shrink: 0;
-    border-radius: 0.375rem;
+    border-radius: var(--radius-md);
     transition: all 0.2s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap; /* Prevent text from wrapping during collapse animation */
 }
 
 .nav-link:hover {
     color: var(--text);
+    background: var(--message-assistant);
+}
+
+/* Override nav-link styles specifically for buttons inside the input area */
+.input-area .nav-link {
+    width: auto; /* Reset width from main nav-link style */
+    padding: 6px; /* Use padding similar to other icon buttons */
+    border-radius: 50%;
+}
+
+.sidebar-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    color: var(--theme-toggle-text);
+    transition: all 0.2s ease;
+}
+
+.sidebar-toggle-btn:hover {
     background: rgba(0,0,0,0.05);
-    transform: scale(1.05);
-    opacity: 0.8;
+    color: var(--text);
 }
 
 .header-nav .material-icons {
@@ -231,6 +286,14 @@ body.fixed-layout {
     padding: 0.5rem;
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
+}
+
+/* Ensure buttons in the input area don't shrink */
+.input-area > .nav-link,
+.input-area > .send-button {
+    flex-shrink: 0;
+    align-self: flex-end; /* Align to the bottom with the textarea */
+    margin-bottom: 4px; /* Small margin to vertically align better */
 }
 
 #userMessage {
@@ -891,4 +954,26 @@ thead th {
 
 .input-group .send-button {
     border-radius: var(--radius-md); /* Match input radius */
+}
+
+/* Apply collapsed state before JS fully loads to prevent flicker */
+.sidebar-collapsed-preload .sidebar {
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-right: none;
+}
+
+/* Only hide elements directly inside the collapsed sidebar */
+.sidebar-collapsed .sidebar > .nav-link, .sidebar-collapsed .sidebar-header {
+    opacity: 0;
+    transition: opacity 0.1s ease-out, visibility 0.1s ease-out;
+    visibility: hidden;
+}
+/* Collapsed Sidebar State */
+.sidebar-collapsed .sidebar {
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-right: none;
 }
