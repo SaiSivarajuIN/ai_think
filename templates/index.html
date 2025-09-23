@@ -19,44 +19,44 @@
 {% endblock %}
 
 {% block header_nav %}
-                     <div class="model-selector-wrapper">
-                        <label for="model-selector" class="visually-hidden">Model:</label>
-                        <select id="model-selector" class="model-selector">
-                            {% if available_models %}
-                                <optgroup label="Local Models">
-                                {% for model in available_models %}
-                                    <option value="{{ model }}" {% if model == model_id %}selected{% endif %}>{{ model }}</option>
-                                {% endfor %}
-                                </optgroup>
-                            {% else %}
-                                <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
-                            {% endif %}
-                            {% if cloud_models %}
-                                <optgroup label="Cloud Models">
-                                {% for model in cloud_models %}
-                                    <option value="cloud::{{ model.id }}">{{ model.service }} / {{ model.model_name }}</option>
-                                {% endfor %}
-                                </optgroup>
-                            {% endif %}
-                        </select>
-                    </div>
-                    <div class="model-selector-wrapper">
-                        <label for="prompt-selector" class="visually-hidden">Prompt:</label>
-                        <select id="prompt-selector" class="model-selector">
-                            <option value="" data-content="">🚀 Select a Prompt...</option>
-                            {% for prompt in prompts %}
-                                <option value="{{ prompt.id }}" data-content="{{ prompt.content | e }}">
-                                    {{ prompt.title }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button onclick="resetThread()" class="nav-link" title="New Chat">
-                        <span class="material-icons">add_comment</span>
-                    </button>
-                    <button id="search-button" class="nav-link" title="Web Search">
-                        <span class="material-icons">search</span>
-                    </button>
+        <div class="model-selector-wrapper">
+        <label for="model-selector" class="visually-hidden">Model:</label>
+        <select id="model-selector" class="model-selector">
+            {% if available_models %}
+                <optgroup label="Local Models">
+                {% for model in available_models %}
+                    <option value="{{ model }}" {% if model == model_id %}selected{% endif %}>{{ model }}</option>
+                {% endfor %}
+                </optgroup>
+            {% else %}
+                <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
+            {% endif %}
+            {% if cloud_models %}
+                <optgroup label="Cloud Models">
+                {% for model in cloud_models %}
+                    <option value="cloud::{{ model.id }}">{{ model.service }} / {{ model.model_name }}</option>
+                {% endfor %}
+                </optgroup>
+            {% endif %}
+        </select>
+    </div>
+    <div class="model-selector-wrapper">
+        <label for="prompt-selector" class="visually-hidden">Prompt:</label>
+        <select id="prompt-selector" class="model-selector">
+            <option value="" data-content="">🚀 Select a Prompt...</option>
+            {% for prompt in prompts %}
+                <option value="{{ prompt.id }}" data-content="{{ prompt.content | e }}">
+                    {{ prompt.title }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <button onclick="resetThread()" class="nav-link" title="New Chat">
+        <span class="material-icons">add_comment</span>
+    </button>
+    <button id="search-button" class="nav-link" title="Web Search">
+        <span class="material-icons">search</span>
+    </button>
 {% endblock %}
 
 {% block content %}
