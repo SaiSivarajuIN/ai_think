@@ -120,6 +120,15 @@ def init_db():
                 base_url TEXT NOT NULL,
                 api_key TEXT NOT NULL,
                 model_name TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                active BOOLEAN DEFAULT 1
+            )
+        ''')
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS local_models (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                active BOOLEAN DEFAULT 1,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -158,6 +167,10 @@ def init_db():
             cursor.execute('ALTER TABLE settings ADD COLUMN searxng_url TEXT')
         if 'searxng_enabled' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN searxng_enabled BOOLEAN DEFAULT 0')
+        if 'active' not in [info[1] for info in cursor.execute("PRAGMA table_info(cloud_models)").fetchall()]:
+            cursor.execute('ALTER TABLE cloud_models ADD COLUMN active BOOLEAN DEFAULT 1')
+        if 'name' not in [info[1] for info in cursor.execute("PRAGMA table_info(local_models)").fetchall()]:
+             cursor.execute('ALTER TABLE local_models ADD COLUMN name TEXT NOT NULL UNIQUE')
         
         # Migration: Drop system_prompt if it exists
         if 'system_prompt' in column_names:
@@ -377,10 +390,36 @@ def get_ollama_models():
         current_app.logger.warning("Cannot fetch Ollama models, connection failed.")
         return []
     try:
+        db = get_db()
+        # Get models from Ollama API
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
         response.raise_for_status()
         models_data = response.json().get("models", [])
-        return sorted([model['name'] for model in models_data])
+        api_model_names = {model['name'] for model in models_data}
+
+        # Get models from our DB
+        db_models_cursor = db.execute('SELECT name, active FROM local_models')
+        db_models = {row['name']: row['active'] for row in db_models_cursor}
+
+        # Sync: Add new models from API to DB
+        for name in api_model_names:
+            if name not in db_models:
+                db.execute('INSERT INTO local_models (name, active) VALUES (?, ?)', (name, True))
+                db_models[name] = True # Assume active by default
+
+        # Sync: Remove models from DB that are no longer in API
+        for name in list(db_models.keys()):
+            if name not in api_model_names:
+                db.execute('DELETE FROM local_models WHERE name = ?', (name,))
+                del db_models[name]
+        
+        db.commit()
+
+        # Return a list of dicts, sorted by name
+        return sorted(
+            [{'name': name, 'active': active} for name, active in db_models.items()],
+            key=lambda x: x['name']
+        )
     except (requests.exceptions.RequestException, ValueError) as e:
         current_app.logger.error(f"Could not fetch models from Ollama: {e}")
         return []
@@ -389,7 +428,7 @@ def get_cloud_models():
     """Fetch all configured cloud models from the database."""
     try:
         db = get_db()
-        models_cursor = db.execute('SELECT id, service, base_url, api_key, model_name FROM cloud_models ORDER BY service, model_name').fetchall()
+        models_cursor = db.execute('SELECT id, service, base_url, api_key, model_name, active FROM cloud_models ORDER BY service, model_name').fetchall()
         # Return a list of dicts, but don't expose the full API key
         models = []
         for row in models_cursor:
@@ -659,13 +698,18 @@ def index():
     available_models = get_ollama_models()
     cloud_models = get_cloud_models()
     
-    # Fetch prompts for the dropdown
+    # Fetch active prompts for the dropdown
     prompts = []
     try:
         db = get_db()
         prompts = db.execute('SELECT id, title, content FROM prompts ORDER BY title ASC').fetchall()
     except Exception as e:
         current_app.logger.error(f"Could not fetch prompts for index page: {e}")
+
+    # Check if a session_id is provided in the URL
+    session_id = request.args.get('session_id')
+    if session_id:
+        session['session_id'] = session_id
 
     return render_template(
         'index.html', 
@@ -678,7 +722,7 @@ def index():
             {"href": "/models", "title": "Models Hub", "icon": "hub"},
         ],
         model_id=OLLAMA_MODEL, 
-        available_models=available_models,
+        available_models=[m for m in available_models if m.get('active', True)],
         cloud_models=cloud_models,
         ollama_status=ollama_status,
         langfuse_enabled=langfuse_enabled,
@@ -886,7 +930,8 @@ def generate():
             },
             "usage": usage,
             "generation_time_seconds": round(elapsed, 2),
-            "langfuse_enabled": langfuse_enabled
+            "langfuse_enabled": langfuse_enabled,
+            "session_id": session_id
         })
 
     except Exception as e:
@@ -904,6 +949,102 @@ def reset_thread():
     current_app.logger.info(f"User reset chat thread. Old session ID: {old_session_id}")
     session.pop('session_id', None)
     return jsonify({"status": "New thread started"})
+
+@app.route('/api/session/<string:session_id>', methods=['GET'])
+def get_session_history(session_id):
+    """Fetches the message history for a specific session_id."""
+    messages = []
+    try:
+        if chroma_connected:
+            results = chroma_collection.get(
+                where={"session_id": session_id},
+                include=["metadatas", "documents"]
+            )
+            chroma_messages = []
+            for i in range(len(results['ids'])):
+                meta = results['metadatas'][i]
+                # Ensure we only process messages, not other system data
+                if meta.get('sender') in ['user', 'assistant', 'system']:
+                    chroma_messages.append({
+                        'role': meta['sender'],
+                        'content': results['documents'][i],
+                        'timestamp': meta['timestamp']
+                    })
+            # Sort by timestamp
+            sorted_messages = sorted(chroma_messages, key=lambda x: datetime.fromisoformat(x['timestamp']))
+            # We only need role and content for the conversation history
+            messages = [{'role': msg['role'], 'content': msg['content']} for msg in sorted_messages]
+        else:
+            db = get_db()
+            rows = db.execute(
+                'SELECT sender, content FROM messages WHERE session_id = ? ORDER BY timestamp ASC',
+                (session_id,)
+            ).fetchall()
+            messages = [{'role': row['sender'], 'content': row['content']} for row in rows]
+
+        if not messages:
+            return jsonify({"error": "Session not found or has no messages"}), 404
+
+        return jsonify(messages)
+    except Exception as e:
+        current_app.logger.error(f"Error fetching history for session {session_id}: {e}")
+        return jsonify({"error": "An internal error occurred while fetching session history."}), 500
+
+@app.route('/api/sessions', methods=['GET'])
+def get_sessions():
+    """Fetches a summary of all chat sessions."""
+    threads = defaultdict(list)
+    
+    if chroma_connected:
+        try:
+            # This is less efficient in Chroma as we have to pull everything and process it.
+            # For a production system with many messages, a different approach would be needed.
+            results = chroma_collection.get(include=["metadatas", "documents"])
+            all_messages = []
+            for i, doc_id in enumerate(results['ids']):
+                meta = results['metadatas'][i]
+                all_messages.append({
+                    'session_id': meta['session_id'],
+                    'sender': meta['sender'],
+                    'content': results['documents'][i],
+                    'timestamp': datetime.fromisoformat(meta['timestamp'])
+                })
+            
+            sorted_messages = sorted(all_messages, key=lambda x: x['timestamp'])
+            for msg in sorted_messages:
+                threads[msg['session_id']].append(msg)
+
+        except Exception as e:
+            current_app.logger.error(f"Failed to fetch sessions from ChromaDB: {e}")
+            return jsonify({"error": "Failed to fetch sessions"}), 500
+    else:
+        db = get_db()
+        messages = db.execute('SELECT session_id, sender, content, timestamp FROM messages ORDER BY timestamp ASC').fetchall()
+        for msg in messages:
+            threads[msg['session_id']].append(dict(msg))
+
+    # Sort threads by the timestamp of the LAST message
+    sorted_threads = sorted(
+        threads.items(),
+        key=lambda item: item[1][-1]['timestamp'],
+        reverse=True
+    )
+
+    # Create summaries
+    sessions_summary = []
+    for session_id, messages in sorted_threads:
+        # Find the first user message for the summary
+        first_user_message = next((m['content'] for m in messages if m['sender'] == 'user'), 'Chat session')
+        summary_text = (first_user_message[:50] + '...') if len(first_user_message) > 50 else first_user_message
+        
+        sessions_summary.append({
+            'session_id': session_id,
+            'summary': summary_text,
+            'last_updated': messages[-1]['timestamp']
+        })
+
+    return jsonify(sessions_summary)
+
 
 @app.route('/history')
 def history():
@@ -1178,10 +1319,21 @@ def api_get_models():
     if not check_ollama_connection():
         return jsonify({"error": "Ollama service is not available."}), 503
     try:
-        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags")
-        response.raise_for_status()
-        return jsonify(response.json())
-    except requests.RequestException as e:
+        # Get models from Ollama API
+        api_response = requests.get(f"{OLLAMA_BASE_URL}/api/tags")
+        api_response.raise_for_status()
+        api_models = api_response.json().get("models", [])
+        
+        # Get active status from our DB
+        local_models_from_db = get_ollama_models()
+        active_status_map = {m['name']: m['active'] for m in local_models_from_db}
+        
+        # Combine API data with our active status
+        for model in api_models:
+            model['active'] = active_status_map.get(model['name'], True)
+
+        return jsonify({"models": api_models})
+    except (requests.RequestException, Exception) as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/models/pull', methods=['POST'])
@@ -1372,6 +1524,7 @@ def api_get_cloud_models():
             if model.get('api_key'):
                 model['api_key_partial'] = f"***{model['api_key'][-4:]}"
             del model['api_key'] # Don't send the full key to the client
+            model['active'] = bool(model.get('active', True)) # Ensure boolean type
         return jsonify(models)
     except Exception as e:
         current_app.logger.error(f"Error fetching cloud models: {e}")
@@ -1450,6 +1603,37 @@ def api_delete_cloud_model(model_id):
     except Exception as e:
         current_app.logger.error(f"Error deleting cloud model {model_id}: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cloud_models/toggle_active/<int:model_id>', methods=['POST'])
+def api_toggle_cloud_model_active(model_id):
+    """API endpoint to toggle the active state of a cloud model."""
+    data = request.get_json()
+    is_active = data.get('active')
+
+    if is_active is None:
+        return jsonify({"error": "Missing 'active' field"}), 400
+
+    db = get_db()
+    db.execute('UPDATE cloud_models SET active = ? WHERE id = ?', (is_active, model_id))
+    db.commit()
+    current_app.logger.info(f"Toggled active state for cloud model {model_id} to {is_active}")
+    return jsonify({'success': True})
+
+@app.route('/api/local_models/toggle_active', methods=['POST'])
+def api_toggle_local_model_active():
+    """API endpoint to toggle the active state of a local model."""
+    data = request.get_json()
+    name = data.get('name')
+    is_active = data.get('active')
+
+    if not name or is_active is None:
+        return jsonify({"error": "Missing 'name' or 'active' field"}), 400
+
+    db = get_db()
+    db.execute('UPDATE local_models SET active = ? WHERE name = ?', (is_active, name))
+    db.commit()
+    current_app.logger.info(f"Toggled active state for local model {name} to {is_active}")
+    return jsonify({'success': True})
 
 # Langfuse flush on app shutdown
 @app.teardown_appcontext

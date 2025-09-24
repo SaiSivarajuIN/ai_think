@@ -36,30 +36,31 @@
 
 
 {% block content %}
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h2>Configured Cloud Models</h2>
-                        <button id="add-model-btn" class="send-button">
-                            Add Model
-                        </button>
-                    </div>
-                    <p>Configure external models from providers like OpenAI, Perplexity, etc. These models will appear in the dropdown on the main chat page.</p>
-                    <table id="cloud-models-table" class="models-table">
-                        <thead>
-                            <tr>
-                                <th>Service</th>
-                                <th>Model Name</th>
-                                <th>Base URL</th>
-                                <th>API Key</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Models will be populated by JavaScript -->
-                        </tbody>
-                    </table>
-                    <div id="loading-models" style="text-align: center; padding: 1rem;">Loading...</div>
-                </div>
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2>Configured Cloud Models</h2>
+            <button id="add-model-btn" class="send-button">
+                Add Model
+            </button>
+        </div>
+        <p>Configure external models from providers like OpenAI, Perplexity, etc. These models will appear in the dropdown on the main chat page.</p>
+        <table id="cloud-models-table" class="models-table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Model Name</th>
+                    <th>Base URL</th>
+                    <th>API Key</th>
+                    <th>Active</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Models will be populated by JavaScript -->
+            </tbody>
+        </table>
+        <div id="loading-models" style="text-align: center; padding: 1rem;">Loading...</div>
+    </div>
 {% endblock %}
 
 {% block after_content %}

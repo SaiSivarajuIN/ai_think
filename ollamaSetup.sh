@@ -35,7 +35,7 @@ pull_models() {
     
     # Pull standard models
     # ollama pull gemma:latest
-    ollama pull llama3:latest
+    # ollama pull llama3:latest
     
     # Pull GGUF model from Hugging Face
     ollama pull hf.co/janhq/Jan-v1-edge-gguf:Q8_0

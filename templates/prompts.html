@@ -57,6 +57,7 @@
             padding: 1rem;
             border-radius: var(--radius-md);
         }
+        
         .add-prompt-card {
             justify-content: center;
             align-items: center;
@@ -85,13 +86,13 @@
 
 
 {% block content %}
-                <div id="prompt-hub-grid" class="prompt-hub-grid">
-                    <!-- Prompts will be loaded here by JavaScript -->
-                    <div class="add-prompt-card" id="add-prompt-btn">
-                        <span class="material-icons">add_circle</span>
-                        <p>Create New Prompt</p>
-                    </div>
-                </div>
+    <div id="prompt-hub-grid" class="prompt-hub-grid">
+        <!-- Prompts will be loaded here by JavaScript -->
+        <div class="add-prompt-card" id="add-prompt-btn">
+            <span class="material-icons">add_circle</span>
+            <p>Create New Prompt</p>
+        </div>
+    </div>
 {% endblock %}
 
 {% block after_content %}

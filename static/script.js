@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchButton = document.getElementById('search-button');
     let conversationHistory = [];
     const sidebarToggle = document.querySelector('.sidebar-toggle-btn');
+    const historySidebarToggle = document.getElementById('history-sidebar-toggle');
+    const historySidebar = document.querySelector('.history-sidebar');
     let thinkingMessageId = null;
     let fileContextActive = false;
 
@@ -42,13 +44,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // If the model selector exists on the page (i.e., on index.html),
     // set up an event listener to store its value in localStorage.
     if (modelSelector) {
-        // Store the initial value on page load. This ensures the health page
-        // shows the correct model even before the user makes a change.
-        localStorage.setItem('selectedOllamaModel', modelSelector.value);
+        // On page load, try to set the selector to the last saved value.
+        const lastSelectedModel = localStorage.getItem('selectedModel');
+        if (lastSelectedModel) {
+            modelSelector.value = lastSelectedModel;
+        }
 
         // Update the stored value whenever the user changes the selection.
         modelSelector.addEventListener('change', function() {
-            localStorage.setItem('selectedOllamaModel', this.value);
+            localStorage.setItem('selectedModel', this.value);
         });
     }
 
@@ -78,18 +82,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // If the search button exists, add a click listener to focus the input
-    // and pre-fill the search command.
-    if (searchButton && userInput) {
-        searchButton.addEventListener('click', function() {
-            userInput.focus();
-            // Only add the command if the input is empty to avoid overwriting user text
-            if (userInput.value.trim() === '') {
-                userInput.value = '/search ';
-            }
-        });
-    }
-
     // Add message to chat
     function addMessage(content, isUser = false, messageId = null) {
         const messageDiv = document.createElement('div');
@@ -100,9 +92,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (isUser) {
             // Escape HTML for user messages to prevent XSS
-            messageDiv.innerHTML = formatMessage(escapeHtml(content));
+            let displayContent = content;
+            const rawContentForCopy = content; // Keep original for copy
+
+            // Check if the user message contains search results and hide them for display
+            const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/;
+            const match = content.match(searchRegex);
+
+            if (match) {
+                const userQuestion = match[2].trim();
+                // Display only the user's original question part.
+                // The full content with search results is still in `rawContentForCopy`.
+                // The "Search Results" block is rendered on history.html from this raw content.
+                displayContent = userQuestion;
+            }
+
+            const formattedContent = formatMessage(escapeHtml(displayContent));
+            messageDiv.innerHTML = formattedContent;
+            // Store the full raw content (with search results) for copy/regen
+            messageDiv.dataset.rawContent = rawContentForCopy;
+
+            // Add a footer with just a copy button for user messages
+            const footer = document.createElement('div');
+            // footer.className = 'message-footer';
+            footer.innerHTML = `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
+            messageDiv.appendChild(footer);
         } else {
-            messageDiv.innerHTML = formatMessage(content);
+            // For bot messages, also remove <think> blocks for display on index.html
+            const cleanedContent = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            messageDiv.innerHTML = formatMessage(cleanedContent);
+            // Store the original full content (with thoughts) for history.html rendering
+            // and for the copy button on index.html.
+            messageDiv.dataset.rawContent = content;
         }
 
         chatbox.appendChild(messageDiv);
@@ -143,6 +164,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const botResponse = data.message.content;
         const generationTime = data.generation_time_seconds;
         const usage = data.usage;
+        const sessionId = data.session_id;
+
+        // Update URL with session_id if it's not already there
+        const url = new URL(window.location);
+        if (sessionId && !url.searchParams.has('session_id')) {
+            url.searchParams.set('session_id', sessionId);
+            window.history.pushState({ path: url.href }, '', url.href);
+
+            // Refresh history sidebar to include the new session
+            fetchHistorySidebar();
+        }
 
         // Add raw response to conversation history for context
         conversationHistory.push({
@@ -150,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
             content: botResponse
         });
 
-        // Fix and trim the text between <think> and </think> for display
+        // Fix and trim the text between <think> and   </think> for display
         const cleanedBotResponse = botResponse.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
         // Store raw content for the copy button
@@ -255,12 +287,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileContextActive = false;
                 chatbox.innerHTML = '';
                 addMessage('🆕 New conversation started!', false);
+                // Reset URL to the base path
+                window.history.pushState({}, '', '/');
             }
         } catch (error) {
             // Even if the server call fails, reset the frontend state
             conversationHistory = [];
             chatbox.innerHTML = '';
             console.error('Error resetting thread:', error);
+            // Also reset URL to the base path
+            window.history.pushState({}, '', '/');
             addMessage('❌ Error starting new conversation', false);
         }
     }
@@ -346,8 +382,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const copyBtn = e.target.closest('.copy-btn');
         if (copyBtn) {
-            const messageDiv = copyBtn.closest('.bot-message');
-            const rawContent = messageDiv.dataset.rawContent;
+            const messageDiv = copyBtn.closest('.message'); // Works for both .user-message and .bot-message
+            const rawContent = messageDiv ? messageDiv.dataset.rawContent : null;
             if (rawContent) {
                 navigator.clipboard.writeText(rawContent).then(() => {
                     const icon = copyBtn.querySelector('.material-icons');
@@ -363,6 +399,95 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // --- History Sidebar Logic ---
+    if (historySidebarToggle && historySidebar) {
+        historySidebarToggle.addEventListener('click', () => {
+            historySidebar.classList.toggle('visible');
+            document.querySelector('.main-content-wrapper').classList.toggle('history-visible');
+        });
+    }
+
+    // Make functions globally available
+    window.sendMessage = sendMessage;
+    window.resetThread = resetThread;
+
+    // --- Page Initialization ---
+    async function initializeChat() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session_id');
+
+        if (sessionId) {
+            // A session ID is in the URL, try to load its history
+            addMessage(`🔄 Loading chat session: ${sessionId}...`, false);
+            try {
+                const response = await fetch(`/api/session/${sessionId}`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Session not found (HTTP ${response.status})`);
+                }
+                const history = await response.json();
+                
+                // Clear any welcome messages
+                chatbox.innerHTML = '';
+
+                // Populate conversation history and UI
+                conversationHistory = history;
+                history.forEach(msg => {
+                    if (msg.role === 'user') {
+                        addMessage(msg.content, true);
+                    } else if (msg.role === 'assistant') {
+                        const botMsgDiv = addMessage(msg.content, false);
+                        // The addMessage function now handles setting the raw content,
+                        // but we call it again here to be explicit and safe.
+                        botMsgDiv.dataset.rawContent = msg.content;
+                        addMessageFooter(botMsgDiv, null, null); // Add footer with copy/regen
+                    }
+                    // System messages (like file uploads) are in history but not always shown initially.
+                    // You could add logic here to display them if needed.
+                });
+
+            } catch (error) {
+                console.error('Failed to load session:', error);
+                chatbox.innerHTML = ''; // Clear loading message
+                addMessage(`❌ Could not load session: ${error.message}`, false);
+                addMessage('Starting a new conversation instead.', false);
+            }
+        } else {
+            // No session ID, start a fresh chat
+            addMessage('👋 Hello! I\'m your Ollama-powered assistant. How can I help you today?', false);
+        }
+    }
+
+    async function fetchHistorySidebar() {
+        const historyContent = document.getElementById('history-sidebar-content');
+        if (!historyContent) return;
+
+        try {
+            const response = await fetch('/api/sessions');
+            if (!response.ok) throw new Error('Failed to fetch sessions');
+            const sessions = await response.json();
+
+            historyContent.innerHTML = ''; // Clear old items
+            if (sessions.length === 0) {
+                historyContent.innerHTML = '<p class="history-item">No history yet.</p>';
+                return;
+            }
+
+            sessions.forEach(session => {
+                const item = document.createElement('a');
+                item.className = 'history-item';
+                item.href = `/?session_id=${session.session_id}`;
+                item.title = `Continue chat from ${new Date(session.last_updated).toLocaleString()}`;
+                item.textContent = session.summary;
+                historyContent.appendChild(item);
+            });
+
+        } catch (error) {
+            console.error('Error fetching history sidebar:', error);
+            historyContent.innerHTML = '<p class="history-item">Could not load history.</p>';
+        }
+    }
 
     // --- File Upload Logic ---
     if (uploadButton && fileInput) {
@@ -419,12 +544,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Focus input on load
     userInput.focus();
 
-    // Make functions globally available
-    window.sendMessage = sendMessage;
-    window.resetThread = resetThread;
-
-    // Initial welcome message
-    addMessage('👋 Hello! I\'m your Ollama-powered assistant. How can I help you today?', false);
+    initializeChat();
+    fetchHistorySidebar();
 });
 
 document.addEventListener('DOMContentLoaded', function() {

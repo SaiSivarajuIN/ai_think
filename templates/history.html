@@ -15,66 +15,71 @@
 
 
 {% block content %}
-                <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 1rem;">
-                    <button id="delete-all-threads-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
-                        <span class="material-icons">delete_sweep</span>
-                        Delete All
-                    </button>
-                </div>
-                {% if threads %}
-                    {% for thread in threads %}
-                        <details class="thread" {% if thread.session_id == newest_session_id %}open{% endif %}>
-                            <summary>
-                                <div class="summary-main" data-timestamp="{{ session_start[thread.session_id].isoformat() }}">
-                                    Chat Session {{ thread.serial_number }} <small class="session-id-display">{{ thread.session_id }}</small> &mdash; <span class="session-start-time"></span>
-                                </div>
-                                <div class="summary-actions">
-                                    <button class="download-doc-btn icon-btn" data-session="{{ thread.session_id }}" title="Download DOC">
-                                        <span class="material-icons">description</span>
-                                    </button>
-                                    <button class="delete-thread-btn icon-btn" data-session="{{ thread.session_id }}" title="Delete Thread">
-                                        <span class="material-icons">delete_forever</span>
-                                    </button>
-                                    <span class="message-count">({{ thread.messages|length }} messages)</span>
-                                </div>
-                            </summary>
-                            <div class="thread-messages" id="thread-{{ thread.session_id }}">
-                                {% for msg in thread.messages %}
-                                    {% if msg.sender == 'system' %}
-                                        <div class="message-container system-message-container" data-message-id="{{ msg.id }}">
-                                            <div class="history-meta">
-                                                <span class="history-sender system-sender">
-                                                    <span class="material-icons">description</span> File Context
-                                                </span>
-                                                <div class="history-actions">
-                                                    <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
-                                                </div>
-                                            </div>
-                                            <div class="history-content file-context-content">{{ msg.content }}</div>
-                                        </div>
-                                    {% else %}
-                                        <div class="message-container" data-message-id="{{ msg.id }}">
-                                            <div class="history-meta">
-                                                <span class="history-sender {{ 'user-sender' if msg.sender == 'user' else 'assistant-sender' }}">
-                                                    {{ '👤 You' if msg.sender == 'user' else '🤖 Bot' }}
-                                                </span>
-                                                <div class="history-actions">
-                                                    <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
-                                                    <button class="delete-btn icon-btn" title="Delete Message"><span class="material-icons">delete</span></button>
-                                                </div>
-                                            </div>
-                                            <div class="history-content">{{ msg.content }}</div>
-                                        </div>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </details>
-                    {% endfor %}
-                {% else %}
-                    <div class="card">
-                        <p>No chat history found. Start a conversation to see your chat threads here.</p>
+    <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 1rem;">
+        <button id="delete-all-threads-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
+            <span class="material-icons">delete_sweep</span>
+            Delete All
+        </button>
+    </div>
+    {% if threads %}
+        {% for thread in threads %}
+            <details class="thread" {% if thread.session_id == newest_session_id %}open{% endif %}>
+                <summary>
+                    <div class="summary-main" data-timestamp="{{ session_start[thread.session_id].isoformat() }}">
+                        Chat Session {{ thread.serial_number }} <small class="session-id-display">{{ thread.session_id }}</small> &mdash; <span class="session-start-time"></span>
                     </div>
-                {% endif %}
+                    <div class="summary-actions">
+                        <!--PDF download-pdf-btn icon-btn-->
+                        <button class="download-pdf-btn icon-btn" data-session="{{ thread.session_id }}" title="Download PDF">
+                            <span class="material-icons">picture_as_pdf</span>
+                        </button>
+                        <!--DOC download-doc-btn icon-btn-->
+                        <button class="download-doc-btn icon-btn" data-session="{{ thread.session_id }}" title="Download DOC">
+                            <span class="material-icons">description</span>
+                        </button>
+                        <button class="delete-thread-btn icon-btn" data-session="{{ thread.session_id }}" title="Delete Thread">
+                            <span class="material-icons">delete_forever</span>
+                        </button>
+                        <span class="message-count">({{ thread.messages|length }} messages)</span>
+                    </div>
+                </summary>
+                <div class="thread-messages" id="thread-{{ thread.session_id }}">
+                    {% for msg in thread.messages %}
+                        {% if msg.sender == 'system' %}
+                            <div class="message-container system-message-container" data-message-id="{{ msg.id }}">
+                                <div class="history-meta">
+                                    <span class="history-sender system-sender">
+                                        <span class="material-icons">description</span> File Context
+                                    </span>
+                                    <div class="history-actions">
+                                        <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
+                                    </div>
+                                </div>
+                                <div class="history-content file-context-content">{{ msg.content }}</div>
+                            </div>
+                        {% else %}
+                            <div class="message-container" data-message-id="{{ msg.id }}">
+                                <div class="history-meta">
+                                    <span class="history-sender {{ 'user-sender' if msg.sender == 'user' else 'assistant-sender' }}">
+                                        {{ '👤 You' if msg.sender == 'user' else '🤖 Bot' }}
+                                    </span>
+                                    <div class="history-actions">
+                                        <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
+                                        <button class="delete-btn icon-btn" title="Delete Message"><span class="material-icons">delete</span></button>
+                                    </div>
+                                </div>
+                                <div class="history-content">{{ msg.content }}</div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </details>
+        {% endfor %}
+    {% else %}
+        <div class="card">
+            <p>No chat history found. Start a conversation to see your chat threads here.</p>
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block scripts %}

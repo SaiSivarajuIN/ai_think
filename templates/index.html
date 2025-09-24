@@ -9,13 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
 
     <!-- MathJax v3 for LaTeX rendering -->
-    <script>
-        window.MathJax = {
-            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], packages: {'[+]': ['ams']}, processEscapes: true },
-            options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
-        };
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 {% endblock %}
 
 {% block header_nav %}
@@ -24,8 +18,8 @@
         <select id="model-selector" class="model-selector">
             {% if available_models %}
                 <optgroup label="Local Models">
-                {% for model in available_models %}
-                    <option value="{{ model }}" {% if model == model_id %}selected{% endif %}>{{ model }}</option>
+                {% for model in available_models if model.active %}
+                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>{{ model.name }}</option>
                 {% endfor %}
                 </optgroup>
             {% else %}
@@ -33,7 +27,7 @@
             {% endif %}
             {% if cloud_models %}
                 <optgroup label="Cloud Models">
-                {% for model in cloud_models %}
+                {% for model in cloud_models if model.active %}
                     <option value="cloud::{{ model.id }}">{{ model.service }} / {{ model.model_name }}</option>
                 {% endfor %}
                 </optgroup>
@@ -57,12 +51,19 @@
     <button id="search-button" class="nav-link" title="Web Search">
         <span class="material-icons">search</span>
     </button>
+    <button id="history-sidebar-toggle" class="nav-link" title="Toggle History Sidebar">
+        <span class="material-icons">history</span>
+    </button>
 {% endblock %}
 
 {% block content %}
-    <!-- Chat Box -->
-    <div id="chatbox" class="page-content" style="padding: 0;"></div>
+    <div class="chat-area-container">
+        <!-- Chat Box -->
+        <div id="chatbox" class="page-content" style="padding: 0;"></div>
+    </div>
 {% endblock %}
+
+
 
 {% block after_content %}
     <!-- Input Area -->
@@ -74,4 +75,18 @@
             <button id="sendButton" class="send-button" title="Send"><span class="material-icons">send</span></button>
         </div>
     </div>
+    <!-- Right Sidebar for History -->
+    <aside class="history-sidebar">
+        <div class="history-sidebar-header">
+            <h4>Chat History</h4>
+        </div>
+        <div id="history-sidebar-content" class="history-sidebar-content">
+            <!-- History items will be populated by JS -->
+        </div>
+    </aside>
+{% endblock %}
+
+{% block scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 {% endblock %}

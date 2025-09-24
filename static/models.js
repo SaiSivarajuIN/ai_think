@@ -30,6 +30,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td>${(model.size / 1e9).toFixed(2)} GB</td>
                         <td title="${modifiedDate.toLocaleString()}">${timeAgo(modifiedDate)}</td>
                         <td>
+                            <label class="switch" title="${model.active ? 'Deactivate' : 'Activate'} Model">
+                                <input type="checkbox" class="active-toggle" data-model-name="${model.name}" ${model.active ? 'checked' : ''}>
+                                <span class="slider round"></span>
+                            </label>
+                        </td>
+                        <td>
                             <button class="delete-model-btn icon-btn" data-model-name="${model.name}" title="Delete Model">
                                 <span class="material-icons">delete_forever</span>
                             </button>
@@ -38,11 +44,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     modelsTableBody.appendChild(row);
                 });
             } else {
-                modelsTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No local models found.</td></tr>';
+                modelsTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No local models found.</td></tr>';
             }
         } catch (error) {
             console.error('Error fetching models:', error);
-            modelsTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--disconnected);">Error fetching models. Is Ollama running?</td></tr>`;
+            modelsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--disconnected);">Error fetching models. Is Ollama running?</td></tr>`;
         } finally {
             loadingIndicator.style.display = 'none';
         }
@@ -144,6 +150,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // --- Toggle Active State ---
+    async function toggleActive(modelName, isActive) {
+        try {
+            const response = await fetch('/api/local_models/toggle_active', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: modelName, active: isActive }),
+            });
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || 'Failed to toggle model status');
+            }
+            // The UI is already updated, no need to re-fetch.
+        } catch (error) {
+            console.error('Error toggling model active state:', error);
+            alert(`Failed to update model status: ${error.message}`);
+            // Revert the toggle on error
+            const toggle = document.querySelector(`.active-toggle[data-model-name="${modelName}"]`);
+            if (toggle) toggle.checked = !isActive;
+        }
+    }
+
     // --- Delete All Models ---
     async function deleteAllModels() {
         if (!confirm('Are you sure you want to delete ALL local models? This action is irreversible and will permanently remove all model data.')) {
@@ -193,6 +221,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const deleteBtn = e.target.closest('.delete-model-btn');
         if (deleteBtn) {
             deleteModel(deleteBtn.dataset.modelName);
+        }
+        const activeToggle = e.target.closest('.active-toggle');
+        if (activeToggle) {
+            const modelName = activeToggle.dataset.modelName;
+            toggleActive(modelName, activeToggle.checked);
         }
     });
     

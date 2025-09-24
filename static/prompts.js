@@ -131,11 +131,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                     </div>
                 </div>
-                <div class="prompt-card-content">
-                    ${prompt.content}
-                </div>
+                <div class="prompt-card-content">${prompt.content}</div>
             `;
-            grid.prepend(card); // Add new cards at the beginning
+            grid.prepend(card);
 
             // Add event listener for the new edit button
             card.querySelector('.edit-prompt-btn').addEventListener('click', () => {

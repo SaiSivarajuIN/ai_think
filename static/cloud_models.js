@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
             renderModels(models);
         } catch (error) {
             console.error('Error fetching models:', error);
-            modelsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--disconnected);">Error loading models.</td></tr>`;
+            modelsTableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--disconnected);">Error loading models.</td></tr>`;
         } finally {
             loadingIndicator.style.display = 'none';
         }
@@ -156,6 +156,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    async function toggleActive(modelId, isActive) {
+        try {
+            const response = await fetch(`/api/cloud_models/toggle_active/${modelId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: isActive }),
+            });
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || 'Failed to toggle model status');
+            }
+            // No need to fetchModels() here as the UI is already updated.
+            // This prevents the table from re-rendering and losing focus.
+        } catch (error) {
+            console.error('Error toggling model active state:', error);
+            alert(`Failed to update model status: ${error.message}`);
+            // Revert the toggle on error
+            const toggle = document.querySelector(`tr[data-id="${modelId}"] .active-toggle`);
+            if (toggle) toggle.checked = !isActive;
+        }
+    }
+
     function copyToClipboard(text, buttonElement) {
         navigator.clipboard.writeText(text).then(() => {
             const icon = buttonElement.querySelector('.material-icons');
@@ -176,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modelsTableBody.innerHTML = ''; // Clear existing rows
 
         if (models.length === 0) {
-            modelsTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No cloud models configured.</td></tr>';
+            modelsTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No cloud models configured.</td></tr>';
             return;
         }
 
@@ -194,6 +216,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     </button>
                 </td>
                 <td>
+                    <label class="switch" title="${model.active ? 'Deactivate' : 'Activate'} Model">
+                        <input type="checkbox" class="active-toggle" ${model.active ? 'checked' : ''}>
+                        <span class="slider round"></span>
+                    </label>
+                </td>
+                <td>
                     <button class="edit-model-btn icon-btn" title="Edit Model">
                         <span class="material-icons">edit</span>
                     </button>
@@ -208,6 +236,9 @@ document.addEventListener('DOMContentLoaded', function() {
             row.querySelector('.edit-model-btn').addEventListener('click', () => openModalForEdit(model));
             row.querySelector('.delete-model-btn').addEventListener('click', () => deleteModel(model.id));
             row.querySelector('.copy-key-btn').addEventListener('click', () => copyKey(model.id));
+            row.querySelector('.active-toggle').addEventListener('change', (e) => {
+                toggleActive(model.id, e.target.checked);
+            });
         });
     }
 
@@ -216,4 +247,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initial load
     fetchModels();
+
+    // --- Column Resizing Logic ---
+    const table = document.getElementById('cloud-models-table');
+    const headers = table.querySelectorAll('th');
+
+    headers.forEach(header => {
+        const resizer = document.createElement('div');
+        resizer.className = 'resizer';
+        header.appendChild(resizer);
+        addResizer(resizer, header);
+    });
+
+    function addResizer(resizer, header) {
+        let x = 0;
+        let w = 0;
+
+        const mouseDownHandler = function(e) {
+            x = e.clientX;
+            const styles = window.getComputedStyle(header);
+            w = parseInt(styles.width, 10);
+
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+            resizer.classList.add('resizing');
+        };
+
+        const mouseMoveHandler = function(e) {
+            const dx = e.clientX - x;
+            header.style.width = `${w + dx}px`;
+        };
+
+        const mouseUpHandler = function() {
+            document.removeEventListener('mousemove', mouseMoveHandler);
+            document.removeEventListener('mouseup', mouseUpHandler);
+            resizer.classList.remove('resizing');
+        };
+
+        resizer.addEventListener('mousedown', mouseDownHandler);
+    }
 });
