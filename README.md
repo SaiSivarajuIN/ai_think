@@ -15,6 +15,7 @@ AI Think is a self-hosted, web-based chat application that provides a user-frien
 - **Web Search**: Get up-to-date answers from the internet by integrating with a local [SearXNG](https://github.com/searxng/searxng-docker) instance.
 - **System Health Dashboard**: Monitor real-time CPU, memory, disk, and GPU usage, along with connection statuses for all integrated services.
 - **Dynamic Configuration**: Adjust model parameters (temperature, top-p, etc.) and integration settings on the fly without restarting the server.
+- **Session Management**: Bookmark, share, and resume conversations via URL session IDs.
 - **Langfuse Integration**: Optional, powerful tracing and observability for your LLM interactions [Langfuse](https://us.cloud.langfuse.com/).
 - **Markdown Rendering**: Responses are rendered with support for markdown, including code blocks with syntax highlighting.
 
@@ -138,7 +139,7 @@ The application will be available at `http://localhost:5000`.
 
 ## 📖 Usage
 
-- **Chat**: Open your browser to `http://localhost:5000` to start chatting. Select your desired model from the dropdown.
+- **Chat**: Open your browser to `http://localhost:5000` to start chatting. Select your desired model from the dropdown. Use the history sidebar on the right to navigate between conversations.
 - **New Chat**: Click the "New Chat" icon in the header to start a fresh conversation thread.
 - **History**: Visit `/history` to see all your past conversations.
 - **System Health**: Go to `/health` to monitor system resources and the status of the Ollama service.

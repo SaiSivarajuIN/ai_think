@@ -227,6 +227,10 @@ The chat history page has been improved for better usability and correctness.
 - **Improved Sorting:** Threads are now sorted by the timestamp of the **most recent message** in each thread, ensuring the latest conversations appear first.
 - **Delete All Sessions:** A "Delete All" button on the history page allows for the complete removal of all chat sessions from the database. This is handled by the `DELETE /delete_all_threads` endpoint.
 - **Timezone Handling:** All timestamps are now correctly handled and displayed in UTC for consistency, using Python's `zoneinfo` library.
+- **Session Management via URL**: The application now uses a `session_id` in the URL to manage and load chat history.
+    - When a new chat is started or a message is sent in a new session, the `/generate` endpoint returns a `session_id`.
+    - The frontend JavaScript (`static/script.js`) updates the browser's URL to include `?session_id=<uuid>`.
+    - When a page with a `session_id` in the URL is loaded, the `initializeChat()` function fetches the corresponding history from the `/api/session/<session_id>` endpoint.
 
 ### 3.10. Stability and Error Handling
 
@@ -251,6 +255,7 @@ The application now supports uploading `.txt` files to provide context for a con
 - **Settings Page (`/settings`):** Configure model and integration settings.
 - **Models Hub (`/models`):** View, pull, and delete local Ollama models.
 - **Health Page (`/health`):** Monitor system and service status.
+- **History Sidebar**: A collapsible sidebar on the main chat page that lists recent conversations for quick access.
 
 ## 4. File Structure
 
@@ -293,6 +298,8 @@ The application now supports uploading `.txt` files to provide context for a con
 | `GET`  | `/history`                  | Renders the `history.html` page, displaying all past conversations from the active database (ChromaDB or SQLite), grouped by `session_id`.             |
 | `DELETE`| `/delete_message/<id>`      | Deletes a specific message from the active database (ChromaDB or SQLite) by its ID.                                                 |
 | `GET`  | `/health`                   | Renders the `health.html` page. It uses `psutil` and `GPUtil` to gather and display real-time system metrics (CPU, Memory, Disk, GPU). |
+| `GET`  | `/api/sessions`             | Fetches a summary of all chat sessions, sorted by the most recent, for display in the history sidebar. |
+| `GET`  | `/api/session/<session_id>` | Fetches the full message history for a specific session ID.                                             |
 | `DELETE`| `/delete_all_threads`       | Deletes all chat sessions from the active database.                                                     |
 | `GET`, `POST` | `/settings`                 | Renders `settings.html`. On `POST`, it updates settings in the active database (ChromaDB and SQLite) and triggers `initialize_langfuse` to apply changes. |
 | `GET`  | `/api/models`               | Fetches and lists all models currently available in the local Ollama instance.                          |
@@ -307,6 +314,8 @@ The application now supports uploading `.txt` files to provide context for a con
 | `POST` | `/api/cloud_models/create`  | Creates a new cloud model configuration.                                                                |
 | `POST` | `/api/cloud_models/update/<id>` | Updates an existing cloud model configuration.                                                        |
 | `DELETE`| `/api/cloud_models/delete/<id>` | Deletes a cloud model configuration.                                                                  |
+| `POST` | `/api/cloud_models/toggle_active/<id>` | Toggles the active state of a cloud model.                                                      |
+| `POST` | `/api/local_models/toggle_active` | Toggles the active state of a local model.                                                        |
 
 ## 6. Frontend
 
@@ -327,6 +336,8 @@ This file manages all the dynamic behavior of the chat interface.
 -   **`handleBotResponse()`**: Processes the JSON response from `/generate`. It updates the "Thinking..." placeholder with the bot's final message and adds a footer with generation time and action buttons.
 -   **`addMessage()`**: A utility function to create and append a new message bubble (either user or bot) to the chatbox.
 -   **`regenerateResponse()`**: Triggered by the "regenerate" button. It removes the last bot message from the history and the UI, then calls `/generate` again with the shortened history.
+-   **`initializeChat()`**: Checks for a `session_id` in the URL on page load and fetches the corresponding chat history.
+-   **`fetchHistorySidebar()`**: Fetches and renders the list of recent conversations in the sidebar on the main chat page.
 -   **Event Delegation**: A single event listener on the `chatbox` handles clicks for both the "Copy" and "Regenerate" buttons, improving performance.
 -   **Copy Functionality**: When the copy button is clicked, it copies the raw, un-rendered content of the bot's message from a `data-raw-content` attribute to the clipboard.
 -   **History Page Logic**: The script on `history.html` formats timestamps to the user's local timezone and handles message deletion.
