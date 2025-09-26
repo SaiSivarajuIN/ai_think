@@ -170,6 +170,9 @@ A comprehensive health monitoring page is now available.
     - **Ollama Status:** Indicates whether the application can connect to the Ollama server via `check_ollama_connection()`.
     - **Langfuse Status:** Shows whether the application is connected to Langfuse.
     - **SearXNG Status:** Shows whether the application is connected to SearXNG.
+    - **Active Model**: The 'Active Model' field in the Health dashboard now dynamically reflects the currently selected model from the model-selector dropdown in the main chat interface.
+        - This ensures real-time accuracy of system status information.
+        - The backend passes a map of model IDs to display names, and JavaScript on the health page uses `localStorage` to retrieve and display the correct name.
     - **ChromaDB Status:** Shows whether the app is connected to ChromaDB or using the SQLite fallback.
 
 ### 3.6. Models Hub (`/models`)
@@ -198,6 +201,12 @@ The application now supports web search capabilities through SearXNG, allowing t
     3.  Enable the "Enable SearXNG" toggle.
     4.  Ensure the SearXNG URL is correct (default is `http://localhost:8080`).
     5.  Save the settings. The connection status will be reflected on the `/health` page.
+-   **Usage**:
+    -   The 'Web Search' button in the main chat interface is now automatically disabled when SearXNG is disabled in the Settings page.
+    -   This provides clearer visual feedback about available features based on configuration.
+    -   To perform a web search, click the 🔍 icon or type `/search` followed by your query in the chat input (e.g., `/search latest AI news`).
+    -   The backend will use the configured SearXNG instance to fetch search results.
+    -   The results are then formatted and prepended to your original query as context for the LLM, which will use them to formulate an answer.
 -   .
     - The backend will use the configured SearXNG instance to fetch search results.
     - The results are then formatted and prepended to your original query as context for the LLM, which will use them to formulate an answer.
@@ -341,6 +350,13 @@ This file manages all the dynamic behavior of the chat interface.
 -   **Event Delegation**: A single event listener on the `chatbox` handles clicks for both the "Copy" and "Regenerate" buttons, improving performance.
 -   **Copy Functionality**: When the copy button is clicked, it copies the raw, un-rendered content of the bot's message from a `data-raw-content` attribute to the clipboard.
 -   **History Page Logic**: The script on `history.html` formats timestamps to the user's local timezone and handles message deletion.
+
+### 3.13. Response Interruption
+
+- The 'Send' button now transforms into a 'Stop' button while the bot is generating a response.
+- Users can click the 'Stop' button to immediately halt the bot's response generation.
+- When generation is stopped via the frontend, the backend catches a `ClientDisconnected` exception. This prevents the user's message and the bot's partial response from being saved to the database or logged in Langfuse.
+- The frontend JavaScript then removes the optimistic user message and the "Thinking..." indicator from the UI, leaving the chat in a clean state.
 
 ### CSS (`static/style.css`)
 

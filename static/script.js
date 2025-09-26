@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const historySidebarToggle = document.getElementById('history-sidebar-toggle');
     const historySidebar = document.querySelector('.history-sidebar');
     let thinkingMessageId = null;
+    let abortController = null; // New: for cancelling fetch requests
     let fileContextActive = false;
 
     // Showdown converter for Markdown rendering
@@ -164,6 +165,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const botResponse = data.message.content;
         const generationTime = data.generation_time_seconds;
         const usage = data.usage;
+        // The user message is now confirmed and can be added to the history
+        // along with the bot response.
+        const userMessageContent = data.user_message_content;
+        conversationHistory.push({ role: 'user', content: userMessageContent });
         const sessionId = data.session_id;
 
         // Update URL with session_id if it's not already there
@@ -218,57 +223,73 @@ document.addEventListener('DOMContentLoaded', function() {
         const message = userInput.value.trim();
         if (!message) return;
 
+        // If a generation is already in progress, do nothing.
+        if (abortController) {
+            return;
+        }
+
         const selectedModel = document.getElementById('model-selector').value;
 
         // Disable input while processing
         userInput.disabled = true;
-        sendButton.disabled = true;
+        // Change to Stop button
+        toggleSendStopButton(true);
 
         // Add user message to chat
-        addMessage(message, true);
+        const userMessageDiv = addMessage(message, true);
         
-        // Add to conversation history
-        conversationHistory.push({
-            role: 'user',
-            content: message
-        });
-
         // Clear input
         userInput.value = '';
+
 
         // Show thinking indicator
         showThinking();
 
+        // Create a new AbortController for this request
+        abortController = new AbortController();
+        const signal = abortController.signal;
+
         try {
             const response = await fetch('/generate', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     messages: conversationHistory,
-                    model: selectedModel
-                })
+                    model: selectedModel,
+                    newMessage: { role: 'user', content: message } // Send new message separately
+                }),
+                signal: signal // Pass the abort signal
             });
 
             if (!response.ok) {
                 removeThinking(); // On server error, remove the indicator
-                const errorData = await response.json();
+                // Handle client disconnect (204 No Content) gracefully
+                if (response.status === 204) {
+                    return; // The request was cancelled on the server, do nothing more.
+                }
+                const errorData = await response.json().catch(() => ({ error: 'Unknown server error' }));
                 throw new Error(errorData.error || 'Server error');
             }
 
             const data = await response.json();
+            // Add the user message content to the response data for history tracking
+            data.user_message_content = message;
             handleBotResponse(data); // This will now update the thinking message
 
         } catch (error) {
-            removeThinking();
-            console.error('Error:', error);
-            addMessage(`❌ Error: ${error.message}`, false);
+            if (error.name === 'AbortError') {
+                console.log('Fetch aborted by user.');
+            } else {
+                removeThinking();
+                console.error('Error:', error);
+                addMessage(`❌ Error: ${error.message}`, false);
+            }
         } finally {
             // Re-enable input
+            toggleSendStopButton(false); // Reset to Send state
             userInput.disabled = false;
-            sendButton.disabled = false;
             userInput.focus();
+            abortController = null; // Clear the controller
         }
     }
 
@@ -321,10 +342,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Disable input while processing
         userInput.disabled = true;
-        sendButton.disabled = true;
+        
+        // Toggle button to Stop state
+        toggleSendStopButton(true);
 
         // Show thinking indicator
         showThinking();
+
+        // Create a new AbortController for this request
+        abortController = new AbortController();
+        const signal = abortController.signal;
 
         try {
             const response = await fetch('/generate', {
@@ -333,7 +360,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                     messages: conversationHistory,
                     model: selectedModel
-                })
+                }),
+                signal: signal // Pass the abort signal here
             });
 
             if (!response.ok) {
@@ -346,13 +374,19 @@ document.addEventListener('DOMContentLoaded', function() {
             handleBotResponse(data); // This will update the thinking message
 
         } catch (error) {
-            removeThinking();
-            console.error('Error:', error);
-            addMessage(`❌ Error: ${error.message}`, false);
+            if (error.name === 'AbortError') {
+                console.log('Fetch aborted by user.');
+                removeThinking();
+            } else {
+                removeThinking();
+                console.error('Error:', error);
+                addMessage(`❌ Error: ${error.message}`, false);
+            }
         } finally {
             userInput.disabled = false;
-            sendButton.disabled = false;
+            toggleSendStopButton(false); // Reset to Send state
             userInput.focus();
+            abortController = null; // Clear the controller
         }
     }
 
@@ -408,9 +442,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // New: Function to toggle send/stop button state
+    function toggleSendStopButton(isSending) {
+        if (isSending) {
+            sendButton.innerHTML = '<span class="material-icons">stop</span>';
+            sendButton.classList.add('stop-button');
+            sendButton.title = 'Stop Generation';
+            sendButton.removeEventListener('click', sendMessage);
+            sendButton.addEventListener('click', stopGeneration);
+            sendButton.disabled = false; // Ensure it's clickable to stop
+        } else {
+            sendButton.innerHTML = '<span class="material-icons">send</span>';
+            sendButton.title = 'Send';
+            sendButton.classList.remove('stop-button');
+            sendButton.removeEventListener('click', stopGeneration);
+            sendButton.addEventListener('click', sendMessage);
+            sendButton.disabled = false; // Re-enable for sending
+        }
+    }
+
+    // New: Function to stop ongoing generation
+    function stopGeneration() {
+        if (abortController) {
+            abortController.abort();
+            console.log('Generation manually aborted.');
+            // Also remove the user's optimistic message from the UI
+            const lastUserMessage = chatbox.querySelector('.user-message:last-of-type');
+            if (lastUserMessage) {
+                lastUserMessage.remove();
+            }
+        }
+        removeThinking();
+    }
+
     // Make functions globally available
     window.sendMessage = sendMessage;
     window.resetThread = resetThread;
+    window.stopGeneration = stopGeneration; // Make stopGeneration globally available
 
     // --- Page Initialization ---
     async function initializeChat() {
@@ -546,6 +614,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initializeChat();
     fetchHistorySidebar();
+
+    // Ensure send button is in initial state with correct listener
+    toggleSendStopButton(false);
 });
 
 document.addEventListener('DOMContentLoaded', function() {

@@ -336,6 +336,15 @@ body.fixed-layout {
     justify-content: center;
     flex-shrink: 0;
 }
+.send-button.stop-button {
+    background-color: var(--disconnected); /* Use a distinct color for stop */
+}
+
+.send-button.stop-button:hover {
+    background-color: #c62828; /* A darker red on hover */
+}
+
+
 
 .dashboard {
     display: grid;

@@ -1,8 +1,8 @@
 import os
 import time
 import uuid
-import psutil 
-import GPUtil 
+import psutil
+import GPUtil
 import chromadb
 import logging
 import secrets
@@ -18,6 +18,7 @@ from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
 from flask import Flask, jsonify, render_template, request, session, redirect, url_for, current_app
 from flask import Response, stream_with_context
+from werkzeug.exceptions import ClientDisconnected
 
 load_dotenv()
 
@@ -697,6 +698,7 @@ def index():
     ollama_status = "Connected" if check_ollama_connection() else "Disconnected"
     available_models = get_ollama_models()
     cloud_models = get_cloud_models()
+    settings = get_settings()
     
     # Fetch active prompts for the dropdown
     prompts = []
@@ -726,7 +728,8 @@ def index():
         cloud_models=cloud_models,
         ollama_status=ollama_status,
         langfuse_enabled=langfuse_enabled,
-        prompts=prompts
+        prompts=prompts,
+        searxng_enabled=settings.get('searxng_enabled', False)
     )
 
 @app.route('/upload', methods=['POST'])
@@ -785,15 +788,19 @@ def generate():
 
     data = request.get_json()
     if not data or 'messages' not in data:
-        return jsonify({"error": "Missing 'messages'"}), 400
+        return jsonify({"error": "Missing 'messages' or 'newMessage'"}), 400
 
     model = data.get('model', OLLAMA_MODEL)
-    messages = data['messages']
+    # The full conversation history, excluding the new message
+    conversation_history = data['messages']
+    # The new message from the user
+    new_message_content = data.get('newMessage', {}).get('content', '')
+    if not new_message_content:
+        return jsonify({"error": "New message content is empty"}), 400
+
     # The model identifier might be prefixed with "cloud::"
     is_cloud_model = model.startswith('cloud::')
     model_id = model.replace('cloud::', '')
-
-    user_message = messages[-1]['content'] if messages else ""
 
     # Use session ID from Flask session (or generate new if not exists)
     if 'session_id' not in session:
@@ -801,22 +808,26 @@ def generate():
     session_id = session['session_id']
 
     # Handle /search command
-    if user_message.strip().startswith('/search'):
-        query = user_message.strip().replace('/search', '').strip()
+    if new_message_content.strip().startswith('/search'):
+        query = new_message_content.strip().replace('/search', '').strip()
         if query:
             current_app.logger.info(f"Performing SearXNG search for: '{query}'")
             search_results = search_searxng(query)
             # Prepend search results to the user's message for context
             contextual_prompt = f"Based on the following web search results, please answer the user's question.\n\n--- SEARCH RESULTS ---\n{search_results}\n\n--- USER QUESTION ---\n{query}"
-            messages[-1]['content'] = contextual_prompt
-            # Update user_message to reflect the change for logging and storage
-            user_message = contextual_prompt
+            new_message_content = contextual_prompt
         else:
             # If no query, treat as a normal message
             pass
 
-    current_app.logger.info(f"User message received for generation: '{user_message[:80]}...'")
-    
+    # Construct the full message list for the model
+    messages_for_model = conversation_history + [{'role': 'user', 'content': new_message_content}]
+
+    # The user message to be saved is the (potentially modified) new message
+    user_message_to_save = new_message_content
+
+    current_app.logger.info(f"User message received for generation: '{user_message_to_save[:80]}...'")
+
     # Use session ID from Flask session (or generate new if not exists)
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
@@ -826,30 +837,16 @@ def generate():
     if not chroma_connected:
         db = get_db()
 
-    # Save user message to database
-    if chroma_connected:
-        try:
-            chroma_collection.add(
-                documents=[user_message],
-                metadatas=[{
-                    "sender": "user", 
-                    "session_id": session_id, 
-                    "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()
-                }],
-                ids=[str(uuid.uuid4())]
-            )
-        except Exception as e:
-            current_app.logger.error(f"Failed to save user message to ChromaDB: {e}")
-    else:
-        db.execute(
-            'INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
-            (session_id, 'user', user_message)
-        )
-        db.commit()
-
     start_time = time.time()
 
     try:
+        # This outer try-except block is to catch the client disconnecting.
+        # If the user clicks "Stop" on the frontend, the request is aborted,
+        # and this exception is raised when Flask tries to send the response.
+        # By catching it, we can prevent the messages from being saved to the DB.
+
+        # --- Model Routing and Generation ---
+
         assistant_response_data = None
         if is_cloud_model:
             # Fetch the specific cloud model's config
@@ -859,7 +856,7 @@ def generate():
                 return jsonify({"error": f"Cloud model with ID {model_id} not found."}), 404
             
             # For cloud models, add file context as a system message if it's the first user message
-            if sum(1 for m in messages if m['role'] == 'user') == 1:
+            if not conversation_history: # If history is empty, this is the first user message
                 file_context_message = None
                 if chroma_connected:
                     try:
@@ -882,44 +879,49 @@ def generate():
                     # Create a system message with the file content
                     system_context_prompt = f"You are an expert assistant. The user has provided a document named '{filename}'. Use its content to answer the user's question. The document content is as follows:\n\n---\n{file_content}\n---"
                     # Insert the system message at the beginning of the conversation
-                    messages.insert(0, {"role": "system", "content": system_context_prompt})
+                    messages_for_model.insert(0, {"role": "system", "content": system_context_prompt})
 
             model_config = dict(model_config_row)
             current_app.logger.info(f"Routing to cloud model: {model_config['service']} - {model_config['model_name']}")
-            assistant_response_data = cloud_model_chat(messages, model_config, session_id)
+            assistant_response_data = cloud_model_chat(messages_for_model, model_config, session_id)
         else:
             # It's an Ollama model
             # For local models, prepend context to the user message
-            if sum(1 for m in messages if m['role'] == 'user') == 1:
+            if not conversation_history: # If history is empty, this is the first user message
                 file_row = get_db().execute("SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1", (session_id,)).fetchone()
                 if file_row and '\n\n--- CONTENT ---\n' in file_row['content']:
                     filename_line, file_content = file_row['content'].split('\n\n--- CONTENT ---\n', 1)
                     filename = filename_line.replace('File uploaded: ', '')
-                    contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{user_message}"
-                    messages[-1]['content'] = contextual_prompt
+                    contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{new_message_content}"
+                    # Replace the last message's content (the user's question)
+                    messages_for_model[-1]['content'] = contextual_prompt
+                    user_message_to_save = contextual_prompt # Update the content to be saved
             current_app.logger.info(f"Routing to Ollama model: {model}")
-            assistant_response_data = ollama_chat(messages, model, session_id)
+            assistant_response_data = ollama_chat(messages_for_model, model, session_id)
 
         assistant_response = assistant_response_data['content']
         current_app.logger.info(f"Assistant response generated: '{assistant_response[:80]}...'")
         usage = assistant_response_data['usage']
 
-        # Save assistant message to database
+        # --- Save messages AFTER successful generation ---
+        # Save user message to database
         if chroma_connected:
             try:
+                # Batch add user and assistant messages
                 chroma_collection.add(
-                    documents=[assistant_response],
-                    metadatas=[{"sender": "assistant", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}],
-                    ids=[str(uuid.uuid4())]
+                    documents=[user_message_to_save, assistant_response],
+                    metadatas=[
+                        {"sender": "user", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()},
+                        {"sender": "assistant", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}
+                    ],
+                    ids=[str(uuid.uuid4()), str(uuid.uuid4())]
                 )
             except Exception as e:
-                current_app.logger.error(f"Failed to save assistant message to ChromaDB: {e}")
+                current_app.logger.error(f"Failed to save messages to ChromaDB: {e}")
         else:
-            db.execute(
-                'INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
-                (session_id, 'assistant', assistant_response)
-            )
-            db.commit()
+            db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'user', user_message_to_save))
+            db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'assistant', assistant_response))
+            db.commit() # Commit both user and assistant messages
 
         elapsed = time.time() - start_time
 
@@ -928,11 +930,17 @@ def generate():
                 "role": "assistant",
                 "content": assistant_response
             },
+            "user_message_content": user_message_to_save, # Send back the (potentially modified) user message
             "usage": usage,
             "generation_time_seconds": round(elapsed, 2),
             "langfuse_enabled": langfuse_enabled,
             "session_id": session_id
         })
+
+    except ClientDisconnected:
+        current_app.logger.info(f"Client disconnected, generation for session {session_id} cancelled. No data will be saved.")
+        # Return a specific response so the frontend knows it was a client-side abort
+        return jsonify({"status": "cancelled", "message": "Client disconnected."}), 204
 
     except Exception as e:
         current_app.logger.error(f"Error during generation: {e}")
@@ -1282,6 +1290,19 @@ def health():
     # Check Ollama status
     ollama_status = "Connected" if check_ollama_connection() else "Disconnected"
     searxng_status = "Connected" if check_searxng_connection() else "Disconnected"
+
+    # Create a map of model values to their display names for the health page
+    model_name_map = {}
+    local_models = get_ollama_models()
+    for model in local_models:
+        model_name_map[model['name']] = model['name']
+
+    cloud_models = get_cloud_models()
+    for model in cloud_models:
+        # The value is 'cloud::' + id, the name is 'service / model_name'
+        key = f"cloud::{model['id']}"
+        name = f"{model['service']} / {model['model_name']}"
+        model_name_map[key] = name
     
     return render_template(
         'health.html',
@@ -1296,8 +1317,9 @@ def health():
         ollama_status=ollama_status,
         ollama_model=OLLAMA_MODEL,
         langfuse_enabled=langfuse_enabled,
-        chroma_connected=chroma_connected,
-        searxng_status=searxng_status
+        chroma_connected=chroma_connected, # Add a comma here
+        searxng_status=searxng_status,
+        model_name_map=model_name_map
     )
 
 @app.route('/models')

@@ -45,10 +45,10 @@
             {% endfor %}
         </select>
     </div>
-    <button onclick="resetThread()" class="nav-link" title="New Chat">
+    <button onclick="resetThread()" class="nav-link" title="New Chat (Ctrl+Shift+R)">
         <span class="material-icons">add_comment</span>
     </button>
-    <button id="search-button" class="nav-link" title="Web Search">
+    <button id="search-button" class="nav-link" title="{% if searxng_enabled %}Web Search (type /search){% else %}Web Search disabled (Enable in Settings){% endif %}" {% if not searxng_enabled %}disabled{% endif %}>
         <span class="material-icons">search</span>
     </button>
     <button id="history-sidebar-toggle" class="nav-link" title="Toggle History Sidebar">
