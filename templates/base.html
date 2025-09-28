@@ -28,13 +28,14 @@
             <div class="sidebar-header">
                 <h4>AI Menu</h4>
             </div>
-            <a href="/" class="nav-link" title="New Chat">New Chat</a>
-            <a href="/history" class="nav-link" title="Chat History">Chat History</a>
+            <a href="/" onclick="resetThread()" class="nav-link" title="New Chat">Home</a>
+            <a href="/history" class="nav-link" title="Chat History" >Chat History</a>
             <a href="/models" class="nav-link" title="Models Hub">Local Models</a>
             <a href="/cloud_models" class="nav-link" title="Cloud Models">Cloud Models</a>
             <a href="/prompts" class="nav-link" title="Prompt Hub">Prompt Hub</a>
             <a href="/settings" class="nav-link" title="Settings">Settings</a>
             <a href="/health" class="nav-link" title="System Health">System Health</a>
+            <a href="https://forms.gle/5LeiKT1tRoNWmVst5" target="_blank" class="nav-link" title="Feedback">Feedback</a>
         </aside>
         <div class="main-content-wrapper">
             <!-- Header -->
@@ -43,7 +44,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 25 25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path></svg>
                     <span class="visually-hidden">Toggle Sidebar</span>
                 </button>
-                <h1>{% block header_title %}{% endblock %}</h1>
+                <h2>{% block header_title %}{% endblock %}</h2>
                 <div class="header-nav" style="margin-left: auto;">
                     {% block header_nav %}{% endblock %}
                 </div>

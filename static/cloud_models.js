@@ -203,31 +203,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         models.forEach(model => {
+            const displayUrl = model.base_url.length > 26 ? model.base_url.substring(0, 26) + '...' : model.base_url;
             const row = document.createElement('tr');
             row.dataset.id = model.id;
             row.innerHTML = `
                 <td>${model.service}</td>
                 <td>${model.model_name}</td>
-                <td>${model.base_url}</td>
-                <td style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span class="api-key-text">${model.api_key_partial || 'Not set'}</span>
-                    <button class="copy-key-btn icon-btn" title="Copy Key">
-                        <span class="material-icons">content_copy</span>
-                    </button>
-                </td>
                 <td>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                        <span class="api-key-text" title="${model.base_url}">${displayUrl}</span>
+                        <button class="copy-base_url-btn icon-btn" title="Copy Base URL">
+                            <span class="material-icons">content_copy</span>
+                        </button>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+                        <span class="api-key-text">${model.api_key_partial || 'Not set'}</span>
+                        <button class="copy-key-btn icon-btn" title="Copy Key">
+                            <span class="material-icons">content_copy</span>
+                        </button>
+                    </div>
+                </td>
+                <td style="display: flex; align-items: center; gap: 1rem;">
                     <label class="switch" title="${model.active ? 'Deactivate' : 'Activate'} Model">
                         <input type="checkbox" class="active-toggle" ${model.active ? 'checked' : ''}>
                         <span class="slider round"></span>
                     </label>
-                </td>
-                <td>
-                    <button class="edit-model-btn icon-btn" title="Edit Model">
-                        <span class="material-icons">edit</span>
-                    </button>
-                    <button class="delete-model-btn icon-btn" title="Delete Model">
-                        <span class="material-icons">delete</span>
-                    </button>
+                    <button class="edit-model-btn icon-btn" title="Edit Model"><span class="material-icons">edit</span></button>
+                    <button class="delete-model-btn icon-btn" title="Delete Model"><span class="material-icons">delete</span></button>
                 </td>
             `;
             modelsTableBody.appendChild(row);
@@ -236,6 +238,10 @@ document.addEventListener('DOMContentLoaded', function() {
             row.querySelector('.edit-model-btn').addEventListener('click', () => openModalForEdit(model));
             row.querySelector('.delete-model-btn').addEventListener('click', () => deleteModel(model.id));
             row.querySelector('.copy-key-btn').addEventListener('click', () => copyKey(model.id));
+            row.querySelector('.copy-base_url-btn').addEventListener('click', (e) => {
+                const btn = e.currentTarget;
+                copyToClipboard(model.base_url, btn);
+            });
             row.querySelector('.active-toggle').addEventListener('change', (e) => {
                 toggleActive(model.id, e.target.checked);
             });

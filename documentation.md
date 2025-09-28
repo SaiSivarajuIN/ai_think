@@ -265,6 +265,7 @@ The application now supports uploading `.txt` files to provide context for a con
 - **Models Hub (`/models`):** View, pull, and delete local Ollama models.
 - **Health Page (`/health`):** Monitor system and service status.
 - **History Sidebar**: A collapsible sidebar on the main chat page that lists recent conversations for quick access.
+- **Keyboard Shortcuts**: Use `Alt + S` to toggle the main sidebar and `Alt + H` to toggle the history sidebar.
 
 ## 4. File Structure
 

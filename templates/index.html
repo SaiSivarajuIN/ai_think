@@ -45,7 +45,7 @@
             {% endfor %}
         </select>
     </div>
-    <button onclick="resetThread()" class="nav-link" title="New Chat (Ctrl+Shift+R)">
+    <button onclick="resetThread()" class="nav-link" title="New Chat">
         <span class="material-icons">add_comment</span>
     </button>
     <button id="search-button" class="nav-link" title="{% if searxng_enabled %}Web Search (type /search){% else %}Web Search disabled (Enable in Settings){% endif %}" {% if not searxng_enabled %}disabled{% endif %}>
@@ -74,6 +74,12 @@
             <textarea id="userMessage" placeholder="Type your message..." rows="1"></textarea>
             <button id="sendButton" class="send-button" title="Send"><span class="material-icons">send</span></button>
         </div>
+        <footer class="footer" style="padding: 0.75rem 0 0 0; border: none;">
+            <p>
+                <a href="https://github.com/SaiSivarajuIN/ai_think" target="_blank" rel="noopener noreferrer">AI Think</a> - Your Local AI Companion
+            </p>
+            <p>Made with ❤️</p>
+        </footer>
     </div>
     <!-- Right Sidebar for History -->
     <aside class="history-sidebar">

@@ -860,7 +860,10 @@ def generate():
                 file_context_message = None
                 if chroma_connected:
                     try:
-                        results = chroma_collection.get(where={"session_id": session_id, "sender": "system"}, include=["documents"])
+                        results = chroma_collection.get(
+                            where={"$and": [{"session_id": session_id}, {"sender": "system"}]},
+                            include=["documents"]
+                        )
                         if results['documents']:
                             file_context_message = results['documents'][-1]
                     except Exception as e:
@@ -887,15 +890,31 @@ def generate():
         else:
             # It's an Ollama model
             # For local models, prepend context to the user message
-            if not conversation_history: # If history is empty, this is the first user message
-                file_row = get_db().execute("SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1", (session_id,)).fetchone()
-                if file_row and '\n\n--- CONTENT ---\n' in file_row['content']:
-                    filename_line, file_content = file_row['content'].split('\n\n--- CONTENT ---\n', 1)
+            if not conversation_history:  # If history is empty, this is the first user message
+                file_context_message = None
+                if chroma_connected:
+                    try:
+                        results = chroma_collection.get(
+                            where={"$and": [{"session_id": session_id}, {"sender": "system"}]},
+                            include=["documents"]
+                        )
+                        if results['documents']:
+                            file_context_message = results['documents'][-1]
+                    except Exception as e:
+                        current_app.logger.error(f"Error fetching file context from ChromaDB for session {session_id}: {e}")
+                else:
+                    file_row = db.execute("SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1", (session_id,)).fetchone()
+                    if file_row:
+                        file_context_message = file_row['content']
+
+                if file_context_message and '\n\n--- CONTENT ---\n' in file_context_message:
+                    filename_line, file_content = file_context_message.split('\n\n--- CONTENT ---\n', 1)
                     filename = filename_line.replace('File uploaded: ', '')
                     contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{new_message_content}"
                     # Replace the last message's content (the user's question)
                     messages_for_model[-1]['content'] = contextual_prompt
-                    user_message_to_save = contextual_prompt # Update the content to be saved
+                    user_message_to_save = contextual_prompt  # Update the content to be saved
+
             current_app.logger.info(f"Routing to Ollama model: {model}")
             assistant_response_data = ollama_chat(messages_for_model, model, session_id)
 

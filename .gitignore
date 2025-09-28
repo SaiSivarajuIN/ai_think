@@ -6,6 +6,9 @@ __pycache__/
 # searxng-docker
 searxng-docker
 
+# Release Notes
+ReleaseNotes.md
+
 
 # logger files & sqlite db
 logger

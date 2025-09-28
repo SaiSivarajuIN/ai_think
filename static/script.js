@@ -96,16 +96,25 @@ document.addEventListener('DOMContentLoaded', function() {
             let displayContent = content;
             const rawContentForCopy = content; // Keep original for copy
 
-            // Check if the user message contains search results and hide them for display
-            const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/;
-            const match = content.match(searchRegex);
+            // Regex for both search and file context
+            const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
+            const fileContextRegex = /^Based on the content of the document '(.+?)' provided below, please answer the following question\.\n\n---\n\nDOCUMENT CONTENT:\n([\s\S]*?)\n\n---\n\nQUESTION:\n([\s\S]*)$/m;
+            
+            const searchMatch = content.match(searchRegex);
+            const fileMatch = content.match(fileContextRegex);
 
-            if (match) {
-                const userQuestion = match[2].trim();
+            if (searchMatch) {
+                const userQuestion = searchMatch[2].trim();
                 // Display only the user's original question part.
                 // The full content with search results is still in `rawContentForCopy`.
                 // The "Search Results" block is rendered on history.html from this raw content.
                 displayContent = userQuestion;
+            } else if (fileMatch) {
+                const filename = fileMatch[1].trim();
+                const userQuestion = fileMatch[3].trim();
+                // Display only the user's question part. The full content is saved for history.
+                // We'll add a small indicator about the file context.
+                displayContent = `*(Querying about ${filename})*\n\n${userQuestion}`;
             }
 
             const formattedContent = formatMessage(escapeHtml(displayContent));
@@ -148,7 +157,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         footerHTML += `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
-        footerHTML += `<button class="regenerate-btn icon-btn" title="Regenerate response"><span class="material-icons">refresh</span></button>`;
         footer.innerHTML = footerHTML;
         messageDiv.appendChild(footer);
     }
@@ -322,74 +330,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Regenerate the last response
-    async function regenerateResponse() {
-        const selectedModel = document.getElementById('model-selector').value;
-
-        // Remove last bot message from history
-        if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].role === 'assistant') {
-            conversationHistory.pop();
-        } else {
-            console.error("Could not find a bot message to regenerate.");
-            return;
-        }
-
-        // Remove last bot message from DOM
-        const lastBotMessage = chatbox.querySelector('.bot-message:last-of-type');
-        if (lastBotMessage) {
-            lastBotMessage.remove();
-        }
-
-        // Disable input while processing
-        userInput.disabled = true;
-        
-        // Toggle button to Stop state
-        toggleSendStopButton(true);
-
-        // Show thinking indicator
-        showThinking();
-
-        // Create a new AbortController for this request
-        abortController = new AbortController();
-        const signal = abortController.signal;
-
-        try {
-            const response = await fetch('/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: conversationHistory,
-                    model: selectedModel
-                }),
-                signal: signal // Pass the abort signal here
-            });
-
-            if (!response.ok) {
-                removeThinking(); // On server error, remove the indicator
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Server error');
-            }
-
-            const data = await response.json();
-            handleBotResponse(data); // This will update the thinking message
-
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                console.log('Fetch aborted by user.');
-                removeThinking();
-            } else {
-                removeThinking();
-                console.error('Error:', error);
-                addMessage(`❌ Error: ${error.message}`, false);
-            }
-        } finally {
-            userInput.disabled = false;
-            toggleSendStopButton(false); // Reset to Send state
-            userInput.focus();
-            abortController = null; // Clear the controller
-        }
-    }
-
     // Event listeners
     sendButton.addEventListener('click', sendMessage);
     
@@ -402,18 +342,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Event delegation for message actions (copy, regenerate)
     chatbox.addEventListener('click', function(e) {
-        const regenerateBtn = e.target.closest('.regenerate-btn');
-        if (regenerateBtn) {
-            const botMessageDiv = regenerateBtn.closest('.bot-message');
-            const lastBotMessage = chatbox.querySelector('.bot-message:last-of-type');
-            if (botMessageDiv === lastBotMessage) {
-                regenerateResponse();
-            } else {
-                alert("Sorry, you can only regenerate the last response for now.");
-            }
-            return; // Stop further processing
-        }
-
         const copyBtn = e.target.closest('.copy-btn');
         if (copyBtn) {
             const messageDiv = copyBtn.closest('.message'); // Works for both .user-message and .bot-message
@@ -646,6 +574,14 @@ document.addEventListener('DOMContentLoaded', function() {
             event.preventDefault(); // Prevent browser's default "Save" action
             if (sidebarToggle) {
                 sidebarToggle.click();
+            }
+        }
+        if (event.altKey && event.key.toLowerCase() === 'h') {
+            const historySidebarToggle = document.getElementById('history-sidebar-toggle');
+            if (historySidebarToggle) {
+                // Prevent default browser action for Alt+H (often opens Help menu)
+                event.preventDefault();
+                historySidebarToggle.click();
             }
         }
     });

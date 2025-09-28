@@ -177,6 +177,7 @@ To perform a web search, click the 🔍 icon or type `/search` followed by your 
 ## ⌨️ Keyboard Shortcuts
 
 -   **`Alt + S`**: Expand or collapse the sidebar.
+-   **`Alt + H`**: Expand or collapse the history sidebar on the chat page.
 
 ## 📄 Documentation
 
