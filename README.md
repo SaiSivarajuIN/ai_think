@@ -183,4 +183,4 @@ For more detailed information about the application's architecture, features, an
 
 ## ✍️ Feedback
 
-Write you [Feedback](https://forms.gle/5LeiKT1tRoNWmVst5) here.
+Write your [feedback](https://forms.gle/5LeiKT1tRoNWmVst5) here.
