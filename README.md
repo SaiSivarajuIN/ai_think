@@ -61,6 +61,8 @@ If you prefer to install manually:
   curl -fsSL https://ollama.com/install.sh | sh
   ```
 
+note [Set up SearXNG](https://github.com/SaiSivarajuIN/ai_think?tab=readme-ov-file#manually-setting-up-searxngoptional)
+
 ### 3. Pull Models
 
 Once Ollama is running, you can pull models in two ways:
