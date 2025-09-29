@@ -19,3 +19,7 @@ Do **not** include detailed exploits in the public issue. Instead, describe the 
 This project is licensed under the [MIT License](./LICENSE).
 
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. USE AT YOUR OWN RISK. THE MAINTAINERS ARE NOT LIABLE FOR ANY DAMAGES ARISING FROM USE OF THIS PROJECT.
+
+## Contact
+
+For any questions or feedback, please contact [here](https://forms.gle/5LeiKT1tRoNWmVst5).
