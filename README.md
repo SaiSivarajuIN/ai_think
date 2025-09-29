@@ -106,15 +106,16 @@ pip install -r requirements.txt
 Create a `.env` file in the root directory.
 
 - **Ollama**: Configure the base URL and default model.
-- **ChromaDB (Optional)**: Add your credentials to enable cloud-based persistent history. If you leave these blank, the application will fall back to a local SQLite database.
 - **Langfuse**: Credentials are no longer set here. They are configured through the **Settings** page in the web UI (`/settings`).
+
+- sample here
 
 ```dotenv
 # .env
 
 # --- Ollama Configuration ---
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.1
+OLLAMA_MODEL=gemma3:1b
 
 # --- Default Model Parameters ---
 NUM_PREDICT=2024
@@ -122,11 +123,6 @@ TEMPERATURE=0.7
 TOP_P=0.8
 TOP_K=20
 
-# --- ChromaDB Configuration (Optional) ---
-# If you leave these blank, the app will use a local SQLite database.
-CHROMA_API_KEY=
-CHROMA_TENANT=
-CHROMA_DATABASE=
 ```
 
 ### 7. Run the Application
@@ -184,3 +180,7 @@ To perform a web search, click the 🔍 icon or type `/search` followed by your 
 ## 📄 Documentation
 
 For more detailed information about the application's architecture, features, and API, please see the [documentation](documentation.md).
+
+## ✍️ Feedback
+
+Write you [Feedback](https://forms.gle/5LeiKT1tRoNWmVst5) here.
