@@ -1543,6 +1543,16 @@ def api_delete_prompt(prompt_id):
     db.commit()
     return jsonify({'success': True})
 
+@app.route('/feedback')
+def feedback_page():
+    """Render the feedback page."""
+    return render_template(
+        'feedback.html',
+        page_title="Feedback | AI Think Chat",
+        page_id="feedback",
+        header_title="✍️ Feedback"
+    )
+
 # --- Cloud Model Endpoints ---
 
 @app.route('/cloud_models')

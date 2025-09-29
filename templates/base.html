@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
     <title>{% block title %}AI Think{% endblock %}</title>
 
     <!-- Stylesheets -->
@@ -20,6 +21,12 @@
             document.documentElement.classList.add('sidebar-collapsed-preload');
         }
     </script>
+
+    <!-- Scripts -->
+    {% block scripts %}
+        <script src="{{ url_for('static', filename='script.js') }}"></script>
+        <script src="{{ url_for('static', filename='script.js', v=cache_buster) }}"></script>
+    {% endblock %}
 </head>
 
 <body class="fixed-layout">
@@ -34,8 +41,8 @@
             <a href="/cloud_models" class="nav-link" title="Cloud Models">Cloud Models</a>
             <a href="/prompts" class="nav-link" title="Prompt Hub">Prompt Hub</a>
             <a href="/settings" class="nav-link" title="Settings">Settings</a>
-            <a href="/health" class="nav-link" title="System Health">System Health</a>
-            <a href="https://forms.gle/5LeiKT1tRoNWmVst5" target="_blank" class="nav-link" title="Feedback">Feedback</a>
+            <a href="/health" class="nav-link" title="System Health">System Health</a>            
+            <a href="/feedback" class="nav-link" title="Feedback">Feedback</a>
         </aside>
         <div class="main-content-wrapper">
             <!-- Header -->
@@ -60,9 +67,5 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    {% block scripts %}
-        <script src="{{ url_for('static', filename='script.js') }}"></script>
-    {% endblock %}
 </body>
 </html>
