@@ -32,6 +32,8 @@ Follow these steps to get the application running on your local machine.
 
 You can either follow the manual instructions below or use the automated scripts.
 
+note [Set up SearXNG](https://github.com/SaiSivarajuIN/ai_think?tab=readme-ov-file#manually-setting-up-searxngoptional) optional
+
 #### Automated Installation (Recommended)
 
 The `ollamaSetup.sh && ollamaSetup.bat` script will install Ollama and download a recommended GGUF model.
@@ -60,8 +62,6 @@ If you prefer to install manually:
   ```bash
   curl -fsSL https://ollama.com/install.sh | sh
   ```
-
-note [Set up SearXNG](https://github.com/SaiSivarajuIN/ai_think?tab=readme-ov-file#manually-setting-up-searxngoptional)
 
 ### 3. Pull Models
 
