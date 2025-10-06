@@ -429,7 +429,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (sessionId) {
             // A session ID is in the URL, try to load its history
-            addMessage(`🔄 Loading chat session: ${sessionId}...`, false);
+            addMessage(`🔄 Loading chat session: ${escapeHtml(sessionId)}...`, false);
             try {
                 const response = await fetch(`/api/session/${sessionId}`);
                 if (!response.ok) {
