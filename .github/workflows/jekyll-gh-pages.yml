@@ -33,7 +33,7 @@ jobs:
       - name: Prepare deployment artifact
         run: |
           mkdir -p _site
-          cp templates/about.html _site/index.html
+          cp templates/about_static.html _site/index.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 
