@@ -1646,22 +1646,28 @@ def api_update_cloud_model(model_id):
     """API endpoint to update an existing cloud model configuration."""
     data = request.get_json()
     
-    # Only update fields that are provided
-    updates = {k: v for k, v in data.items() if v is not None and k in ['service', 'base_url', 'api_key', 'model_name']}
-    
+    # Only update fields that are provided and allowed
+    ALLOWED_FIELDS = ['service', 'base_url', 'api_key', 'model_name']
+    updates = {}
+    for key in ALLOWED_FIELDS:
+        value = data.get(key)
+        if value is not None:
+            # For api_key, ignore if empty
+            if key == 'api_key' and not value:
+                continue
+            updates[key] = value
+
     if not updates:
         return jsonify({"error": "No fields to update"}), 400
-    # If api_key is empty, it means the user didn't want to change it.
-    # We should not update it to an empty string.
-    if 'api_key' in updates and not updates['api_key']:
-        del updates['api_key']
 
-    set_clause = ", ".join([f"{key} = ?" for key in updates])
+    set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
     values = tuple(updates.values()) + (model_id,)
 
     try:
         db = get_db()
-        db.execute(f'UPDATE cloud_models SET {set_clause} WHERE id = ?', values)
+        # Use only the allowed columns in set_clause
+        query = f'UPDATE cloud_models SET {set_clause} WHERE id = ?'
+        db.execute(query, values)
         db.commit()
         return jsonify({"success": True, "id": model_id})
     except Exception as e:
