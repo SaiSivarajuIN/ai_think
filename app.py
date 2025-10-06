@@ -1656,12 +1656,12 @@ def api_update_cloud_model(model_id):
     if 'api_key' in updates and not updates['api_key']:
         del updates['api_key']
 
-    set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
-    values = list(updates.values()) + [model_id]
+    set_clause = ", ".join([f"{key} = ?" for key in updates])
+    values = tuple(updates.values()) + (model_id,)
 
     try:
         db = get_db()
-        db.execute(f'UPDATE cloud_models SET {set_clause} WHERE id = ?', tuple(values))
+        db.execute(f'UPDATE cloud_models SET {set_clause} WHERE id = ?', values)
         db.commit()
         return jsonify({"success": True, "id": model_id})
     except Exception as e:
