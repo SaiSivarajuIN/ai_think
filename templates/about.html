@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block header_title %}{{ header_title }}{% endblock %}
+
+{% block content %}
+<div class="about-page">
+    <div class="card">
+        <h2>Welcome to AI Think</h2>
+        <p>
+            AI Think is a self-hosted, web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs). It connects to a local Ollama instance and can also integrate with various cloud model providers.
+        </p>
+        <p>
+            This project aims to provide a powerful, private, and extensible platform for experimenting with and utilizing generative AI.
+        </p>
+    </div>
+
+    <div class="card">
+        <h3>Key Features</h3>
+        <ul class="feature-list">
+            <li><strong>Intuitive Chat Interface:</strong> Clean and simple UI for chatting with your local and cloud LLMs.</li>
+            <li><strong>Local & Cloud Model Management:</strong> Easily switch between models, pull new ones from Ollama, or connect to external providers like OpenAI and Perplexity.</li>
+            <li><strong>Persistent Chat History:</strong> Conversations are saved using a local SQLite database, with optional support for a scalable ChromaDB cloud instance.</li>
+            <li><strong>Prompt Hub:</strong> Create, manage, and reuse system prompts to streamline your workflows.</li>
+            <li><strong>Web Search:</strong> Get up-to-date answers from the internet by integrating with a local SearXNG instance.</li>
+            <li><strong>System Health Dashboard:</strong> Monitor real-time CPU, memory, disk, and GPU usage.</li>
+            <li><strong>Dynamic Configuration:</strong> Adjust model parameters and integration settings on the fly without restarting the server.</li>
+            <li><strong>Session Management:</strong> Bookmark, share, and resume conversations via URL session IDs.</li>
+            <li><strong>Langfuse Integration:</strong> Optional, powerful tracing and observability for your LLM interactions.</li>
+            <li><strong>File Upload:</strong> Provide `.txt` files as context for your conversations.</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <details>
+            <summary style="cursor: pointer; font-weight: 500;">MIT License</summary>
+            <pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; margin-top: 1rem; background-color: var(--background-alt); padding: 1rem; border-radius: var(--radius-md);">{{ license_content }}</pre>
+        </details>
+    </div>
+
+    <div class="card">
+        <h3>Disclaimer</h3>
+        <p>This software is provided "as is", without warranty of any kind. Use at your own risk. The maintainers are not liable for any damages arising from the use of this project.</p>
+    </div>
+    
+</div>
+{% endblock %}

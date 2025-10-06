@@ -7,7 +7,7 @@
 {% block content %}
     <div class="card">
         <h2>Pull New Model</h2>
-        <p>Enter a model name from the <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., `mistral:latest`).<br>
+        <p>Enter a model name from the <a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., `mistral:latest`).<br>
     Get Models from <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face</a> (e.g., `ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M`).
     </p>
     <div class="form-group">
@@ -61,5 +61,6 @@
 
 {% block scripts %}
     <script src="{{ url_for('static', filename='models.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
     {{ super() }}
 {% endblock %}

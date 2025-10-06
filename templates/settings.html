@@ -154,3 +154,9 @@
         </div>
     </form>
 {% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='prompts.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    {{ super() }}
+{% endblock %}

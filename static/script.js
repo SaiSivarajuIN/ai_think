@@ -206,6 +206,9 @@ document.addEventListener('DOMContentLoaded', function() {
         thinkingElement.innerHTML = formatMessage(cleanedBotResponse || "..."); // Show something if response is empty
         addMessageFooter(thinkingElement, usage, generationTime);
         thinkingMessageId = null; // Clear the ID as we've used the placeholder
+
+        // Scroll to the bottom to ensure the new message is visible
+        chatbox.scrollTop = chatbox.scrollHeight;
     }
 
     // Show thinking indicator
@@ -346,8 +349,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (copyBtn) {
             const messageDiv = copyBtn.closest('.message'); // Works for both .user-message and .bot-message
             const rawContent = messageDiv ? messageDiv.dataset.rawContent : null;
+            let contentToCopy = rawContent;
+
             if (rawContent) {
-                navigator.clipboard.writeText(rawContent).then(() => {
+                // If it's a user message, check if it contains search results and extract only the question.
+                if (messageDiv.classList.contains('user-message')) {
+                    const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
+                    const searchMatch = rawContent.match(searchRegex);
+                    if (searchMatch) {
+                        contentToCopy = searchMatch[2].trim(); // The user's actual question
+                    }
+                }
+
+                navigator.clipboard.writeText(contentToCopy).then(() => {
                     const icon = copyBtn.querySelector('.material-icons');
                     const originalIcon = icon.textContent;
                     icon.textContent = 'done'; // Change to checkmark

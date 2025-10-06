@@ -37,12 +37,26 @@
             </div>
             <a href="/" onclick="resetThread()" class="nav-link" title="New Chat">Home</a>
             <a href="/history" class="nav-link" title="Chat History" >Chat History</a>
-            <a href="/models" class="nav-link" title="Models Hub">Local Models</a>
-            <a href="/cloud_models" class="nav-link" title="Cloud Models">Cloud Models</a>
-            <a href="/prompts" class="nav-link" title="Prompt Hub">Prompt Hub</a>
+            <details class="nav-dropdown" {% if page_id in ['models', 'cloud_models', 'prompts'] %}open{% endif %}>
+                <summary class="nav-link">
+                    <span>Hub</span>
+                    <span class="material-icons dropdown-arrow">expand_more</span>
+                </summary>
+                <a href="/models" class="nav-link" title="Models Hub">Local Models</a>
+                <a href="/cloud_models" class="nav-link" title="Cloud Models">Cloud Models</a>
+                <a href="/prompts" class="nav-link" title="Prompt Hub">Prompt Hub</a>
+            </details>
             <a href="/settings" class="nav-link" title="Settings">Settings</a>
-            <a href="/health" class="nav-link" title="System Health">System Health</a>            
-            <a href="/feedback" class="nav-link" title="Feedback">Feedback</a>
+            
+            <details class="nav-dropdown" {% if page_id in ['health', 'about', 'feedback'] %}open{% endif %}>
+                <summary class="nav-link">
+                    <span>Info</span>
+                    <span class="material-icons dropdown-arrow">expand_more</span>
+                </summary>
+                <a href="/health" class="nav-link" title="System Health">System Health</a>
+                <a href="/about" class="nav-link" title="About">About</a>
+                <a href="/feedback" class="nav-link" title="Feedback">Feedback</a>
+            </details>
         </aside>
         <div class="main-content-wrapper">
             <!-- Header -->

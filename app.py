@@ -1543,6 +1543,23 @@ def api_delete_prompt(prompt_id):
     db.commit()
     return jsonify({'success': True})
 
+@app.route('/about')
+def about_page():
+    """Render the about page."""
+    try:
+        with open('LICENSE', 'r', encoding='utf-8') as f:
+            license_content = f.read()
+    except FileNotFoundError:
+        current_app.logger.error("LICENSE file not found for about page.")
+        license_content = "LICENSE file not found in the project root."
+    return render_template(
+        'about.html',
+        page_title="About | AI Think Chat",
+        page_id="about",
+        header_title="ℹ️ About AI Think",
+        license_content=license_content
+    )
+
 @app.route('/feedback')
 def feedback_page():
     """Render the feedback page."""

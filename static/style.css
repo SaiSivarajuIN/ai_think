@@ -154,6 +154,29 @@ body.fixed-layout {
     white-space: nowrap; /* Prevent text from wrapping during collapse animation */
 }
 
+/* Dropdown in Sidebar */
+.nav-dropdown summary {
+    list-style: none; /* Remove default arrow */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-dropdown summary::-webkit-details-marker {
+    display: none; /* Hide default arrow in WebKit */
+}
+
+.nav-dropdown .dropdown-arrow {
+    transition: transform 0.2s ease;
+}
+
+.nav-dropdown[open] > summary .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.nav-dropdown[open] > .nav-link {
+    padding-left: 2rem; /* Indent nested links */
+}
 .nav-link:hover {
     color: var(--text);
     background: var(--message-assistant);
