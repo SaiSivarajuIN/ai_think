@@ -31,20 +31,15 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
-        with:
-          # Point to the templates directory
-          source: ./templates
-          destination: ./_site
-          
-      - name: Copy about.html as site entry
+      - name: Prepare site for deployment
         run: |
           mkdir -p _site
-          cp templates/about.html _site/index.html
+          cp templates/about.html _site/about.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: './_site'
 
   # Deployment job
   deploy:
