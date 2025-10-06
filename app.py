@@ -1461,7 +1461,15 @@ def settings():
             'searxng_enabled': 'searxng_enabled' in request.form
         }
         save_settings(settings_to_save)
-        current_app.logger.info(f"Settings updated: {request.form.to_dict()}")
+
+        # Redact sensitive information before logging
+        # current_app.logger.info(f"Settings updated: {request.form.to_dict()}")
+        loggable_settings = request.form.to_dict()
+        if 'langfuse_secret_key' in loggable_settings:
+            loggable_settings['langfuse_secret_key'] = '********'
+        if 'chroma_api_key' in loggable_settings:
+            loggable_settings['chroma_api_key'] = '********'
+        current_app.logger.info(f"Settings updated: {loggable_settings}")
         # Re-initialize services with new settings
         initialize_langfuse()
         initialize_chroma()

@@ -1,4 +1,8 @@
+import os
 from app import app
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
+    # Use an environment variable to control debug mode
+    # Example: export FLASK_DEBUG=1
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode, threaded=True)
