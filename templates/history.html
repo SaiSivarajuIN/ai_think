@@ -8,9 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
     <!-- Add MathJax for LaTeX rendering -->
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 {% endblock %}
 
 
@@ -29,10 +26,6 @@
                         Chat Session {{ thread.serial_number }} <small class="session-id-display">{{ thread.session_id }}</small> &mdash; <span class="session-start-time"></span>
                     </div>
                     <div class="summary-actions">
-                        <!--PDF download-pdf-btn icon-btn-->
-                        <button class="download-pdf-btn icon-btn" data-session="{{ thread.session_id }}" title="Download PDF">
-                            <span class="material-icons">picture_as_pdf</span>
-                        </button>
                         <!--DOC download-doc-btn icon-btn-->
                         <button class="download-doc-btn icon-btn" data-session="{{ thread.session_id }}" title="Download DOC">
                             <span class="material-icons">description</span>
