@@ -63,7 +63,7 @@
                                         <button class="delete-btn icon-btn" title="Delete Message"><span class="material-icons">delete</span></button>
                                     </div>
                                 </div>
-                                <div class="history-content">{{ msg.content }}</div>
+                                <div class="history-content" data-raw-content="{{ msg.content | e }}">{{ msg.content }}</div>
                             </div>
                         {% endif %}
                     {% endfor %}
@@ -96,10 +96,8 @@
             const senderSpan = container.querySelector('.assistant-sender'); // Only process bot messages for markdown
             const contentDiv = container.querySelector('.history-content');
             if (senderSpan && contentDiv) {
-                // Unescape HTML to get raw markdown with <think> tags
-                const tempEl = document.createElement('textarea');
-                tempEl.innerHTML = contentDiv.innerHTML;
-                const rawMarkdown = tempEl.value;
+                // Read raw content from data attribute to avoid re-interpreting HTML
+                const rawMarkdown = contentDiv.dataset.rawContent || contentDiv.textContent;
 
                 const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
                 if (thinkRegex.test(rawMarkdown)) {
@@ -123,9 +121,8 @@
                 }
             } else if (container.querySelector('.user-sender') && contentDiv) {
                 // Handle search results in user messages
-                const tempEl = document.createElement('textarea');
-                tempEl.innerHTML = contentDiv.innerHTML;
-                const rawText = tempEl.value;
+                // Read raw content from data attribute
+                const rawText = contentDiv.dataset.rawContent || contentDiv.textContent;
 
                 const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
                 const fileContextRegex = /^Based on the content of the document '(.+?)' provided below, please answer the following question\.\n\n---\n\nDOCUMENT CONTENT:\n([\s\S]*?)\n\n---\n\nQUESTION:\n([\s\S]*)$/m;
