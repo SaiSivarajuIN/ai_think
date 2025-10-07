@@ -221,7 +221,7 @@ body.fixed-layout {
     border: 1px solid var(--border);
     background: var(--background);
     color: var(--text);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
