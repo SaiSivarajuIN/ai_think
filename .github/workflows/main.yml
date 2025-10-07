@@ -2,6 +2,8 @@
 # It runs on pushes to the main branch and on pull requests.
 
 name: CI/CD Pipeline
+permissions:
+  contents: read
 
 on:
   push:
