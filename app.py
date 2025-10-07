@@ -468,7 +468,7 @@ def search_searxng(query):
         return formatted_results
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"SearXNG search failed: {e}")
-        return f"Error performing search: {e}"
+        return "Error: Could not connect to the web search service."
     except Exception as e:
         current_app.logger.error(f"Error processing SearXNG results: {e}")
         return "Error processing search results."
@@ -565,7 +565,7 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3):
         except requests.exceptions.RequestException as e:
             current_app.logger.error(f"Cloud model API error on attempt {attempt + 1}: {e} - Response: {e.response.text if e.response else 'N/A'}")
             if attempt == max_retries - 1:
-                return {"content": f"Error connecting to the cloud model after {max_retries} attempts: {str(e)}", "usage": {}}
+                return {"content": f"Error connecting to the cloud model after {max_retries} attempts. Please check the service status and your configuration.", "usage": {}}
         except Exception as e:
             current_app.logger.error(f"Unexpected error with cloud model on attempt {attempt + 1}: {e}")
             if attempt == max_retries - 1:
@@ -668,7 +668,7 @@ def ollama_chat(messages, model, session_id=None, max_retries=3):
         except requests.exceptions.RequestException as e:
             current_app.logger.error(f"Ollama API error on attempt {attempt + 1}: {e}")
             if attempt == max_retries - 1:
-                return {"content": f"Error connecting to Ollama after {max_retries} attempts: {str(e)}", "usage": {}}
+                return {"content": f"Error connecting to Ollama after {max_retries} attempts. Please ensure the Ollama server is running.", "usage": {}}
         except Exception as e:
             current_app.logger.error(f"Unexpected error on attempt {attempt + 1}: {e}")
             if attempt == max_retries - 1:
@@ -1400,7 +1400,7 @@ def api_pull_model():
         except requests.RequestException as e:
             yield f'{{"error": "Failed to pull model: {str(e)}"}}\n'
 
-    return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
+    return Response(stream_with_context(generate()), content_type='application/x-ndjson')
 
 @app.route('/api/models/delete', methods=['POST'])
 def api_delete_model():
@@ -1417,7 +1417,7 @@ def api_delete_model():
         else:
             return jsonify({"status": "success"}), response.status_code
     except requests.RequestException as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to communicate with Ollama service."}), 500
 
 @app.route('/api/models/delete/all', methods=['POST'])
 def api_delete_all_models():
@@ -1439,7 +1439,7 @@ def api_delete_all_models():
         
         return jsonify({"status": "success", "message": "All models are being deleted."}), 200
     except requests.RequestException as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to communicate with Ollama service."}), 500
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
