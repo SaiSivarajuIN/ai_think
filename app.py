@@ -1168,8 +1168,8 @@ def delete_message(message_id):
 
         return jsonify({"success": True})
     except Exception as e:
-        current_app.logger.error(f"Error deleting message: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error deleting message {message_id}: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 @app.route('/delete_thread/<string:session_id>', methods=['DELETE'])
 def delete_thread(session_id):
@@ -1188,7 +1188,7 @@ def delete_thread(session_id):
 
         return jsonify({"success": True, "message": f"Thread {session_id} deleted."})
     except Exception as e:
-        current_app.logger.error(f"Error deleting thread {session_id}: {e}")
+        current_app.logger.error(f"Error deleting thread {session_id}: {e}", exc_info=True)
         # It's good practice to return a more specific error message if possible,
         # but for security, we'll keep it generic for the user.
         return jsonify({"success": False, "error": "An internal error occurred while deleting the thread."}), 500
@@ -1210,7 +1210,7 @@ def delete_all_threads():
         current_app.logger.info("User deleted all threads.")
         return jsonify({"success": True, "message": "All threads deleted."})
     except Exception as e:
-        current_app.logger.error(f"Error deleting all threads: {e}")
+        current_app.logger.error(f"Error deleting all threads: {e}", exc_info=True)
         return jsonify({"success": False, "error": "An internal error occurred."}), 500
 
 def get_component_status(usage, total, threshold=0.9):
@@ -1375,7 +1375,8 @@ def api_get_models():
 
         return jsonify({"models": api_models})
     except (requests.RequestException, Exception) as e:
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error in api_get_models: {e}", exc_info=True)
+        return jsonify({"error": "Could not retrieve models."}), 500
 
 @app.route('/api/models/pull', methods=['POST'])
 def api_pull_model():
@@ -1501,8 +1502,8 @@ def api_get_prompts():
         prompts = [dict(row) for row in prompts_cursor]
         return jsonify(prompts)
     except Exception as e:
-        current_app.logger.error(f"Error fetching prompts: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error fetching prompts: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 @app.route('/api/prompts/create', methods=['POST'])
 def api_create_prompt():
@@ -1521,8 +1522,8 @@ def api_create_prompt():
         db.commit()
         return jsonify({"success": True, "id": cursor.lastrowid}), 201
     except Exception as e:
-        current_app.logger.error(f"Error creating prompt: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error creating prompt: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 @app.route('/api/prompts/update/<int:prompt_id>', methods=['POST'])
 def api_update_prompt(prompt_id):
@@ -1541,8 +1542,8 @@ def api_update_prompt(prompt_id):
         db.commit()
         return jsonify({"success": True, "id": prompt_id})
     except Exception as e:
-        current_app.logger.error(f"Error updating prompt {prompt_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error updating prompt {prompt_id}: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 @app.route('/api/prompts/delete/<int:prompt_id>', methods=['DELETE'])
 def api_delete_prompt(prompt_id):
@@ -1586,8 +1587,8 @@ def api_get_cloud_models():
             model['active'] = bool(model.get('active', True)) # Ensure boolean type
         return jsonify(models)
     except Exception as e:
-        current_app.logger.error(f"Error fetching cloud models: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error fetching cloud models: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 @app.route('/api/cloud_models/<int:model_id>', methods=['GET'])
 def api_get_cloud_model_details(model_id):
@@ -1599,8 +1600,8 @@ def api_get_cloud_model_details(model_id):
             return jsonify({"error": "Model not found"}), 404
         return jsonify(dict(model_row))
     except Exception as e:
-        current_app.logger.error(f"Error fetching details for cloud model {model_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error fetching details for cloud model {model_id}: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 @app.route('/api/cloud_models/create', methods=['POST'])
 def api_create_cloud_model():
@@ -1621,8 +1622,8 @@ def api_create_cloud_model():
         db.commit()
         return jsonify({"success": True, "id": cursor.lastrowid}), 201
     except Exception as e:
-        current_app.logger.error(f"Error creating cloud model: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error creating cloud model: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 @app.route('/api/cloud_models/update/<int:model_id>', methods=['POST'])
 def api_update_cloud_model(model_id):
@@ -1654,8 +1655,8 @@ def api_update_cloud_model(model_id):
         db.commit()
         return jsonify({"success": True, "id": model_id})
     except Exception as e:
-        current_app.logger.error(f"Error updating cloud model {model_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error updating cloud model {model_id}: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 @app.route('/api/cloud_models/delete/<int:model_id>', methods=['DELETE'])
 def api_delete_cloud_model(model_id):
@@ -1666,8 +1667,8 @@ def api_delete_cloud_model(model_id):
         db.commit()
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.error(f"Error deleting cloud model {model_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error(f"Error deleting cloud model {model_id}: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 @app.route('/api/cloud_models/toggle_active/<int:model_id>', methods=['POST'])
 def api_toggle_cloud_model_active(model_id):
