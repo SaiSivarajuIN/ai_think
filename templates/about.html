@@ -1,42 +1,120 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <title>About | AI Think</title>
 
-{% block title %}{{ page_title }}{% endblock %}
+    <!-- Stylesheets -->
+    <style>
+        :root {
+            --background: #ffffff;
+            --background-alt: #f0f2f5;
+            --card: #ffffff;
+            --text: #1a1a1a;
+            --text-light: #595959;
+            --border: #e0e0e0;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-alt);
+            color: var(--text);
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.2;
+        }
+        .about-page {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: grid;
+            gap: 1.5rem;
+        }
+        .card {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        h2 {
+            margin-top: 0;
+        }
+        h3 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .feature-list {
+            padding-left: 20px;
+            list-style-type: '✅ ';
+        }
+        .feature-list li {
+            margin-bottom: 0.5rem;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            margin-top: 1rem;
+            background-color: var(--background-alt);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+    <div class="about-page">
+        <div class="card">
+            <h2>Welcome to AI Think</h2>
+            <p>AI Think is a self-hosted, web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs). It connects to a local Ollama instance and can also integrate with various cloud model providers.</p>
+            <p>This project aims to provide a powerful, private, and extensible platform for experimenting with and utilizing generative AI.</p>
+            <p>For more information, visit the <a href="https://github.com/SaiSivarajuIN/ai_think">GitHub repository</a>.</p>
+        </div>
 
-{% block header_title %}{{ header_title }}{% endblock %}
+        <div class="card">
+            <h3>Key Features</h3>
+            <ul class="feature-list">
+                <li><strong>Intuitive Chat Interface:</strong> Clean and simple UI for chatting with your local and cloud LLMs.</li>
+                <li><strong>Local & Cloud Model Management:</strong> Easily switch between models, pull new ones from Ollama, or connect to external providers like OpenAI and Perplexity.</li>
+                <li><strong>Persistent Chat History:</strong> Conversations are saved using a local SQLite database, with optional support for a scalable ChromaDB cloud instance.</li>
+                <li><strong>Prompt Hub:</strong> Create, manage, and reuse system prompts to streamline your workflows.</li>
+                <li><strong>Web Search:</strong> Get up-to-date answers from the internet by integrating with a local SearXNG instance.</li>
+                <li><strong>System Health Dashboard:</strong> Monitor real-time CPU, memory, disk, and GPU usage.</li>
+                <li><strong>Dynamic Configuration:</strong> Adjust model parameters and integration settings on the fly without restarting the server.</li>
+                <li><strong>Session Management:</strong> Bookmark, share, and resume conversations via URL session IDs.</li>
+                <li><strong>Langfuse Integration:</strong> Optional, powerful tracing and observability for your LLM interactions.</li>
+                <li><strong>File Upload:</strong> Provide `.txt` files as context for your conversations.</li>
+            </ul>
+        </div>
 
-{% block content %}
-<div class="about-page">
-    <div class="card">
-        <h2>Welcome to AI Think</h2>
-        <p>
-            AI Think is a self-hosted, web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs). It connects to a local Ollama instance and can also integrate with various cloud model providers.
-        </p>
-        <p>
-            This project aims to provide a powerful, private, and extensible platform for experimenting with and utilizing generative AI.
-        </p>
+        <div class="card" style="display: flex; gap: 16px; align-items: flex-start; border: 1px solid #ccc; border-radius: 12px; padding: 16px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+
+            <div style="flex: 1; max-width: 300px;">
+                <h3 style="margin-top: 0;">MIT License</h3>
+                <!-- Image below header -->
+                <img src="https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg" 
+                    alt="MIT Logo" 
+                    style="width: 100%; border-radius: 8px; margin-bottom: 12px;">
+
+                <a href="https://github.com/SaiSivarajuIN/ai_think/blob/main/LICENSE" 
+                    target="_blank" 
+                    style="display: inline-block; color: #007BFF; text-decoration: none;">
+                    View License on GitHub →
+                </a>
+            </div>
+
+        </div>
+
     </div>
-
-    <div class="card">
-        <h3>Key Features</h3>
-        <ul class="feature-list">
-            <li><strong>Intuitive Chat Interface:</strong> Clean and simple UI for chatting with your local and cloud LLMs.</li>
-            <li><strong>Local & Cloud Model Management:</strong> Easily switch between models, pull new ones from Ollama, or connect to external providers like OpenAI and Perplexity.</li>
-            <li><strong>Persistent Chat History:</strong> Conversations are saved using a local SQLite database, with optional support for a scalable ChromaDB cloud instance.</li>
-            <li><strong>Prompt Hub:</strong> Create, manage, and reuse system prompts to streamline your workflows.</li>
-            <li><strong>Web Search:</strong> Get up-to-date answers from the internet by integrating with a local SearXNG instance.</li>
-            <li><strong>System Health Dashboard:</strong> Monitor real-time CPU, memory, disk, and GPU usage.</li>
-            <li><strong>Dynamic Configuration:</strong> Adjust model parameters and integration settings on the fly without restarting the server.</li>
-            <li><strong>Session Management:</strong> Bookmark, share, and resume conversations via URL session IDs.</li>
-            <li><strong>Langfuse Integration:</strong> Optional, powerful tracing and observability for your LLM interactions.</li>
-            <li><strong>File Upload:</strong> Provide `.txt` files as context for your conversations.</li>
-        </ul>
-    </div>
-
-    <div class="card">
-        <details>
-            <summary style="cursor: pointer; font-weight: 500;">MIT License</summary>
-            <pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; margin-top: 1rem; background-color: var(--background-alt); padding: 1rem; border-radius: var(--radius-md);">{{ license_content }}</pre>
-        </details>
-    </div>
-</div>
-{% endblock %}
+</body>
+</html>
