@@ -275,8 +275,10 @@ The application now supports uploading `.txt` files to provide context for a con
 ├── .venv/                  # Python virtual environment
 ├── readme.md               # Project description and instructions
 ├── ollamaSetup.sh          # Installer for macOS/Linux
+├── ollamaSetup.bat         # Installer for Windows
 ├── app.py                  # Main Flask application file
 ├── main.py                 # Run this to start the application
+├── SECURITY.md             # SECURITY information
 ├── chat.db                 # SQLite database for messages and settings
 ├── LICENSE                 # License information
 ├── logger/                 # Directory for log files
@@ -287,7 +289,10 @@ The application now supports uploading `.txt` files to provide context for a con
 │   ├── cloud_models.js
 │   └── models.js
 └── templates/              # HTML templates
+    ├── about.html
+    ├── base.html
     ├── cloud_models.html
+    ├── feedback.html
     ├── health.html
     ├── history.html
     ├── index.html
@@ -359,9 +364,24 @@ This file manages all the dynamic behavior of the chat interface.
 - When generation is stopped via the frontend, the backend catches a `ClientDisconnected` exception. This prevents the user's message and the bot's partial response from being saved to the database or logged in Langfuse.
 - The frontend JavaScript then removes the optimistic user message and the "Thinking..." indicator from the UI, leaving the chat in a clean state.
 
-### CSS (`static/style.css`)
+### 3.14. Incognito Mode
+
+The application includes an "Incognito Mode" for private, temporary chat sessions.
+
+-   **Access:** Toggle the incognito button (👁️) in the header of the main chat page.
+-   **Implementation:**
+    -   A state variable (`isIncognito`) is managed in the frontend JavaScript.
+    -   When a message is sent, this state is passed to the `/generate` endpoint.
+    -   The backend checks for the `incognito` flag and conditionally bypasses database storage and Langfuse tracing.
+-   **Behavior When Enabled:**
+    -   **No Persistence:** Chat messages are not saved to the database (neither SQLite nor ChromaDB).
+    -   **No Tracing:** Langfuse tracing is disabled for the duration of the incognito session.
+    -   **Ephemeral URL:** The URL does not update with a `session_id`, behaving like a temporary, non-shareable chat.
+    -   **Temporary Session:** The chat starts when incognito is enabled and is completely cleared when it is disabled.
 
 This file provides all the styling for the application.
+
+### CSS (`static/style.css`)
 
 -   **Layout**: Uses Flexbox and Grid for modern, responsive layouts.
 -   **Theming**: Supports both light and dark themes using CSS variables.
