@@ -48,6 +48,9 @@
     <button onclick="resetThread()" class="nav-link" title="New Chat">
         <span class="material-icons">add_comment</span>
     </button>
+    <button id="incognito-toggle-btn" class="nav-link" title="Enable Incognito Mode">
+        <span id="incognito-icon" class="material-icons">visibility</span>
+    </button>
     <button id="search-button" class="nav-link" title="{% if searxng_enabled %}Web Search (type /search){% else %}Web Search disabled (Enable in Settings){% endif %}" {% if not searxng_enabled %}disabled{% endif %}>
         <span class="material-icons">search</span>
     </button>
