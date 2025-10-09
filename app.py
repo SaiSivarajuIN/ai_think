@@ -473,8 +473,8 @@ def search_searxng(query):
         current_app.logger.error(f"Error processing SearXNG results: {e}")
         return "Error processing search results."
 
-def cloud_model_chat(messages, model_config, session_id=None, max_retries=3):
-    """Send chat messages to a configured cloud API and get a response with Langfuse tracing."""
+def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_incognito=False):
+    """Send chat messages to a configured cloud API and get a response with Langfuse tracing, respecting incognito mode."""
     settings = get_settings()
     model_name = model_config['model_name']
 
@@ -505,7 +505,7 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3):
             else:
                 api_url = f"{base_url}/chat/completions"
 
-            if langfuse_enabled:
+            if langfuse_enabled and not is_incognito:
                 with langfuse.start_as_current_span(
                     name=f"{model_name}::cloud_chat_generation",
                     input={"messages": messages}
@@ -578,8 +578,8 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3):
 
     return {"content": "Maximum retry attempts reached for cloud model.", "usage": {}}
 
-def ollama_chat(messages, model, session_id=None, max_retries=3):
-    """Send chat messages to Ollama API and get response with Langfuse tracing"""
+def ollama_chat(messages, model, session_id=None, max_retries=3, is_incognito=False):
+    """Send chat messages to Ollama API and get response with Langfuse tracing, respecting incognito mode."""
     
     settings = get_settings()    
     
@@ -604,7 +604,7 @@ def ollama_chat(messages, model, session_id=None, max_retries=3):
             }
             
             # Create Langfuse trace if enabled
-            if langfuse_enabled:
+            if langfuse_enabled and not is_incognito:
                 with langfuse.start_as_current_span(
                     name=f"{model}::chat_generation",
                     input={"messages": final_messages}
@@ -802,6 +802,11 @@ def generate():
     is_cloud_model = model.startswith('cloud::')
     model_id = model.replace('cloud::', '')
 
+    # Check for incognito mode
+    is_incognito = data.get('incognito', False)
+    if is_incognito:
+        current_app.logger.info("Incognito mode is active. Tracing and database storage will be skipped.")
+
     # Use session ID from Flask session (or generate new if not exists)
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
@@ -828,7 +833,7 @@ def generate():
 
     current_app.logger.info(f"User message received for generation: '{user_message_to_save[:80]}...'")
 
-    # Use session ID from Flask session (or generate new if not exists)
+    # Use session ID from Flask session (or generate new if not exists) - This is safe even for incognito as it's not persisted.
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     session_id = session['session_id']
@@ -886,7 +891,7 @@ def generate():
 
             model_config = dict(model_config_row)
             current_app.logger.info(f"Routing to cloud model: {model_config['service']} - {model_config['model_name']}")
-            assistant_response_data = cloud_model_chat(messages_for_model, model_config, session_id)
+            assistant_response_data = cloud_model_chat(messages_for_model, model_config, session_id, is_incognito=is_incognito)
         else:
             # It's an Ollama model
             # For local models, prepend context to the user message
@@ -916,31 +921,32 @@ def generate():
                     user_message_to_save = contextual_prompt  # Update the content to be saved
 
             current_app.logger.info(f"Routing to Ollama model: {model}")
-            assistant_response_data = ollama_chat(messages_for_model, model, session_id)
+            assistant_response_data = ollama_chat(messages_for_model, model, session_id, is_incognito=is_incognito)
 
         assistant_response = assistant_response_data['content']
         current_app.logger.info(f"Assistant response generated: '{assistant_response[:80]}...'")
         usage = assistant_response_data['usage']
 
         # --- Save messages AFTER successful generation ---
-        # Save user message to database
-        if chroma_connected:
-            try:
-                # Batch add user and assistant messages
-                chroma_collection.add(
-                    documents=[user_message_to_save, assistant_response],
-                    metadatas=[
-                        {"sender": "user", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()},
-                        {"sender": "assistant", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}
-                    ],
-                    ids=[str(uuid.uuid4()), str(uuid.uuid4())]
-                )
-            except Exception as e:
-                current_app.logger.error(f"Failed to save messages to ChromaDB: {e}")
-        else:
-            db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'user', user_message_to_save))
-            db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'assistant', assistant_response))
-            db.commit() # Commit both user and assistant messages
+        if not is_incognito:
+            # Save user message to database
+            if chroma_connected:
+                try:
+                    # Batch add user and assistant messages
+                    chroma_collection.add(
+                        documents=[user_message_to_save, assistant_response],
+                        metadatas=[
+                            {"sender": "user", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()},
+                            {"sender": "assistant", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}
+                        ],
+                        ids=[str(uuid.uuid4()), str(uuid.uuid4())]
+                    )
+                except Exception as e:
+                    current_app.logger.error(f"Failed to save messages to ChromaDB: {e}")
+            else:
+                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'user', user_message_to_save))
+                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'assistant', assistant_response))
+                db.commit() # Commit both user and assistant messages
 
         elapsed = time.time() - start_time
 
@@ -952,7 +958,7 @@ def generate():
             "user_message_content": user_message_to_save, # Send back the (potentially modified) user message
             "usage": usage,
             "generation_time_seconds": round(elapsed, 2),
-            "langfuse_enabled": langfuse_enabled,
+            "langfuse_enabled": langfuse_enabled and not is_incognito,
             "session_id": session_id
         })
 

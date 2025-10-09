@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileUpload');
     const promptSelector = document.getElementById('prompt-selector');
     const searchButton = document.getElementById('search-button');
+    const incognitoBtn = document.getElementById('incognito-toggle-btn');
+    const incognitoIcon = document.getElementById('incognito-icon');
     let conversationHistory = [];
     const sidebarToggle = document.querySelector('.sidebar-toggle-btn');
     const historySidebarToggle = document.getElementById('history-sidebar-toggle');
@@ -14,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let thinkingMessageId = null;
     let abortController = null; // New: for cancelling fetch requests
     let fileContextActive = false;
+    let isIncognito = false;
 
     // Showdown converter for Markdown rendering
     const converter = new showdown.Converter({
@@ -83,6 +86,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // --- Incognito Mode Logic ---
+    function updateIncognitoUI() {
+        if (!incognitoBtn || !incognitoIcon) return;
+
+        if (isIncognito) {
+            incognitoIcon.textContent = 'visibility_off';
+            incognitoBtn.title = 'Disable Incognito Mode';
+        } else {
+            incognitoIcon.textContent = 'visibility';
+            incognitoBtn.title = 'Enable Incognito Mode';
+        }
+    }
+
+    // If the incognito button exists, add a listener
+    if (incognitoBtn) {
+        incognitoBtn.addEventListener('click', function() {
+            isIncognito = !isIncognito; // Toggle the state
+            updateIncognitoUI();
+
+            // When toggling incognito, always start a new thread
+            resetThread();
+            if (isIncognito) {
+                addMessage('👻 **Incognito Mode Enabled.** Chat history will not be saved.', false);
+            } else {
+                addMessage('✅ **Incognito Mode Disabled.** Chat history will now be saved.', false);
+            }
+        });
+    }
     // Add message to chat
     function addMessage(content, isUser = false, messageId = null) {
         const messageDiv = document.createElement('div');
@@ -180,8 +211,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const sessionId = data.session_id;
 
         // Update URL with session_id if it's not already there
-        const url = new URL(window.location);
-        if (sessionId && !url.searchParams.has('session_id')) {
+        if (!isIncognito && sessionId) {
+            const url = new URL(window.location);
             url.searchParams.set('session_id', sessionId);
             window.history.pushState({ path: url.href }, '', url.href);
 
@@ -267,7 +298,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({ 
                     messages: conversationHistory,
                     model: selectedModel,
-                    newMessage: { role: 'user', content: message } // Send new message separately
+                    newMessage: { role: 'user', content: message }, // Send new message separately
+                    incognito: isIncognito // Send incognito status
                 }),
                 signal: signal // Pass the abort signal
             });
@@ -318,17 +350,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 conversationHistory = [];
                 fileContextActive = false;
                 chatbox.innerHTML = '';
-                addMessage('🆕 New conversation started!', false);
-                // Reset URL to the base path
-                window.history.pushState({}, '', '/');
+                if (!isIncognito) {
+                    addMessage('🆕 New conversation started!', false);
+                    // Reset URL to the base path only if not in incognito
+                    window.history.pushState({}, '', '/');
+                }
             }
         } catch (error) {
             // Even if the server call fails, reset the frontend state
             conversationHistory = [];
             chatbox.innerHTML = '';
-            console.error('Error resetting thread:', error);
             // Also reset URL to the base path
             window.history.pushState({}, '', '/');
+            console.error('Error resetting thread:', error);
             addMessage('❌ Error starting new conversation', false);
         }
     }
@@ -427,6 +461,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('session_id');
 
+        // If there's a session ID in the URL, we are NOT in incognito mode.
+        if (sessionId) {
+            isIncognito = false;
+            updateIncognitoUI();
+        }
+
         if (sessionId) {
             // A session ID is in the URL, try to load its history
             addMessage(`🔄 Loading chat session: ${escapeHtml(sessionId)}...`, false);
@@ -465,7 +505,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else {
             // No session ID, start a fresh chat
-            addMessage('👋 Hello! I\'m your Ollama-powered assistant. How can I help you today?', false);
+            if (isIncognito) {
+                addMessage('👻 **Incognito Mode Enabled.** Chat history will not be saved.', false);
+            } else {
+                addMessage('👋 Hello! I\'m your Ollama-powered assistant. How can I help you today?', false);
+            }
         }
     }
 
