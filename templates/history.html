@@ -7,6 +7,8 @@
 {% block head_extra %}
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
     <!-- Add MathJax for LaTeX rendering -->
+    <!-- Add Bootstrap for pagination styling -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 {% endblock %}
 
@@ -18,66 +20,109 @@
             Delete All
         </button>
     </div>
-    {% if threads %}
-        {% for thread in threads %}
-            <details class="thread" {% if thread.session_id == newest_session_id %}open{% endif %}>
-                <summary>
-                    <div class="summary-main" data-timestamp="{{ session_start[thread.session_id].isoformat() }}">
-                        Chat Session {{ thread.serial_number }} <small class="session-id-display">{{ thread.session_id }}</small> &mdash; <span class="session-start-time"></span>
-                    </div>
-                    <div class="summary-actions">
-                        <!--DOC download-doc-btn icon-btn-->
-                        <button class="download-doc-btn icon-btn" data-session="{{ thread.session_id }}" title="Download DOC">
-                            <span class="material-icons">description</span>
-                        </button>
-                        <button class="delete-thread-btn icon-btn" data-session="{{ thread.session_id }}" title="Delete Thread">
-                            <span class="material-icons">delete_forever</span>
-                        </button>
-                        <span class="message-count">({{ thread.messages|length }} messages)</span>
-                    </div>
-                </summary>
-                <div class="thread-messages" id="thread-{{ thread.session_id }}">
-                    {% for msg in thread.messages %}
-                        {% if msg.sender == 'system' %}
-                            <details class="message-container system-message-container" data-message-id="{{ msg.id }}">
-                                <summary>
-                                    <div class="history-meta" style="cursor: pointer;">
-                                        <span class="history-sender system-sender">
-                                            <span class="material-icons">description</span> File Uploaded
+    {% if grouped_threads %}
+        {% for group_name, threads in grouped_threads %}
+            <h3 class="history-group-header">{{ group_name }}</h3>
+            {% for thread in threads %}
+                <details class="thread" {% if thread.session_id == newest_session_id %}open{% endif %}>
+                    <summary>
+                        <div class="summary-main" data-timestamp="{{ session_start[thread.session_id].isoformat() }}">
+                            Chat Session {{ thread.serial_number }} <small class="session-id-display">{{ thread.session_id }}</small> &mdash; <span class="session-start-time"></span>
+                        </div>
+                        <div class="summary-actions">
+                            <!--DOC download-doc-btn icon-btn-->
+                            <button class="download-doc-btn icon-btn" data-session="{{ thread.session_id }}" title="Download DOC">
+                                <span class="material-icons">description</span>
+                            </button>
+                            <button class="delete-thread-btn icon-btn" data-session="{{ thread.session_id }}" title="Delete Thread">
+                                <span class="material-icons">delete_forever</span>
+                            </button>
+                            <span class="message-count">({{ thread.messages|length }} messages)</span>
+                        </div>
+                    </summary>
+                    <div class="thread-messages" id="thread-{{ thread.session_id }}">
+                        {% for msg in thread.messages %}
+                            {% if msg.sender == 'system' %}
+                                <details class="message-container system-message-container" data-message-id="{{ msg.id }}">
+                                    <summary>
+                                        <div class="history-meta" style="cursor: pointer;">
+                                            <span class="history-sender system-sender">
+                                                <span class="material-icons">description</span> File Uploaded
+                                            </span>
+                                            <div class="history-actions">
+                                                <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
+                                            </div>
+                                        </div>
+                                    </summary>
+                                    <div class="history-content file-context-content">{{ msg.content }}</div>
+                                </details>
+                            {% else %}
+                                <div class="message-container" data-message-id="{{ msg.id }}">
+                                    <div class="history-meta">
+                                        <span class="history-sender {{ 'user-sender' if msg.sender == 'user' else 'assistant-sender' }}">
+                                            {{ '👤 You' if msg.sender == 'user' else '🤖 Bot' }}
                                         </span>
                                         <div class="history-actions">
                                             <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
+                                            <button class="delete-btn icon-btn" title="Delete Message"><span class="material-icons">delete</span></button>
                                         </div>
                                     </div>
-                                </summary>
-                                <div class="history-content file-context-content">{{ msg.content }}</div>
-                            </details>
-                        {% else %}
-                            <div class="message-container" data-message-id="{{ msg.id }}">
-                                <div class="history-meta">
-                                    <span class="history-sender {{ 'user-sender' if msg.sender == 'user' else 'assistant-sender' }}">
-                                        {{ '👤 You' if msg.sender == 'user' else '🤖 Bot' }}
-                                    </span>
-                                    <div class="history-actions">
-                                        <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
-                                        <button class="delete-btn icon-btn" title="Delete Message"><span class="material-icons">delete</span></button>
-                                    </div>
+                                    <div class="history-content" data-raw-content="{{ msg.content | e }}">{{ msg.content }}</div>
                                 </div>
-                                <div class="history-content" data-raw-content="{{ msg.content | e }}">{{ msg.content }}</div>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </details>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </details>
+            {% endfor %}
         {% endfor %}
     {% else %}
         <div class="card">
             <p>No chat history found. Start a conversation to see your chat threads here.</p>
         </div>
     {% endif %}
+
+    {% if pagination and pagination.total_pages > 1 %}
+    <div class="pagination-container mt-5">
+        <div class="d-flex justify-content-center mb-2">
+            <span class="text-muted">
+                Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} - {{ [pagination.page * pagination.per_page, pagination.total_threads]|min }} of {{ pagination.total_threads }} threads
+            </span>
+        </div>
+
+        <nav aria-label="Chat history pagination" class="d-flex justify-content-center">
+            <ul class="pagination">
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('history', page=pagination.prev_num) }}" aria-label="Previous">
+                    <span class="material-icons" style="font-size: 1.2rem; vertical-align: middle;">chevron_left</span>
+                </a>
+            </li>
+
+            {% for page_num in range(1, pagination.total_pages + 1) %}
+                {% if page_num %}
+                    {% if pagination.page == page_num %}
+                        <li class="page-item active" aria-current="page">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('history', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('history', page=pagination.next_num) }}" aria-label="Next">
+                    <span class="material-icons" style="font-size: 1.2rem; vertical-align: middle;">chevron_right</span>
+                </a>
+            </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
 {% endblock %}
 
 {% block scripts %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const converter = new showdown.Converter({

@@ -1081,6 +1081,10 @@ def get_sessions():
 
 @app.route('/history')
 def history():
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    offset = (page - 1) * per_page
+
     threads = defaultdict(list)
     session_start = {}
     utc_tz = ZoneInfo("UTC")
@@ -1138,25 +1142,69 @@ def history():
         reverse=True
     )
 
-    # Add serial numbers
-    total_threads = len(sorted_threads)
-    threads_with_sn = [
-        {
+    newest_session_id = sorted_threads[0][0] if sorted_threads else None
+
+    # Group threads by date
+    grouped_threads = defaultdict(list)
+    today = datetime.now(utc_tz).date()
+
+    for session_id, messages in sorted_threads:
+        last_message_time = messages[-1]['timestamp']
+        thread_date = last_message_time.date()
+        delta = today - thread_date
+
+        group_key = ""
+        if delta.days == 0:
+            group_key = "Today"
+        elif delta.days == 1:
+            group_key = "Yesterday"
+        elif 1 < delta.days <= 7:
+            group_key = "Previous 7 Days"
+        elif thread_date.year == today.year and thread_date.month == today.month:
+            group_key = "This Month"
+        elif thread_date.year == today.year:
+            group_key = last_message_time.strftime('%B') # e.g., "June"
+        else:
+            group_key = last_message_time.strftime('%B %Y') # e.g., "May 2024"
+
+        grouped_threads[group_key].append((session_id, messages))
+
+    # Flatten the grouped threads for pagination
+    all_threads_flat = [(group, thread) for group, threads_in_group in grouped_threads.items() for thread in threads_in_group]
+    
+    total_threads = len(all_threads_flat)
+    paginated_items = all_threads_flat[offset:offset + per_page]
+    total_pages = (total_threads + per_page - 1) // per_page
+
+    # Re-group the paginated items to preserve group headers
+    paginated_grouped_threads = defaultdict(list)
+    for i, (group, (session_id, messages)) in enumerate(paginated_items):
+        thread_data = {
             'session_id': session_id,
             'messages': messages,
-            'serial_number': total_threads - i
+            'serial_number': total_threads - (offset + i) # Maintain overall serial number
         }
-        for i, (session_id, messages) in enumerate(sorted_threads)
-    ]
+        paginated_grouped_threads[group].append(thread_data)
 
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total_pages': total_pages,
+        'total_threads': total_threads,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'prev_num': page - 1,
+        'next_num': page + 1
+    }
     return render_template(
         'history.html',
         page_title="Chat History | AI Think Chat",
         page_id="health",
         header_title="📚 Chat History",
-        threads=threads_with_sn,
+        grouped_threads=paginated_grouped_threads.items(),
         session_start=session_start,
-        newest_session_id=sorted_threads[0][0] if sorted_threads else None
+        pagination=pagination,
+        newest_session_id=newest_session_id
     )
 
 @app.route('/delete_message/<string:message_id>', methods=['DELETE'])
