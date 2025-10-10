@@ -759,6 +759,16 @@ input:checked + .slider:before {
     border-radius: var(--radius-md);
     /* border-left: 3px solid var(--primary); */
 }
+.history-group-header {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--theme-toggle-text);
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+}
 
 .thought {
     background: rgba(255, 235, 59, 0.15);
@@ -1105,4 +1115,34 @@ thead th {
 
 .history-item:hover {
     background-color: var(--message-assistant);
+}
+
+/* --- Bootstrap Pagination Overrides --- */
+.pagination .page-link {
+    color: var(--primary);
+    border-color: var(--border);
+    background-color: var(--background);
+}
+
+.pagination .page-link:hover {
+    color: var(--text);
+    background-color: var(--message-assistant);
+    border-color: var(--border);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.pagination .page-item.disabled .page-link {
+    color: var(--theme-toggle-text);
+    background-color: var(--background);
+    border-color: var(--border);
+}
+
+/* Ensure icons inside page links use the correct color */
+.pagination .page-link .material-icons {
+    color: inherit;
 }

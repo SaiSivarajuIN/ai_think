@@ -642,6 +642,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 historySidebarToggle.click();
             }
         }
+        if (event.altKey && event.key.toLowerCase() === 'n') {
+            const incognitoBtn = document.getElementById('incognito-toggle-btn');
+            if (incognitoBtn) {
+                // Prevent default browser action for Alt+N (often new window)
+                event.preventDefault();
+                incognitoBtn.click();
+            }
+        }
     });
 });
 

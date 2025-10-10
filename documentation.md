@@ -1,5 +1,33 @@
 This document provides detailed technical information about the Ollama Chat application, its setup, features, and recent changes. The application is a web-based chat interface built with Flask that connects to a local Ollama instance to provide generative AI responses.
 
+## Table of Contents
+
+- [1. Installation and Setup](#1-installation-and-setup)
+  - [1.1 Prerequisites](#11-prerequisites)
+  - [1.2 Application Setup](#12-application-setup)
+  - [1.3 Ollama Setup](#13-ollama-setup)
+  - [1.4 Environment Configuration](#14-environment-configuration)
+  - [1.5 Database and Logging](#15-database-and-logging)
+- [2. Running the Application](#2-running-the-application)
+- [3. Features and Technical Details](#3-features-and-technical-details)
+  - [3.1 Settings Page (`/settings`)](#31-settings-page-settings)
+  - [3.2 Cloud Model Management](#32-cloud-model-management)
+  - [3.3 Langfuse Tracing Integration](#33-langfuse-tracing-integration)
+  - [3.4 ChromaDB Integration for Persistent Storage](#34-chromadb-integration-for-persistent-storage)
+  - [3.5 System Health Page (`/health`)](#35-system-health-page-health)
+  - [3.6 Models Hub (`/models`)](#36-models-hub-models)
+  - [3.7 SearXNG Integration for Web Search](#37-searxng-integration-for-web-search)
+  - [3.8 Prompts Hub (`/prompts`)](#38-prompts-hub-prompts)
+  - [3.9 History Page (`/history`)](#39-history-page-history)
+  - [3.10 Stability and Error Handling](#310-stability-and-error-handling)
+  - [3.11 File Upload and Contextual Chat](#311-file-upload-and-contextual-chat)
+  - [3.12 User Interface Overview](#312-user-interface-overview)
+  - [3.13 Response Interruption](#313-response-interruption)
+  - [3.14 Incognito Mode](#314-incognito-mode)
+- [4. File Structure](#4-file-structure)
+- [5. API Endpoints](#5-api-endpoints)
+- [6. Frontend](#6-frontend)
+
 ## 1. Installation and Setup
 
 Follow these steps to get the application running locally.
@@ -243,6 +271,13 @@ The chat history page has been improved for better usability and correctness.
 
 ### 3.10. Stability and Error Handling
 
+- **Pagination**: The history page now supports pagination, displaying 10 chat threads per page.
+    - **Navigation**: Bootstrap-styled pagination controls with icons are provided at the bottom of the history page for easy navigation.
+    - **Information**: The pagination component also displays the total number of threads and the range of threads currently being shown (e.g., "Showing 1-10 of 25 threads").
+    - **Grouping**: Chat sessions are organized by date into collapsible groups like "Today," "Yesterday," "Previous 7 Days," "This Month," and then by previous months and years.
+    - **Default Expansion**: Only the most recent chat session is expanded by default on the first page; all others remain collapsed for a cleaner view.
+
+
 - **API Retries:** The `ollama_chat` function now includes a retry mechanism with exponential backoff. If a request fails (e.g., due to a temporary network issue or model loading), the application will automatically retry up to 3 times (waiting 1s, 2s, then 4s).
 - **Longer Timeout:** The timeout for Ollama API requests has been increased to 300 seconds (5 minutes) to accommodate slower models or long-running generation tasks.
 - **Model Deletion Fix:** The `/api/models/delete` endpoint was fixed to handle empty responses from the Ollama API upon successful deletion. This prevents a JSON parsing error on the frontend.
@@ -268,6 +303,22 @@ The application now supports uploading `.txt` files to provide context for a con
 - **Keyboard Shortcuts**: Use `Alt + S` to toggle the main sidebar and `Alt + H` to toggle the history sidebar.
 
 ## 4. File Structure
+
+### 3.14. Incognito Mode
+
+The application includes an "Incognito Mode" for private, temporary chat sessions.
+
+-   **Access:** Toggle the incognito button (👁️) in the header of the main chat page.
+-   **Implementation:**
+    -   A state variable (`isIncognito`) is managed in the frontend JavaScript.
+    -   When a message is sent, this state is passed to the `/generate` endpoint.
+    -   The backend checks for the `incognito` flag and conditionally bypasses database storage and Langfuse tracing.
+-   **Behavior When Enabled:**
+    -   **No Persistence:** Chat messages are not saved to the database (neither SQLite nor ChromaDB).
+    -   **No Tracing:** Langfuse tracing is disabled for the duration of the incognito session.
+    -   **Ephemeral URL:** The URL does not update with a `session_id`, behaving like a temporary, non-shareable chat.
+    -   **Temporary Session:** The chat starts when incognito is enabled and is completely cleared when it is disabled.
+
 
 ```
 .
