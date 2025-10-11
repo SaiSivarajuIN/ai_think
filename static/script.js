@@ -1,3 +1,19 @@
+// Simple HTML escape utility
+function escapeHTML(str) {
+    return str.replace(/[&<>"'`=\/]/g, function(s) {
+        return ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;",
+            '/': "&#x2F;",
+            "`": "&#x60;",
+            "=": "&#x3D;"
+        })[s];
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const chatbox = document.getElementById('chatbox');
     const userInput = document.getElementById('userMessage');
@@ -816,7 +832,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const contentElement = thoughtDiv.querySelector('div');
                     if (headingElement && contentElement) {
                         const headingText = headingElement.innerText;
-                        headingElement.outerHTML = `<p class="section-heading">${headingText}</p>`;
+                        headingElement.outerHTML = `<p class="section-heading">${escapeHTML(headingText)}</p>`;
                         
                         if (headingText.toLowerCase().includes('thought process')) {
                             contentElement.outerHTML = `<table class="thought-table"><tr><td>${contentElement.innerHTML}</td></tr></table>`;
