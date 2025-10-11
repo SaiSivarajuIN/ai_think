@@ -8,7 +8,7 @@ Lightweight, self-hosted web chat for local **Ollama** models with optional clou
 
 ## 📚 Table of Contents
 
-* [Quick Start](#🚀-quick-start)
+* [Quick Start](#-quick-start)
 
   * [Prerequisites](#prerequisites)
   * [Install Ollama](#install-ollama)
@@ -16,11 +16,11 @@ Lightweight, self-hosted web chat for local **Ollama** models with optional clou
   * [Configuration](#configuration)
   * [Run](#run)
 * [Features](#✨-features)
-* [Usage](#💬-usage)
-* [Optional SearXNG WebSearch](#🌐-optional---searxng-websearch) 
-* [Keyboard Shortcuts](#⌨️-keyboard-shortcuts)
-* [Configuration Notes](#⚙️-configuration-notes)
-* [Documentation & Feedback](#📄-documentation--feedback)
+* [Usage](#-usage)
+* [Optional SearXNG WebSearch](#-optional---searxng-websearch) 
+* [Keyboard Shortcuts](#-keyboard-shortcuts)
+* [Configuration Notes](#-configuration-notes)
+* [Documentation & Feedback](#-documentation--feedback)
 
 ---
 

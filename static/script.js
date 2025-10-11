@@ -520,23 +520,32 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch('/api/sessions');
             if (!response.ok) throw new Error('Failed to fetch sessions');
-            const sessions = await response.json();
+            const groupedSessions = await response.json();
 
             historyContent.innerHTML = ''; // Clear old items
-            if (sessions.length === 0) {
+            if (Object.keys(groupedSessions).length === 0) {
                 historyContent.innerHTML = '<p class="history-item">No history yet.</p>';
                 return;
             }
 
-            sessions.forEach(session => {
-                const item = document.createElement('a');
-                item.className = 'history-item';
-                item.href = `/?session_id=${session.session_id}`;
-                item.title = `Continue chat from ${new Date(session.last_updated).toLocaleString()}`;
-                item.textContent = session.summary;
-                historyContent.appendChild(item);
-            });
+            // Get group names and reverse them to show newest groups first (e.g., Today, Yesterday, etc.)
+            const groupNames = Object.keys(groupedSessions).reverse();
+            for (const groupName of groupNames) {
+                const groupHeader = document.createElement('h4');
+                groupHeader.className = 'history-group-header';
+                groupHeader.textContent = groupName;
+                historyContent.appendChild(groupHeader);
 
+                const sessionsInGroup = groupedSessions[groupName];
+                sessionsInGroup.forEach(session => {
+                    const item = document.createElement('a');
+                    item.className = 'history-item';
+                    item.href = `/?session_id=${session.session_id}`;
+                    item.title = `Continue chat from ${new Date(session.last_updated).toLocaleString()}`;
+                    item.textContent = session.summary;
+                    historyContent.appendChild(item);
+                });
+            }
         } catch (error) {
             console.error('Error fetching history sidebar:', error);
             historyContent.innerHTML = '<p class="history-item">Could not load history.</p>';
