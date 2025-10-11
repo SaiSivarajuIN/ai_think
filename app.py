@@ -1027,6 +1027,7 @@ def get_session_history(session_id):
 def get_sessions():
     """Fetches a summary of all chat sessions."""
     threads = defaultdict(list)
+    utc_tz = ZoneInfo("UTC")
     
     if chroma_connected:
         try:
@@ -1054,29 +1055,51 @@ def get_sessions():
         db = get_db()
         messages = db.execute('SELECT session_id, sender, content, timestamp FROM messages ORDER BY timestamp ASC').fetchall()
         for msg in messages:
-            threads[msg['session_id']].append(dict(msg))
+            msg_dict = dict(msg)
+            # Convert string timestamp to datetime object
+            naive_timestamp = datetime.strptime(msg_dict['timestamp'], '%Y-%m-%d %H:%M:%S')
+            msg_dict['timestamp'] = naive_timestamp.replace(tzinfo=utc_tz)
+            threads[msg_dict['session_id']].append(msg_dict)
 
     # Sort threads by the timestamp of the LAST message
     sorted_threads = sorted(
         threads.items(),
-        key=lambda item: item[1][-1]['timestamp'],
-        reverse=True
+        key=lambda item: item[1][0]['timestamp'], # Sort by the FIRST message
+        reverse=False # Oldest first
     )
 
-    # Create summaries
-    sessions_summary = []
+    # Group sessions by date
+    grouped_sessions = defaultdict(list)
+    today = datetime.now(utc_tz).date()
+
     for session_id, messages in sorted_threads:
+        last_message_dt = messages[-1]['timestamp']
+        thread_date = last_message_dt.date()
+        delta = today - thread_date
+
+        if delta.days == 0:
+            group_key = "Today"
+        elif delta.days == 1:
+            group_key = "Yesterday"
+        elif thread_date.year == today.year:
+            if thread_date.month == today.month:
+                group_key = last_message_dt.strftime('%A, %B %d')
+            else:
+                group_key = last_message_dt.strftime('%B')
+        else:
+            group_key = str(thread_date.year)
+
         # Find the first user message for the summary
         first_user_message = next((m['content'] for m in messages if m['sender'] == 'user'), 'Chat session')
         summary_text = (first_user_message[:50] + '...') if len(first_user_message) > 50 else first_user_message
         
-        sessions_summary.append({
+        grouped_sessions[group_key].append({
             'session_id': session_id,
             'summary': summary_text,
             'last_updated': messages[-1]['timestamp']
         })
 
-    return jsonify(sessions_summary)
+    return jsonify(grouped_sessions)
 
 
 @app.route('/history')
@@ -1149,23 +1172,21 @@ def history():
     today = datetime.now(utc_tz).date()
 
     for session_id, messages in sorted_threads:
-        last_message_time = messages[-1]['timestamp']
-        thread_date = last_message_time.date()
+        last_message_dt = messages[-1]['timestamp']
+        thread_date = last_message_dt.date()
         delta = today - thread_date
 
-        group_key = ""
         if delta.days == 0:
             group_key = "Today"
         elif delta.days == 1:
             group_key = "Yesterday"
-        elif 1 < delta.days <= 7:
-            group_key = "Previous 7 Days"
-        elif thread_date.year == today.year and thread_date.month == today.month:
-            group_key = "This Month"
         elif thread_date.year == today.year:
-            group_key = last_message_time.strftime('%B') # e.g., "June"
+            if thread_date.month == today.month:
+                group_key = last_message_dt.strftime('%A, %B %d') # e.g., "Wednesday, October 08"
+            else:
+                group_key = last_message_dt.strftime('%B') # e.g., "September"
         else:
-            group_key = last_message_time.strftime('%B %Y') # e.g., "May 2024"
+            group_key = str(thread_date.year) # e.g., "2024"
 
         grouped_threads[group_key].append((session_id, messages))
 
@@ -1179,10 +1200,15 @@ def history():
     # Re-group the paginated items to preserve group headers
     paginated_grouped_threads = defaultdict(list)
     for i, (group, (session_id, messages)) in enumerate(paginated_items):
+        # Find the first user message to use as a title/summary
+        first_user_message = next((m['content'] for m in messages if m['sender'] == 'user'), 'Chat Session')
+        summary_text = (first_user_message[:32] + '...') if len(first_user_message) > 75 else first_user_message
+
         thread_data = {
             'session_id': session_id,
             'messages': messages,
-            'serial_number': total_threads - (offset + i) # Maintain overall serial number
+            'serial_number': total_threads - (offset + i), # Maintain overall serial number
+            'summary': summary_text
         }
         paginated_grouped_threads[group].append(thread_data)
 
@@ -1199,7 +1225,7 @@ def history():
     return render_template(
         'history.html',
         page_title="Chat History | AI Think Chat",
-        page_id="health",
+        page_id="history",
         header_title="📚 Chat History",
         grouped_threads=paginated_grouped_threads.items(),
         session_start=session_start,
