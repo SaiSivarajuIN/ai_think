@@ -13,7 +13,16 @@
 
 
 {% block content %}
-    <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 1rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <label for="start-date-filter" style="font-weight: 600; white-space: nowrap;">Filter from:</label>
+            <input type="date" id="start-date-filter" class="model-selector" style="padding: 0.5rem;">
+            <label for="end-date-filter" style="font-weight: 600; white-space: nowrap;">to:</label>
+            <input type="date" id="end-date-filter" class="model-selector" style="padding: 0.5rem;">
+            <button id="clear-filter-btn" class="icon-btn" title="Clear Filter" style="display: none;">
+                <span class="material-icons">clear</span>
+            </button>
+        </div>
         <button id="delete-all-threads-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
             <span class="material-icons">delete_sweep</span>
             Delete All
@@ -26,9 +35,11 @@
                 <details class="thread" {% if thread.session_id == newest_session_id %}open{% endif %}>
                     <summary>
                         <div class="summary-main" title="{{ thread.summary }}" data-timestamp="{{ session_start[thread.session_id].isoformat() }}">
-                            Chat Session {{ thread.serial_number }} :
-                            {{ thread.summary }} <small class="session-id-display">{{ thread.session_id }}</small>
-                            &mdash; <span class="session-start-time"></span>
+                            <div>Chat Session {{ thread.serial_number }} : {{ thread.summary }}</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-weight: normal;">
+                                <small class="session-id-display">{{ thread.session_id }}</small>
+                                <small ><span class="session-start-time"></span></small>
+                            </div>
                         </div>
                         <div class="summary-actions">
                             <!--DOC download-doc-btn icon-btn-->
@@ -137,8 +148,62 @@
             sanitize: true // Prevent interpretation of raw HTML in Markdown
         });
 
+        // --- Date Filter Logic ---
+        const startDateFilter = document.getElementById('start-date-filter');
+        const endDateFilter = document.getElementById('end-date-filter');
+        const clearFilterBtn = document.getElementById('clear-filter-btn');
+        const threads = document.querySelectorAll('.thread');
+        const groupHeaders = document.querySelectorAll('.history-group-header');
+        const paginationContainer = document.querySelector('.pagination-container');
+
+        function applyDateFilter() {
+            const startDate = startDateFilter.value; // YYYY-MM-DD
+            const endDate = endDateFilter.value;
+
+            if (startDate || endDate) {
+                clearFilterBtn.style.display = 'inline-flex';
+                if (paginationContainer) paginationContainer.style.display = 'none';
+
+                threads.forEach(thread => {
+                    const summary = thread.querySelector('.summary-main');
+                    const timestamp = summary.getAttribute('data-timestamp');
+                    const threadDate = new Date(timestamp).toISOString().split('T')[0];
+
+                    const startMatch = !startDate || threadDate >= startDate;
+                    const endMatch = !endDate || threadDate <= endDate;
+
+                    if (startMatch && endMatch) {
+                        thread.style.display = 'block';
+                    } else {
+                        thread.style.display = 'none';
+                    }
+                });
+
+                // Hide all group headers when filtering
+                groupHeaders.forEach(header => header.style.display = 'none');
+
+            } else {
+                // If both dates are cleared, reset everything
+                clearFilter();
+            }
+        }
+
+        if (startDateFilter && endDateFilter) {
+            startDateFilter.addEventListener('change', applyDateFilter);
+            endDateFilter.addEventListener('change', applyDateFilter);
+        }
+
+        if (clearFilterBtn) {
+            clearFilterBtn.addEventListener('click', function() {
+                startDateFilter.value = ''; // Clear start date
+                endDateFilter.value = '';   // Clear end date
+                clearFilter();
+            });
+        }
+
         // Render markdown for assistant messages
         document.querySelectorAll('.message-container').forEach(function(container) {
+            // This logic remains the same
             const senderSpan = container.querySelector('.assistant-sender'); // Only process bot messages for markdown
             const contentDiv = container.querySelector('.history-content');
             if (senderSpan && contentDiv) {
@@ -356,6 +421,17 @@
         } catch (error) {
             console.error('Error:', error);
             alert('An error occurred while deleting the thread.');
+        }
+    }
+
+    function clearFilter() {
+        // This logic remains the same
+        document.getElementById('clear-filter-btn').style.display = 'none';
+        document.querySelectorAll('.thread').forEach(thread => thread.style.display = 'block');
+        document.querySelectorAll('.history-group-header').forEach(header => header.style.display = 'block');
+        const paginationContainer = document.querySelector('.pagination-container');
+        if (paginationContainer) {
+            paginationContainer.style.display = 'block';
         }
     }
 
