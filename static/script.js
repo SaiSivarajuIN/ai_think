@@ -544,9 +544,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Get group names and reverse them to show newest groups first (e.g., Today, Yesterday, etc.)
-            const groupNames = Object.keys(groupedSessions).reverse();
-            for (const groupName of groupNames) {
+            // Define a consistent order for time-based groups.
+            const groupOrder = ["Today", "Yesterday", "Previous 7 Days", "Previous 30 Days"];
+
+            // Get all group names from the server response.
+            const allGroupNames = Object.keys(groupedSessions);
+
+            // Sort the group names: first by the predefined order, then alphabetically for other groups (like month names).
+            allGroupNames.sort((a, b) => {
+                const indexA = groupOrder.indexOf(a);
+                const indexB = groupOrder.indexOf(b);
+                if (indexA !== -1 && indexB !== -1) return indexA - indexB; // Both are in the predefined list
+                if (indexA !== -1) return -1; // a is in the list, b is not
+                if (indexB !== -1) return 1;  // b is in the list, a is not
+                return b.localeCompare(a); // Neither is in the list, sort alphabetically descending (e.g., "September" before "August")
+            });
+
+            for (const groupName of allGroupNames) {
                 const groupHeader = document.createElement('h4');
                 groupHeader.className = 'history-group-header';
                 groupHeader.textContent = groupName;

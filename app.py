@@ -468,12 +468,13 @@ def search_searxng(query):
         return formatted_results
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"SearXNG search failed: {e}")
-        return "Error: Could not connect to the web search service."
+        return f"Error performing search: {e}"
     except Exception as e:
         current_app.logger.error(f"Error processing SearXNG results: {e}")
         return "Error processing search results."
 
 def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_incognito=False):
+
     """Send chat messages to a configured cloud API and get a response with Langfuse tracing, respecting incognito mode."""
     settings = get_settings()
     model_name = model_config['model_name']
@@ -565,7 +566,7 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_
         except requests.exceptions.RequestException as e:
             current_app.logger.error(f"Cloud model API error on attempt {attempt + 1}: {e} - Response: {e.response.text if e.response else 'N/A'}")
             if attempt == max_retries - 1:
-                return {"content": f"Error connecting to the cloud model after {max_retries} attempts. Please check the service status and your configuration.", "usage": {}}
+                return {"content": f"Error connecting to the cloud model after {max_retries} attempts: {str(e)}", "usage": {}}
         except Exception as e:
             current_app.logger.error(f"Unexpected error with cloud model on attempt {attempt + 1}: {e}")
             if attempt == max_retries - 1:
@@ -579,7 +580,7 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_
     return {"content": "Maximum retry attempts reached for cloud model.", "usage": {}}
 
 def ollama_chat(messages, model, session_id=None, max_retries=3, is_incognito=False):
-    """Send chat messages to Ollama API and get response with Langfuse tracing, respecting incognito mode."""
+    """Send chat messages to Ollama API and get response with Langfuse tracing respecting incognito mode"""
     
     settings = get_settings()    
     
@@ -668,7 +669,7 @@ def ollama_chat(messages, model, session_id=None, max_retries=3, is_incognito=Fa
         except requests.exceptions.RequestException as e:
             current_app.logger.error(f"Ollama API error on attempt {attempt + 1}: {e}")
             if attempt == max_retries - 1:
-                return {"content": f"Error connecting to Ollama after {max_retries} attempts. Please ensure the Ollama server is running.", "usage": {}}
+                return {"content": f"Error connecting to Ollama after {max_retries} attempts: {str(e)}", "usage": {}}
         except Exception as e:
             current_app.logger.error(f"Unexpected error on attempt {attempt + 1}: {e}")
             if attempt == max_retries - 1:
@@ -807,7 +808,7 @@ def generate():
     if is_incognito:
         current_app.logger.info("Incognito mode is active. Tracing and database storage will be skipped.")
 
-    # Use session ID from Flask session (or generate new if not exists)
+    # Use session ID from Flask session (or generate new if not exists) - This is safe even for incognito as it's not persisted.
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     session_id = session['session_id']
@@ -833,7 +834,7 @@ def generate():
 
     current_app.logger.info(f"User message received for generation: '{user_message_to_save[:80]}...'")
 
-    # Use session ID from Flask session (or generate new if not exists) - This is safe even for incognito as it's not persisted.
+    # Use session ID from Flask session (or generate new if not exists)
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     session_id = session['session_id']
@@ -946,7 +947,7 @@ def generate():
             else:
                 db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'user', user_message_to_save))
                 db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'assistant', assistant_response))
-                db.commit() # Commit both user and assistant messages
+                db.commit()
 
         elapsed = time.time() - start_time
 
@@ -1233,6 +1234,7 @@ def history():
         newest_session_id=newest_session_id
     )
 
+
 @app.route('/delete_message/<string:message_id>', methods=['DELETE'])
 def delete_message(message_id):
     try:
@@ -1248,8 +1250,8 @@ def delete_message(message_id):
 
         return jsonify({"success": True})
     except Exception as e:
-        current_app.logger.error(f"Error deleting message {message_id}: {e}", exc_info=True)
-        return jsonify({"error": "An internal error occurred."}), 500
+        current_app.logger.error(f"Error deleting message: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/delete_thread/<string:session_id>', methods=['DELETE'])
 def delete_thread(session_id):
@@ -1268,7 +1270,7 @@ def delete_thread(session_id):
 
         return jsonify({"success": True, "message": f"Thread {session_id} deleted."})
     except Exception as e:
-        current_app.logger.error(f"Error deleting thread {session_id}: {e}", exc_info=True)
+        current_app.logger.error(f"Error deleting thread {session_id}: {e}")
         # It's good practice to return a more specific error message if possible,
         # but for security, we'll keep it generic for the user.
         return jsonify({"success": False, "error": "An internal error occurred while deleting the thread."}), 500
@@ -1290,7 +1292,7 @@ def delete_all_threads():
         current_app.logger.info("User deleted all threads.")
         return jsonify({"success": True, "message": "All threads deleted."})
     except Exception as e:
-        current_app.logger.error(f"Error deleting all threads: {e}", exc_info=True)
+        current_app.logger.error(f"Error deleting all threads: {e}")
         return jsonify({"success": False, "error": "An internal error occurred."}), 500
 
 def get_component_status(usage, total, threshold=0.9):
@@ -1455,8 +1457,7 @@ def api_get_models():
 
         return jsonify({"models": api_models})
     except (requests.RequestException, Exception) as e:
-        current_app.logger.error(f"Error in api_get_models: {e}", exc_info=True)
-        return jsonify({"error": "Could not retrieve models."}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/models/pull', methods=['POST'])
 def api_pull_model():
@@ -1481,7 +1482,7 @@ def api_pull_model():
         except requests.RequestException as e:
             yield f'{{"error": "Failed to pull model: {str(e)}"}}\n'
 
-    return Response(stream_with_context(generate()), content_type='application/x-ndjson')
+    return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
 
 @app.route('/api/models/delete', methods=['POST'])
 def api_delete_model():
@@ -1498,7 +1499,7 @@ def api_delete_model():
         else:
             return jsonify({"status": "success"}), response.status_code
     except requests.RequestException as e:
-        return jsonify({"error": "Failed to communicate with Ollama service."}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/models/delete/all', methods=['POST'])
 def api_delete_all_models():
@@ -1520,7 +1521,7 @@ def api_delete_all_models():
         
         return jsonify({"status": "success", "message": "All models are being deleted."}), 200
     except requests.RequestException as e:
-        return jsonify({"error": "Failed to communicate with Ollama service."}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -1542,15 +1543,17 @@ def settings():
             'searxng_enabled': 'searxng_enabled' in request.form
         }
         save_settings(settings_to_save)
-
+        
         # Redact sensitive information before logging
         # current_app.logger.info(f"Settings updated: {request.form.to_dict()}")
+        
         loggable_settings = request.form.to_dict()
         if 'langfuse_secret_key' in loggable_settings:
             loggable_settings['langfuse_secret_key'] = '********'
         if 'chroma_api_key' in loggable_settings:
             loggable_settings['chroma_api_key'] = '********'
         current_app.logger.info(f"Settings updated: {loggable_settings}")
+
         # Re-initialize services with new settings
         initialize_langfuse()
         initialize_chroma()
@@ -1582,8 +1585,8 @@ def api_get_prompts():
         prompts = [dict(row) for row in prompts_cursor]
         return jsonify(prompts)
     except Exception as e:
-        current_app.logger.error(f"Error fetching prompts: {e}", exc_info=True)
-        return jsonify({"error": "An internal error occurred."}), 500
+        current_app.logger.error(f"Error fetching prompts: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/prompts/create', methods=['POST'])
 def api_create_prompt():
@@ -1602,8 +1605,8 @@ def api_create_prompt():
         db.commit()
         return jsonify({"success": True, "id": cursor.lastrowid}), 201
     except Exception as e:
-        current_app.logger.error(f"Error creating prompt: {e}", exc_info=True)
-        return jsonify({"error": "An internal error occurred."}), 500
+        current_app.logger.error(f"Error creating prompt: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/prompts/update/<int:prompt_id>', methods=['POST'])
 def api_update_prompt(prompt_id):
@@ -1622,8 +1625,8 @@ def api_update_prompt(prompt_id):
         db.commit()
         return jsonify({"success": True, "id": prompt_id})
     except Exception as e:
-        current_app.logger.error(f"Error updating prompt {prompt_id}: {e}", exc_info=True)
-        return jsonify({"error": "An internal error occurred."}), 500
+        current_app.logger.error(f"Error updating prompt {prompt_id}: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/prompts/delete/<int:prompt_id>', methods=['DELETE'])
 def api_delete_prompt(prompt_id):
@@ -1667,8 +1670,8 @@ def api_get_cloud_models():
             model['active'] = bool(model.get('active', True)) # Ensure boolean type
         return jsonify(models)
     except Exception as e:
-        current_app.logger.error(f"Error fetching cloud models: {e}", exc_info=True)
-        return jsonify({"error": "An internal error occurred."}), 500
+        current_app.logger.error(f"Error fetching cloud models: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cloud_models/<int:model_id>', methods=['GET'])
 def api_get_cloud_model_details(model_id):
@@ -1680,8 +1683,8 @@ def api_get_cloud_model_details(model_id):
             return jsonify({"error": "Model not found"}), 404
         return jsonify(dict(model_row))
     except Exception as e:
-        current_app.logger.error(f"Error fetching details for cloud model {model_id}: {e}", exc_info=True)
-        return jsonify({"error": "An internal error occurred."}), 500
+        current_app.logger.error(f"Error fetching details for cloud model {model_id}: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cloud_models/create', methods=['POST'])
 def api_create_cloud_model():
@@ -1702,41 +1705,35 @@ def api_create_cloud_model():
         db.commit()
         return jsonify({"success": True, "id": cursor.lastrowid}), 201
     except Exception as e:
-        current_app.logger.error(f"Error creating cloud model: {e}", exc_info=True)
-        return jsonify({"error": "An internal error occurred."}), 500
+        current_app.logger.error(f"Error creating cloud model: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cloud_models/update/<int:model_id>', methods=['POST'])
 def api_update_cloud_model(model_id):
     """API endpoint to update an existing cloud model configuration."""
     data = request.get_json()
     
-    # Only update fields that are provided and allowed
-    ALLOWED_FIELDS = ['service', 'base_url', 'api_key', 'model_name']
-    updates = {}
-    for key in ALLOWED_FIELDS:
-        value = data.get(key)
-        if value is not None:
-            # For api_key, ignore if empty
-            if key == 'api_key' and not value:
-                continue
-            updates[key] = value
-
+    # Only update fields that are provided
+    updates = {k: v for k, v in data.items() if v is not None and k in ['service', 'base_url', 'api_key', 'model_name']}
+    
     if not updates:
         return jsonify({"error": "No fields to update"}), 400
+    # If api_key is empty, it means the user didn't want to change it.
+    # We should not update it to an empty string.
+    if 'api_key' in updates and not updates['api_key']:
+        del updates['api_key']
 
     set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
-    values = tuple(updates.values()) + (model_id,)
+    values = list(updates.values()) + [model_id]
 
     try:
         db = get_db()
-        # Use only the allowed columns in set_clause
-        query = f'UPDATE cloud_models SET {set_clause} WHERE id = ?'
-        db.execute(query, values)
+        db.execute(f'UPDATE cloud_models SET {set_clause} WHERE id = ?', tuple(values))
         db.commit()
         return jsonify({"success": True, "id": model_id})
     except Exception as e:
-        current_app.logger.error(f"Error updating cloud model {model_id}: {e}", exc_info=True)
-        return jsonify({"error": "An internal error occurred."}), 500
+        current_app.logger.error(f"Error updating cloud model {model_id}: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cloud_models/delete/<int:model_id>', methods=['DELETE'])
 def api_delete_cloud_model(model_id):
@@ -1747,8 +1744,8 @@ def api_delete_cloud_model(model_id):
         db.commit()
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.error(f"Error deleting cloud model {model_id}: {e}", exc_info=True)
-        return jsonify({"error": "An internal error occurred."}), 500
+        current_app.logger.error(f"Error deleting cloud model {model_id}: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cloud_models/toggle_active/<int:model_id>', methods=['POST'])
 def api_toggle_cloud_model_active(model_id):
