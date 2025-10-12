@@ -1712,23 +1712,29 @@ def api_create_cloud_model():
 def api_update_cloud_model(model_id):
     """API endpoint to update an existing cloud model configuration."""
     data = request.get_json()
-    
-    # Only update fields that are provided
-    updates = {k: v for k, v in data.items() if v is not None and k in ['service', 'base_url', 'api_key', 'model_name']}
-    
-    if not updates:
-        return jsonify({"error": "No fields to update"}), 400
-    # If api_key is empty, it means the user didn't want to change it.
-    # We should not update it to an empty string.
-    if 'api_key' in updates and not updates['api_key']:
-        del updates['api_key']
+    allowed_fields = ['service', 'base_url', 'api_key', 'model_name']
+    fields_to_update = []
+    values_to_update = []
 
-    set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
-    values = list(updates.values()) + [model_id]
+    for field in allowed_fields:
+        if field in data and data[field] is not None:
+            # Special case: don't update api_key if it's an empty string,
+            # which implies the user didn't want to change it.
+            if field == 'api_key' and not data[field]:
+                continue
+            fields_to_update.append(f"{field} = ?")
+            values_to_update.append(data[field])
+
+    if not fields_to_update:
+        return jsonify({"error": "No fields to update"}), 400
+
+    set_clause = ", ".join(fields_to_update)
+    query = f"UPDATE cloud_models SET {set_clause} WHERE id = ?"
+    values = values_to_update + [model_id]
 
     try:
         db = get_db()
-        db.execute(f'UPDATE cloud_models SET {set_clause} WHERE id = ?', tuple(values))
+        db.execute(query, tuple(values))
         db.commit()
         return jsonify({"success": True, "id": model_id})
     except Exception as e:
