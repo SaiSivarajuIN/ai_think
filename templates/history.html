@@ -6,7 +6,30 @@
 
 {% block head_extra %}
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
-    <!-- Add MathJax for LaTeX rendering -->
+    <!-- MathJax Configuration -->
+    <script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            processRefs: true,
+            digits: /^(?:[0-9]+(?:\{,\}[0-9]{3})*(?:\.[0-9]*)?|\.[0-9]+)/
+        },
+        options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+            processHtmlClass: 'tex2jax_process'
+        },
+        startup: {
+            pageReady: () => {
+                return MathJax.startup.defaultPageReady().then(() => {
+                    console.log('MathJax initial typesetting complete');
+                });
+            }
+        }
+    };
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
 {% endblock %}
@@ -201,75 +224,91 @@
             });
         }
 
-        // Render markdown for assistant messages
-        document.querySelectorAll('.message-container').forEach(function(container) {
-            // This logic remains the same
-            const senderSpan = container.querySelector('.assistant-sender'); // Only process bot messages for markdown
-            const contentDiv = container.querySelector('.history-content');
-            if (senderSpan && contentDiv) {
-                // Read raw content from data attribute to avoid re-interpreting HTML
-                const rawMarkdown = contentDiv.dataset.rawContent || contentDiv.textContent;
+        // Helper function to preserve LaTeX during markdown conversion
+        function formatWithLatex(text) {
+            // Protect LaTeX expressions with unique tokens
+            const latexMap = new Map();
+            let counter = 0;
 
+            // Handle display math first ($$...$$)
+            text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
+                const token = `%%LATEX${counter}%%`;
+                latexMap.set(token, match);
+                counter++;
+                return token;
+            });
+
+            // Then handle inline math ($...$)
+            text = text.replace(/\$([^\$]*?)\$/g, (match, latex) => {
+                const token = `%%LATEX${counter}%%`;
+                latexMap.set(token, match);
+                counter++;
+                return token;
+            });
+
+            // Convert markdown
+            let html = converter.makeHtml(text);
+
+            // Restore LaTeX expressions
+            latexMap.forEach((latex, token) => {
+                html = html.replace(token, latex);
+            });
+
+            return html;
+        }
+
+        // Update the message rendering logic
+        document.querySelectorAll('.message-container').forEach(function(container) {
+            const contentDiv = container.querySelector('.history-content');
+            if (!contentDiv) return;
+
+            const rawContent = contentDiv.dataset.rawContent || contentDiv.textContent;
+            let newHtml = '';
+
+            if (container.querySelector('.assistant-sender')) {
+                // Handle bot messages with thoughts
                 const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
-                if (thinkRegex.test(rawMarkdown)) {
-                    thinkRegex.lastIndex = 0; // Reset regex
+                if (thinkRegex.test(rawContent)) {
+                    thinkRegex.lastIndex = 0;
                     const thoughts = [];
-                    const mainContent = rawMarkdown.replace(thinkRegex, (match, thoughtContent) => {
+                    const mainContent = rawContent.replace(thinkRegex, (match, thoughtContent) => {
                         thoughts.push(thoughtContent.trim());
-                        return ''; // Remove from main content
+                        return '';
                     }).trim();
 
-                    let newHtml = converter.makeHtml(mainContent);
+                    newHtml = formatWithLatex(mainContent);
 
                     thoughts.forEach(thought => {
                         if (thought) {
-                            newHtml += `<div class="thought"><strong>Thought Process</strong><div>${converter.makeHtml(thought)}</div></div>`;
+                            newHtml += `<div class="thought"><strong>Thought Process</strong><div>${formatWithLatex(thought)}</div></div>`;
                         }
                     });
-                    contentDiv.innerHTML = newHtml;
                 } else {
-                    contentDiv.innerHTML = converter.makeHtml(rawMarkdown);
+                    newHtml = formatWithLatex(rawContent);
                 }
-            } else if (container.querySelector('.user-sender') && contentDiv) {
-                // Handle search results in user messages
-                // Read raw content from data attribute
-                const rawText = contentDiv.dataset.rawContent || contentDiv.textContent;
+            } else if (container.querySelector('.user-sender')) {
+                // Handle user messages (including search results and file context)
+                const searchRegex = /^Based on the following web search results.*?\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
+                const fileContextRegex = /^Based on the content.*?\n\n---\n\nQUESTION:\n([\s\S]*)$/m;
 
-                const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
-                const fileContextRegex = /^Based on the content of the document '(.+?)' provided below, please answer the following question\.\n\n---\n\nDOCUMENT CONTENT:\n([\s\S]*?)\n\n---\n\nQUESTION:\n([\s\S]*)$/m;
+                let messageContent = rawContent;
+                const searchMatch = rawContent.match(searchRegex);
+                const fileMatch = rawContent.match(fileContextRegex);
 
-                const searchMatch = rawText.match(searchRegex);
-                const fileMatch = rawText.match(fileContextRegex);
-
-                if (searchMatch) {
-                    const searchResults = searchMatch[1].trim();
-                    const userQuestion = searchMatch[2].trim();
-
-                    // Display the original question first
-                    let newHtml = converter.makeHtml(userQuestion);
-
-                    // Add the collapsible search results section
-                    if (searchResults) {
-                        newHtml += `<div class="thought"><strong>Search Results</strong><div><pre><code>${escapeHtml(searchResults)}</code></pre></div></div>`;
-                    }
-                    contentDiv.innerHTML = newHtml;
-                } else if (fileMatch) {
-                    const filename = fileMatch[1].trim();
-                    const fileContent = fileMatch[2].trim();
-                    const userQuestion = fileMatch[3].trim();
-
-                    // Display the user's question first
-                    let newHtml = converter.makeHtml(userQuestion);
-
-                    // Add a collapsible section for the file context
-                    if (fileContent) {
-                        newHtml += `<div class="thought"><strong>File Context: ${escapeHtml(filename)}</strong><div><pre><code>${escapeHtml(fileContent)}</code></pre></div></div>`;
-                    }
-                    contentDiv.innerHTML = newHtml;
-                } else {
-                    // It's a regular user message, just render as markdown
-                    contentDiv.innerHTML = converter.makeHtml(rawText);
+                if (searchMatch || fileMatch) {
+                    messageContent = (searchMatch || fileMatch)[1].trim();
                 }
+
+                newHtml = formatWithLatex(messageContent);
+            }
+
+            contentDiv.innerHTML = newHtml;
+
+            // Ensure MathJax processes this container
+            if (window.MathJax) {
+                MathJax.typesetPromise([contentDiv]).catch(err => {
+                    console.error('MathJax error:', err);
+                });
             }
         });
 
@@ -444,6 +483,5 @@
             .replace(/'/g, "&#039;");
     }
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 {% endblock %}

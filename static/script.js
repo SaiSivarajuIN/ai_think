@@ -1,6 +1,15 @@
 // Simple HTML escape utility
+// Update the escapeHTML function to preserve LaTeX content
 function escapeHTML(str) {
-    return str.replace(/[&<>"'`=\/]/g, function(s) {
+    // Temporarily replace LaTeX expressions with placeholders
+    const latexExpressions = [];
+    const replacedStr = str.replace(/\$\$(.*?)\$\$|\$(.*?)\$/g, (match) => {
+        latexExpressions.push(match);
+        return `@@LATEX${latexExpressions.length - 1}@@`;
+    });
+
+    // Escape HTML in the remaining text
+    const escapedStr = replacedStr.replace(/[&<>"'`=\/]/g, function(s) {
         return ({
             "&": "&amp;",
             "<": "&lt;",
@@ -12,6 +21,9 @@ function escapeHTML(str) {
             "=": "&#x3D;"
         })[s];
     });
+
+    // Restore LaTeX expressions
+    return escapedStr.replace(/@@LATEX(\d+)@@/g, (_, index) => latexExpressions[index]);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -56,9 +68,37 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/'/g, "&#039;");
     }
 
-    // Helper: Format and render markdown
+    // Helper: Format and render markdown with LaTeX support
     function formatMessage(text) {
-        return converter.makeHtml(text);
+        // First protect LaTeX expressions by replacing them with placeholders
+        const latexMap = new Map();
+        let counter = 0;
+
+        // Replace display math first ($$...$$)
+        text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
+            const token = `%%LATEX${counter}%%`;
+            latexMap.set(token, match);
+            counter++;
+            return token;
+        });
+
+        // Then replace inline math ($...$)
+        text = text.replace(/\$([^\$]*?)\$/g, (match, latex) => {
+            const token = `%%LATEX${counter}%%`;
+            latexMap.set(token, match);
+            counter++;
+            return token;
+        });
+
+        // Convert markdown
+        let html = converter.makeHtml(text);
+
+        // Restore LaTeX expressions
+        latexMap.forEach((latex, token) => {
+            html = html.replace(token, latex);
+        });
+
+        return html;
     }
 
     // If the model selector exists on the page (i.e., on index.html),
@@ -175,21 +215,25 @@ document.addEventListener('DOMContentLoaded', function() {
             footer.innerHTML = `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
             messageDiv.appendChild(footer);
         } else {
-            // For bot messages, also remove <think> blocks for display on index.html
+            // For bot messages, handle LaTeX before removing think blocks
             const cleanedContent = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
             messageDiv.innerHTML = formatMessage(cleanedContent);
-            // Store the original full content (with thoughts) for history.html rendering
-            // and for the copy button on index.html.
             messageDiv.dataset.rawContent = content;
         }
 
         chatbox.appendChild(messageDiv);
         chatbox.scrollTop = chatbox.scrollHeight;
 
-        // Render math only in bot (assistant) messages
-        if (window.MathJax && window.MathJax.typesetPromise) {
-            MathJax.typesetPromise([messageDiv]).catch(err => console.error(err));
+        // Trigger MathJax rendering with proper timing
+        if (window.MathJax) {
+            // Use setTimeout to ensure content is in DOM
+            setTimeout(() => {
+                MathJax.typesetPromise([messageDiv]).catch(err => {
+                    console.error('MathJax error:', err);
+                });
+            }, 0);
         }
+
         return messageDiv;
     }
 
@@ -251,6 +295,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update the thinking message placeholder with the actual response and footer
         thinkingElement.classList.remove('thinking');
         thinkingElement.innerHTML = formatMessage(cleanedBotResponse || "..."); // Show something if response is empty
+
+        // Ensure MathJax processes the new content
+        if (window.MathJax) {
+            MathJax.typesetPromise([thinkingElement]).catch(err => {
+                console.error('MathJax error:', err);
+            });
+        }
+
         addMessageFooter(thinkingElement, usage, generationTime);
         thinkingMessageId = null; // Clear the ID as we've used the placeholder
 
@@ -485,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (sessionId) {
             // A session ID is in the URL, try to load its history
-            addMessage(`🔄 Loading chat session: ${escapeHtml(sessionId)}...`, false);
+            addMessage(`🔄 Loading chat session: ${escapeHTML(sessionId)}...`, false);
             try {
                 const response = await fetch(`/api/session/${sessionId}`);
                 if (!response.ok) {
