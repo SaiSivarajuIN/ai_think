@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let thinkingMessageId = null;
     let abortController = null; // New: for cancelling fetch requests
     let fileContextActive = false;
-    let isIncognito = false;
+    let isIncognito = localStorage.getItem('isIncognito') === 'true';
 
     // Showdown converter for Markdown rendering
     const converter = new showdown.Converter({
@@ -70,24 +70,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper: Format and render markdown with LaTeX support
     function formatMessage(text) {
-        // First protect LaTeX expressions by replacing them with placeholders
+        // Protect LaTeX expressions with unique tokens
         const latexMap = new Map();
         let counter = 0;
 
-        // Replace display math first ($$...$$)
-        text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
+        // Handle display math first: \[...\] and $$...$$
+        text = text.replace(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/g, (match, latex1, latex2) => {
+            const latex = latex1 || latex2;
             const token = `%%LATEX${counter}%%`;
             latexMap.set(token, match);
             counter++;
             return token;
         });
 
-        // Then replace inline math ($...$)
-        text = text.replace(/\$([^\$]*?)\$/g, (match, latex) => {
+        // Handle inline math: \(...\) and $...$
+        text = text.replace(/\\\(([\s\S]*?)\\\)|\$([^\$\n]*?)\$/g, (match, latex1, latex2) => {
+            const latex = latex1 || latex2;
             const token = `%%LATEX${counter}%%`;
             latexMap.set(token, match);
             counter++;
             return token;
+        });
+
+        // Special handling for square bracket notation [...]
+        text = text.replace(/\[((?:[^\[\]]|\[[^\[\]]*\])*)\]/g, (match, content) => {
+            if (content.includes('\\') || content.includes('_') || content.includes('^')) {
+                const token = `%%LATEX${counter}%%`;
+                latexMap.set(token, `\\[${content}\\]`);
+                counter++;
+                return token;
+            }
+            return match;
         });
 
         // Convert markdown
@@ -159,6 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (incognitoBtn) {
         incognitoBtn.addEventListener('click', function() {
             isIncognito = !isIncognito; // Toggle the state
+            localStorage.setItem('isIncognito', isIncognito); // Save state
             updateIncognitoUI();
 
             // When toggling incognito, always start a new thread
@@ -529,11 +543,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('session_id');
 
-        // If there's a session ID in the URL, we are NOT in incognito mode.
+        // If there's a session ID in the URL, it should override and disable incognito mode for this session.
         if (sessionId) {
             isIncognito = false;
-            updateIncognitoUI();
+            localStorage.setItem('isIncognito', 'false');
         }
+        updateIncognitoUI(); // Always update UI on load
 
         if (sessionId) {
             // A session ID is in the URL, try to load its history
@@ -620,12 +635,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const sessionsInGroup = groupedSessions[groupName];
                 sessionsInGroup.forEach(session => {
-                    const item = document.createElement('a');
+                    const item = document.createElement('div');
                     item.className = 'history-item';
-                    item.href = `/?session_id=${session.session_id}`;
-                    item.title = `Continue chat from ${new Date(session.last_updated).toLocaleString()}`;
-                    item.textContent = session.summary;
+                    item.dataset.sessionId = session.session_id;
+
+                    const link = document.createElement('a');
+                    link.className = 'history-item-link';
+                    link.href = `/?session_id=${session.session_id}`;
+                    link.title = `Continue chat from ${new Date(session.last_updated).toLocaleString()}`;
+                    link.textContent = session.summary;
+
+                    const menuButton = document.createElement('button');
+                    menuButton.className = 'history-item-menu-btn icon-btn';
+                    menuButton.innerHTML = '<span class="material-icons">more_vert</span>';
+
+                    const menuDropdown = document.createElement('div');
+                    menuDropdown.className = 'history-item-menu';
+                    menuDropdown.innerHTML = `
+                        <button class="history-menu-item rename-btn"><span class="material-icons">edit</span>Rename</button>
+                        <button class="history-menu-item delete-btn"><span class="material-icons">delete</span>Delete</button>
+                    `;
+
+                    item.appendChild(link);
+                    item.appendChild(menuButton);
+                    item.appendChild(menuDropdown);
                     historyContent.appendChild(item);
+
+                    // Event listeners for the new menu
+                    menuButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        // Close other menus
+                        document.querySelectorAll('.history-item-menu.visible').forEach(m => {
+                            if (m !== menuDropdown) m.classList.remove('visible');
+                        });
+                        menuDropdown.classList.toggle('visible');
+                    });
                 });
             }
         } catch (error) {
@@ -633,6 +677,31 @@ document.addEventListener('DOMContentLoaded', function() {
             historyContent.innerHTML = '<p class="history-item">Could not load history.</p>';
         }
     }
+
+    // Close history menus when clicking elsewhere
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.history-item-menu-btn')) {
+            document.querySelectorAll('.history-item-menu.visible').forEach(menu => {
+                menu.classList.remove('visible');
+            });
+        }
+        // Handle clicks on menu items
+        const menuItem = e.target.closest('.history-menu-item');
+        if (menuItem) {
+            const historyItem = menuItem.closest('.history-item');
+            const sessionId = historyItem.dataset.sessionId;
+
+            if (menuItem.classList.contains('delete-btn')) {
+                // We can reuse the deleteThread function from history.html's script context
+                // To make it available, we need to expose it globally or handle it here.
+                // For simplicity, let's call a new function that does the same.
+                deleteSidebarThread(sessionId);
+            } else if (menuItem.classList.contains('rename-btn')) {
+                menuItem.parentElement.classList.remove('visible');
+                renameSidebarThread(historyItem, sessionId);
+            }
+        }
+    });
 
     // --- File Upload Logic ---
     if (uploadButton && fileInput) {
@@ -695,6 +764,96 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure send button is in initial state with correct listener
     toggleSendStopButton(false);
 });
+
+function renameSidebarThread(historyItem, sessionId) {
+    const link = historyItem.querySelector('.history-item-link');
+    const currentSummary = link.textContent;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'history-item-rename-input';
+    input.value = currentSummary;
+
+    // Replace link with input
+    link.style.display = 'none';
+    historyItem.insertBefore(input, link);
+    input.focus();
+    input.select();
+
+    const saveChanges = async () => {
+        const newSummary = input.value.trim();
+
+        // Revert to original if the new summary is empty
+        if (!newSummary || newSummary === currentSummary) {
+            input.remove();
+            link.style.display = 'block';
+            return;
+        }
+
+        // Optimistically update the UI
+        link.textContent = newSummary;
+        input.remove();
+        link.style.display = 'block';
+
+        // Send update to the server
+        try {
+            const response = await fetch('/api/session/rename', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId, summary: newSummary }),
+            });
+
+            if (!response.ok) {
+                // Revert on failure
+                link.textContent = currentSummary;
+                const result = await response.json();
+                alert(`Failed to rename session: ${result.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error renaming session:', error);
+            // Revert on failure
+            link.textContent = currentSummary;
+            alert('An error occurred while renaming the session.');
+        }
+    };
+
+    // Event listeners for the input
+    input.addEventListener('blur', saveChanges);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            input.blur(); // Trigger save
+        } else if (e.key === 'Escape') {
+            // Cancel editing
+            input.remove();
+            link.style.display = 'block';
+        }
+    });
+}
+
+async function deleteSidebarThread(sessionId) {
+    if (!confirm(`Are you sure you want to delete this chat session? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/delete_thread/${sessionId}`, {
+            method: 'DELETE',
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            const threadElement = document.querySelector(`.history-item[data-session-id="${sessionId}"]`);
+            if (threadElement) {
+                threadElement.remove();
+            }
+        } else {
+            alert('Failed to delete thread: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting thread from sidebar:', error);
+        alert('An error occurred while deleting the thread.');
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     const sidebarToggle = document.querySelector('.sidebar-toggle-btn');

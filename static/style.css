@@ -1100,22 +1100,96 @@ thead th {
 }
 
 .history-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 0.75rem 1rem;
     border-radius: var(--radius-md);
-    cursor: pointer;
-    text-decoration: none;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     margin-bottom: 0.25rem;
-    font-size: 0.9rem;
+    position: relative; /* For menu positioning */
 }
 
 .history-item:hover {
     background-color: var(--message-assistant);
 }
+
+.history-item-link {
+    flex-grow: 1;
+    text-decoration: none;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.history-item-menu-btn {
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s ease;
+}
+
+.history-item:hover .history-item-menu-btn {
+    opacity: 1; /* Show on hover */
+}
+
+.history-item-menu {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 30px;
+    right: 10px;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--container-shadow);
+    z-index: 110;
+    min-width: 120px;
+    padding: 0.25rem;
+}
+
+.history-item-menu.visible {
+    display: block;
+}
+
+.history-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.history-menu-item:hover {
+    background-color: var(--message-assistant);
+}
+
+.history-menu-item .material-icons {
+    font-size: 18px;
+}
+
+.history-item-rename-input {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    padding: 2px 4px;
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-sm);
+    background-color: var(--background);
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+    margin-right: auto; /* Push menu button to the right */
+    min-width: 0; /* Prevent overflow in flex container */
+}
+
 
 /* Style for group headers in the history sidebar */
 .history-sidebar .history-group-header {

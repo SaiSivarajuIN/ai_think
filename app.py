@@ -106,6 +106,13 @@ def init_db():
             )
         ''')
         db.execute('''
+            CREATE TABLE IF NOT EXISTS session_summaries (
+                session_id TEXT PRIMARY KEY,
+                summary TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        db.execute('''
             CREATE TABLE IF NOT EXISTS prompts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
@@ -1027,28 +1034,28 @@ def get_session_history(session_id):
 @app.route('/api/sessions', methods=['GET'])
 def get_sessions():
     """Fetches a summary of all chat sessions."""
-    threads = defaultdict(list)
+    threads = defaultdict(lambda: {'messages': [], 'first_timestamp': None})
     utc_tz = ZoneInfo("UTC")
-    
+
+    # Fetch custom summaries first
+    custom_summaries = {}
+    try:
+        summary_rows = get_db().execute('SELECT session_id, summary FROM session_summaries').fetchall()
+        custom_summaries = {row['session_id']: row['summary'] for row in summary_rows}
+    except sqlite3.OperationalError: # In case the table doesn't exist yet
+        pass
+
     if chroma_connected:
         try:
-            # This is less efficient in Chroma as we have to pull everything and process it.
-            # For a production system with many messages, a different approach would be needed.
             results = chroma_collection.get(include=["metadatas", "documents"])
-            all_messages = []
-            for i, doc_id in enumerate(results['ids']):
+            for i in range(len(results['ids'])):
                 meta = results['metadatas'][i]
-                all_messages.append({
-                    'session_id': meta['session_id'],
-                    'sender': meta['sender'],
-                    'content': results['documents'][i],
-                    'timestamp': datetime.fromisoformat(meta['timestamp'])
-                })
-            
-            sorted_messages = sorted(all_messages, key=lambda x: x['timestamp'])
-            for msg in sorted_messages:
-                threads[msg['session_id']].append(msg)
-
+                session_id = meta['session_id']
+                timestamp = datetime.fromisoformat(meta['timestamp'])
+                msg = {'sender': meta['sender'], 'content': results['documents'][i], 'timestamp': timestamp}
+                threads[session_id]['messages'].append(msg)
+                if not threads[session_id]['first_timestamp'] or timestamp < threads[session_id]['first_timestamp']:
+                    threads[session_id]['first_timestamp'] = timestamp
         except Exception as e:
             current_app.logger.error(f"Failed to fetch sessions from ChromaDB: {e}")
             return jsonify({"error": "Failed to fetch sessions"}), 500
@@ -1056,24 +1063,30 @@ def get_sessions():
         db = get_db()
         messages = db.execute('SELECT session_id, sender, content, timestamp FROM messages ORDER BY timestamp ASC').fetchall()
         for msg in messages:
-            msg_dict = dict(msg)
-            # Convert string timestamp to datetime object
-            naive_timestamp = datetime.strptime(msg_dict['timestamp'], '%Y-%m-%d %H:%M:%S')
-            msg_dict['timestamp'] = naive_timestamp.replace(tzinfo=utc_tz)
-            threads[msg_dict['session_id']].append(msg_dict)
+            session_id = msg['session_id']
+            naive_timestamp = datetime.strptime(msg['timestamp'], '%Y-%m-%d %H:%M:%S')
+            timestamp = naive_timestamp.replace(tzinfo=utc_tz)
+            msg_dict = {'sender': msg['sender'], 'content': msg['content'], 'timestamp': timestamp}
+            threads[session_id]['messages'].append(msg_dict)
+            if not threads[session_id]['first_timestamp']:
+                threads[session_id]['first_timestamp'] = timestamp
 
     # Sort threads by the timestamp of the LAST message
     sorted_threads = sorted(
         threads.items(),
-        key=lambda item: item[1][0]['timestamp'], # Sort by the FIRST message
-        reverse=False # Oldest first
+        key=lambda item: item[1]['messages'][-1]['timestamp'],
+        reverse=True
     )
 
     # Group sessions by date
     grouped_sessions = defaultdict(list)
     today = datetime.now(utc_tz).date()
 
-    for session_id, messages in sorted_threads:
+    for session_id, thread_data in sorted_threads:
+        messages = thread_data['messages']
+        if not messages:
+            continue
+        
         last_message_dt = messages[-1]['timestamp']
         thread_date = last_message_dt.date()
         delta = today - thread_date
@@ -1082,21 +1095,22 @@ def get_sessions():
             group_key = "Today"
         elif delta.days == 1:
             group_key = "Yesterday"
-        elif thread_date.year == today.year:
-            if thread_date.month == today.month:
-                group_key = last_message_dt.strftime('%A, %B %d')
-            else:
-                group_key = last_message_dt.strftime('%B')
+        elif 1 < delta.days <= 7:
+            group_key = "Previous 7 Days"
         else:
-            group_key = str(thread_date.year)
+            group_key = "Previous 30 Days"
 
-        # Find the first user message for the summary
-        first_user_message = next((m['content'] for m in messages if m['sender'] == 'user'), 'Chat session')
-        summary_text = (first_user_message[:50] + '...') if len(first_user_message) > 50 else first_user_message
+        # Use custom summary if available, otherwise generate one
+        if session_id in custom_summaries:
+            summary_text = custom_summaries[session_id]
+        else:
+            # Find the first user message for the summary
+            first_user_message = next((m['content'] for m in messages if m['sender'] == 'user'), 'Chat session')
+            summary_text = (first_user_message[:50] + '...') if len(first_user_message) > 50 else first_user_message
         
         grouped_sessions[group_key].append({
             'session_id': session_id,
-            'summary': summary_text,
+            'summary': summary_text.strip(),
             'last_updated': messages[-1]['timestamp']
         })
 
@@ -1251,7 +1265,7 @@ def delete_message(message_id):
         return jsonify({"success": True})
     except Exception as e:
         current_app.logger.error(f"Error deleting message: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An internal error occurred while deleting the message."}), 500
 
 @app.route('/delete_thread/<string:session_id>', methods=['DELETE'])
 def delete_thread(session_id):
@@ -1274,6 +1288,25 @@ def delete_thread(session_id):
         # It's good practice to return a more specific error message if possible,
         # but for security, we'll keep it generic for the user.
         return jsonify({"success": False, "error": "An internal error occurred while deleting the thread."}), 500
+
+@app.route('/api/session/rename', methods=['POST'])
+def rename_session():
+    """Updates the summary for a given session_id."""
+    data = request.get_json()
+    session_id = data.get('session_id')
+    new_summary = data.get('summary')
+
+    if not session_id or not new_summary:
+        return jsonify({"error": "session_id and summary are required."}), 400
+
+    try:
+        db = get_db()
+        db.execute('INSERT OR REPLACE INTO session_summaries (session_id, summary) VALUES (?, ?)', (session_id, new_summary))
+        db.commit()
+        return jsonify({"success": True, "message": "Session summary updated."})
+    except Exception as e:
+        current_app.logger.error(f"Error renaming session {session_id}: {e}")
+        return jsonify({"error": "An internal error occurred while renaming the session."}), 500
 
 @app.route('/delete_all_threads', methods=['DELETE'])
 def delete_all_threads():
@@ -1457,7 +1490,7 @@ def api_get_models():
 
         return jsonify({"models": api_models})
     except (requests.RequestException, Exception) as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to retrieve models from Ollama."}), 500
 
 @app.route('/api/models/pull', methods=['POST'])
 def api_pull_model():
@@ -1480,7 +1513,7 @@ def api_pull_model():
                 if line:
                     yield line.decode('utf-8') + '\n' # Yield each line of the JSON stream
         except requests.RequestException as e:
-            yield f'{{"error": "Failed to pull model: {str(e)}"}}\n'
+            yield f'{{"error": "Failed to pull model. See server logs for details."}}\n'
 
     return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
 
@@ -1499,7 +1532,7 @@ def api_delete_model():
         else:
             return jsonify({"status": "success"}), response.status_code
     except requests.RequestException as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An error occurred while communicating with Ollama."}), 500
 
 @app.route('/api/models/delete/all', methods=['POST'])
 def api_delete_all_models():
@@ -1521,7 +1554,7 @@ def api_delete_all_models():
         
         return jsonify({"status": "success", "message": "All models are being deleted."}), 200
     except requests.RequestException as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An error occurred while communicating with Ollama."}), 500
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -1586,7 +1619,7 @@ def api_get_prompts():
         return jsonify(prompts)
     except Exception as e:
         current_app.logger.error(f"Error fetching prompts: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to fetch prompts."}), 500
 
 @app.route('/api/prompts/create', methods=['POST'])
 def api_create_prompt():
@@ -1606,7 +1639,7 @@ def api_create_prompt():
         return jsonify({"success": True, "id": cursor.lastrowid}), 201
     except Exception as e:
         current_app.logger.error(f"Error creating prompt: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to create prompt."}), 500
 
 @app.route('/api/prompts/update/<int:prompt_id>', methods=['POST'])
 def api_update_prompt(prompt_id):
@@ -1626,7 +1659,7 @@ def api_update_prompt(prompt_id):
         return jsonify({"success": True, "id": prompt_id})
     except Exception as e:
         current_app.logger.error(f"Error updating prompt {prompt_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to update prompt."}), 500
 
 @app.route('/api/prompts/delete/<int:prompt_id>', methods=['DELETE'])
 def api_delete_prompt(prompt_id):
@@ -1671,7 +1704,7 @@ def api_get_cloud_models():
         return jsonify(models)
     except Exception as e:
         current_app.logger.error(f"Error fetching cloud models: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to fetch cloud models."}), 500
 
 @app.route('/api/cloud_models/<int:model_id>', methods=['GET'])
 def api_get_cloud_model_details(model_id):
@@ -1684,7 +1717,7 @@ def api_get_cloud_model_details(model_id):
         return jsonify(dict(model_row))
     except Exception as e:
         current_app.logger.error(f"Error fetching details for cloud model {model_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to fetch model details."}), 500
 
 @app.route('/api/cloud_models/create', methods=['POST'])
 def api_create_cloud_model():
@@ -1706,7 +1739,7 @@ def api_create_cloud_model():
         return jsonify({"success": True, "id": cursor.lastrowid}), 201
     except Exception as e:
         current_app.logger.error(f"Error creating cloud model: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to create cloud model."}), 500
 
 @app.route('/api/cloud_models/update/<int:model_id>', methods=['POST'])
 def api_update_cloud_model(model_id):
@@ -1739,7 +1772,7 @@ def api_update_cloud_model(model_id):
         return jsonify({"success": True, "id": model_id})
     except Exception as e:
         current_app.logger.error(f"Error updating cloud model {model_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to update cloud model."}), 500
 
 @app.route('/api/cloud_models/delete/<int:model_id>', methods=['DELETE'])
 def api_delete_cloud_model(model_id):
@@ -1751,7 +1784,7 @@ def api_delete_cloud_model(model_id):
         return jsonify({'success': True})
     except Exception as e:
         current_app.logger.error(f"Error deleting cloud model {model_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to delete cloud model."}), 500
 
 @app.route('/api/cloud_models/toggle_active/<int:model_id>', methods=['POST'])
 def api_toggle_cloud_model_active(model_id):
