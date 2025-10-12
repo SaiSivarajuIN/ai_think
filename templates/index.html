@@ -15,15 +15,20 @@
             inlineMath: [['$', '$'], ['\\(', '\\)']],
             displayMath: [['$$', '$$'], ['\\[', '\\]']],
             processEscapes: true,
-            processEnvironments: true
+            processEnvironments: true,
+            packages: ['base', 'ams', 'noerrors', 'noundefined']
         },
         options: {
-            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+            processHtmlClass: 'tex2jax_process',
+            ignoreHtmlClass: 'tex2jax_ignore'
+        },
+        loader: {
+            load: ['[tex]/ams']
         }
     };
     </script>
-    <!-- Load MathJax -->
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
 {% endblock %}
 
 {% block header_nav %}

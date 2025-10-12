@@ -15,11 +15,16 @@
             processEscapes: true,
             processEnvironments: true,
             processRefs: true,
-            digits: /^(?:[0-9]+(?:\{,\}[0-9]{3})*(?:\.[0-9]*)?|\.[0-9]+)/
+            packages: ['base', 'ams', 'noerrors', 'noundefined'],
+            tags: 'ams'
         },
         options: {
             skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
-            processHtmlClass: 'tex2jax_process'
+            processHtmlClass: 'tex2jax_process',
+            ignoreHtmlClass: 'tex2jax_ignore'
+        },
+        loader: {
+            load: ['[tex]/ams']
         },
         startup: {
             pageReady: () => {
@@ -30,7 +35,7 @@
         }
     };
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
     
 {% endblock %}
 
@@ -157,331 +162,344 @@
 {% endblock %}
 
 {% block scripts %}
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const converter = new showdown.Converter({
-            simplifiedAutoLink: true,
-            strikethrough: true,
-            tables: true,
-            tasklists: true,
-            disableForced4SpacesIndentedSublists: true,
-            simpleLineBreaks: true,
-            openLinksInNewWindow: true,
-            emoji: true,
-            sanitize: true // Prevent interpretation of raw HTML in Markdown
-        });
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const converter = new showdown.Converter({
+        simplifiedAutoLink: true,
+        strikethrough: true,
+        tables: true,
+        tasklists: true,
+        disableForced4SpacesIndentedSublists: true,
+        simpleLineBreaks: true,
+        openLinksInNewWindow: true,
+        emoji: true,
+        sanitize: true // Prevent interpretation of raw HTML in Markdown
+    });
 
-        // --- Date Filter Logic ---
-        const startDateFilter = document.getElementById('start-date-filter');
-        const endDateFilter = document.getElementById('end-date-filter');
-        const clearFilterBtn = document.getElementById('clear-filter-btn');
-        const threads = document.querySelectorAll('.thread');
-        const groupHeaders = document.querySelectorAll('.history-group-header');
-        const paginationContainer = document.querySelector('.pagination-container');
+    // --- Date Filter Logic ---
+    const startDateFilter = document.getElementById('start-date-filter');
+    const endDateFilter = document.getElementById('end-date-filter');
+    const clearFilterBtn = document.getElementById('clear-filter-btn');
+    const threads = document.querySelectorAll('.thread');
+    const groupHeaders = document.querySelectorAll('.history-group-header');
+    const paginationContainer = document.querySelector('.pagination-container');
 
-        function applyDateFilter() {
-            const startDate = startDateFilter.value; // YYYY-MM-DD
-            const endDate = endDateFilter.value;
+    function applyDateFilter() {
+        const startDate = startDateFilter.value; // YYYY-MM-DD
+        const endDate = endDateFilter.value;
 
-            if (startDate || endDate) {
-                clearFilterBtn.style.display = 'inline-flex';
-                if (paginationContainer) paginationContainer.style.display = 'none';
+        if (startDate || endDate) {
+            clearFilterBtn.style.display = 'inline-flex';
+            if (paginationContainer) paginationContainer.style.display = 'none';
 
-                threads.forEach(thread => {
-                    const summary = thread.querySelector('.summary-main');
-                    const timestamp = summary.getAttribute('data-timestamp');
-                    const threadDate = new Date(timestamp).toISOString().split('T')[0];
+            threads.forEach(thread => {
+                const summary = thread.querySelector('.summary-main');
+                const timestamp = summary.getAttribute('data-timestamp');
+                const threadDate = new Date(timestamp).toISOString().split('T')[0];
 
-                    const startMatch = !startDate || threadDate >= startDate;
-                    const endMatch = !endDate || threadDate <= endDate;
+                const startMatch = !startDate || threadDate >= startDate;
+                const endMatch = !endDate || threadDate <= endDate;
 
-                    if (startMatch && endMatch) {
-                        thread.style.display = 'block';
-                    } else {
-                        thread.style.display = 'none';
-                    }
-                });
-
-                // Hide all group headers when filtering
-                groupHeaders.forEach(header => header.style.display = 'none');
-
-            } else {
-                // If both dates are cleared, reset everything
-                clearFilter();
-            }
-        }
-
-        if (startDateFilter && endDateFilter) {
-            startDateFilter.addEventListener('change', applyDateFilter);
-            endDateFilter.addEventListener('change', applyDateFilter);
-        }
-
-        if (clearFilterBtn) {
-            clearFilterBtn.addEventListener('click', function() {
-                startDateFilter.value = ''; // Clear start date
-                endDateFilter.value = '';   // Clear end date
-                clearFilter();
-            });
-        }
-
-        // Helper function to preserve LaTeX during markdown conversion
-        function formatWithLatex(text) {
-            // Protect LaTeX expressions with unique tokens
-            const latexMap = new Map();
-            let counter = 0;
-
-            // Handle display math first ($$...$$)
-            text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
-                const token = `%%LATEX${counter}%%`;
-                latexMap.set(token, match);
-                counter++;
-                return token;
-            });
-
-            // Then handle inline math ($...$)
-            text = text.replace(/\$([^\$]*?)\$/g, (match, latex) => {
-                const token = `%%LATEX${counter}%%`;
-                latexMap.set(token, match);
-                counter++;
-                return token;
-            });
-
-            // Convert markdown
-            let html = converter.makeHtml(text);
-
-            // Restore LaTeX expressions
-            latexMap.forEach((latex, token) => {
-                html = html.replace(token, latex);
-            });
-
-            return html;
-        }
-
-        // Update the message rendering logic
-        document.querySelectorAll('.message-container').forEach(function(container) {
-            const contentDiv = container.querySelector('.history-content');
-            if (!contentDiv) return;
-
-            const rawContent = contentDiv.dataset.rawContent || contentDiv.textContent;
-            let newHtml = '';
-
-            if (container.querySelector('.assistant-sender')) {
-                // Handle bot messages with thoughts
-                const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
-                if (thinkRegex.test(rawContent)) {
-                    thinkRegex.lastIndex = 0;
-                    const thoughts = [];
-                    const mainContent = rawContent.replace(thinkRegex, (match, thoughtContent) => {
-                        thoughts.push(thoughtContent.trim());
-                        return '';
-                    }).trim();
-
-                    newHtml = formatWithLatex(mainContent);
-
-                    thoughts.forEach(thought => {
-                        if (thought) {
-                            newHtml += `<div class="thought"><strong>Thought Process</strong><div>${formatWithLatex(thought)}</div></div>`;
-                        }
-                    });
+                if (startMatch && endMatch) {
+                    thread.style.display = 'block';
                 } else {
-                    newHtml = formatWithLatex(rawContent);
-                }
-            } else if (container.querySelector('.user-sender')) {
-                // Handle user messages (including search results and file context)
-                const searchRegex = /^Based on the following web search results.*?\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
-                const fileContextRegex = /^Based on the content.*?\n\n---\n\nQUESTION:\n([\s\S]*)$/m;
-
-                let messageContent = rawContent;
-                const searchMatch = rawContent.match(searchRegex);
-                const fileMatch = rawContent.match(fileContextRegex);
-
-                if (searchMatch || fileMatch) {
-                    messageContent = (searchMatch || fileMatch)[1].trim();
-                }
-
-                newHtml = formatWithLatex(messageContent);
-            }
-
-            contentDiv.innerHTML = newHtml;
-
-            // Ensure MathJax processes this container
-            if (window.MathJax) {
-                MathJax.typesetPromise([contentDiv]).catch(err => {
-                    console.error('MathJax error:', err);
-                });
-            }
-        });
-
-        // Format file context messages
-        document.querySelectorAll('.file-context-content').forEach(function(contentDiv) {
-            const rawText = contentDiv.textContent;
-            const parts = rawText.split('\n\n--- CONTENT ---\n');
-            if (parts.length === 2) {
-                const filenameLine = parts[0];
-                const fileContent = parts[1];
-                contentDiv.innerHTML =
-                    `<strong>${filenameLine.replace('File uploaded: ', '')}</strong>` +
-                    `<pre><code>${escapeHtml(fileContent)}</code></pre>`;
-            }
-        });
-
-        // Format session start times to local time
-        document.querySelectorAll('.summary-main[data-timestamp]').forEach(function(summary) {
-            const timestamp = summary.getAttribute('data-timestamp');
-            const timeSpan = summary.querySelector('.session-start-time');
-            if (timestamp && timeSpan) {
-                const date = new Date(timestamp);
-                timeSpan.textContent = date.toLocaleString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-            }
-        });
-        // Format individual message times
-        document.querySelectorAll('.history-time').forEach(function(timeElement) {
-            const timestamp = timeElement.getAttribute('data-timestamp');
-            if (timestamp) {
-                const date = new Date(timestamp);
-                // Format to "HH:MM:SS AM/PM" in user's locale
-                timeElement.textContent = date.toLocaleTimeString(undefined, {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-            }
-        });
-
-        // Add event listeners for delete buttons
-        document.querySelectorAll('.delete-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const messageId = this.closest('.message-container').getAttribute('data-message-id');
-                if (messageId && !this.closest('.system-message-container')) { // Prevent deleting system messages
-                    deleteMessage(messageId);
+                    thread.style.display = 'none';
                 }
             });
+
+            // Hide all group headers when filtering
+            groupHeaders.forEach(header => header.style.display = 'none');
+
+        } else {
+            // If both dates are cleared, reset everything
+            clearFilter();
+        }
+    }
+
+    if (startDateFilter && endDateFilter) {
+        startDateFilter.addEventListener('change', applyDateFilter);
+        endDateFilter.addEventListener('change', applyDateFilter);
+    }
+
+    if (clearFilterBtn) {
+        clearFilterBtn.addEventListener('click', function() {
+            startDateFilter.value = ''; // Clear start date
+            endDateFilter.value = '';   // Clear end date
+            clearFilter();
+        });
+    }
+
+    // Helper function to preserve LaTeX during markdown conversion
+    function formatWithLatex(text) {
+        // Use the same enhanced LaTeX handling as in script.js
+        const latexMap = new Map();
+        let counter = 0;
+
+        // Handle display math first: \[...\] and $$...$$
+        text = text.replace(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/g, (match, latex1, latex2) => {
+            const latex = latex1 || latex2;
+            const token = `%%LATEX${counter}%%`;
+            latexMap.set(token, match);
+            counter++;
+            return token;
         });
 
-        // Add event listeners for thread delete buttons
-        document.querySelectorAll('.delete-thread-btn').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault(); // Prevent details from toggling
-                const sessionId = this.getAttribute('data-session');
-                deleteThread(sessionId);
-            });
+        // Handle inline math: \(...\) and $...$
+        text = text.replace(/\\\(([\s\S]*?)\\\)|\$([^\$\n]*?)\$/g, (match, latex1, latex2) => {
+            const latex = latex1 || latex2;
+            const token = `%%LATEX${counter}%%`;
+            latexMap.set(token, match);
+            counter++;
+            return token;
         });
 
-        // Add handler for Delete All Threads button
-        const deleteAllBtn = document.getElementById('delete-all-threads-btn');
-        if (deleteAllBtn) {
-            deleteAllBtn.addEventListener('click', async function(e) {
-                if (!confirm('Are you sure you want to delete ALL chat sessions? This cannot be undone.')) return;
+        // Special handling for square bracket notation [...]
+        text = text.replace(/\[((?:[^\[\]]|\[[^\[\]]*\])*)\]/g, (match, content) => {
+            if (content.includes('\\') || content.includes('_') || content.includes('^')) {
+                const token = `%%LATEX${counter}%%`;
+                latexMap.set(token, `\\[${content}\\]`);
+                counter++;
+                return token;
+            }
+            return match;
+        });
 
-                deleteAllBtn.disabled = true;
-                try {
-                    const response = await fetch('/delete_all_threads', {
-                        method: 'DELETE',
-                    });
+        // Convert markdown
+        let html = converter.makeHtml(text);
 
-                    const data = await response.json().catch(() => ({}));
-                    if (response.ok && data.success) {
-                        // Remove all thread elements
-                        document.querySelectorAll('.thread').forEach(thread => thread.remove());
+        // Restore LaTeX expressions
+        latexMap.forEach((latex, token) => {
+            html = html.replace(token, latex);
+        });
 
-                        // Show the "no chat history" card
-                        const pageContent = document.querySelector('main.page-content');
-                        if (pageContent) {
-                            pageContent.innerHTML = '';
-                            const card = document.createElement('div');
-                            card.className = 'card';
-                            card.innerHTML = '<p>No chat history found. Start a conversation to see your chat threads here.</p>';
-                            pageContent.appendChild(card);
-                        }
-                    } else {
-                        alert('Failed to delete all threads: ' + (data.error || 'Unknown error'));
+        return html;
+    }
+
+    // Update the message rendering logic
+    document.querySelectorAll('.message-container').forEach(function(container) {
+        const contentDiv = container.querySelector('.history-content');
+        if (!contentDiv) return;
+
+        const rawContent = contentDiv.dataset.rawContent || contentDiv.textContent;
+        let newHtml = '';
+
+        if (container.querySelector('.assistant-sender')) {
+            // Handle bot messages with thoughts
+            const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+            if (thinkRegex.test(rawContent)) {
+                thinkRegex.lastIndex = 0;
+                const thoughts = [];
+                const mainContent = rawContent.replace(thinkRegex, (match, thoughtContent) => {
+                    thoughts.push(thoughtContent.trim());
+                    return '';
+                }).trim();
+
+                newHtml = formatWithLatex(mainContent);
+
+                thoughts.forEach(thought => {
+                    if (thought) {
+                        newHtml += `<div class="thought"><strong>Thought Process</strong><div>${formatWithLatex(thought)}</div></div>`;
                     }
-                } catch (error) {
-                    console.error('Error deleting all threads:', error);
-                    alert('An error occurred while deleting all threads.');
-                } finally {
-                    deleteAllBtn.disabled = false;
-                }
+                });
+            } else {
+                newHtml = formatWithLatex(rawContent);
+            }
+        } else if (container.querySelector('.user-sender')) {
+            // Handle user messages (including search results and file context)
+            const searchRegex = /^Based on the following web search results.*?\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
+            const fileContextRegex = /^Based on the content.*?\n\n---\n\nQUESTION:\n([\s\S]*)$/m;
+
+            let messageContent = rawContent;
+            const searchMatch = rawContent.match(searchRegex);
+            const fileMatch = rawContent.match(fileContextRegex);
+
+            if (searchMatch || fileMatch) {
+                messageContent = (searchMatch || fileMatch)[1].trim();
+            }
+
+            newHtml = formatWithLatex(messageContent);
+        }
+
+        contentDiv.innerHTML = newHtml;
+
+        // Ensure MathJax processes this container
+        if (window.MathJax) {
+            MathJax.typesetPromise([contentDiv]).catch(err => {
+                console.error('MathJax error:', err);
             });
         }
     });
 
-    async function deleteMessage(messageId) {
-        if (!confirm('Are you sure you want to delete this message?')) {
-            return;
+    // Format file context messages
+    document.querySelectorAll('.file-context-content').forEach(function(contentDiv) {
+        const rawText = contentDiv.textContent;
+        const parts = rawText.split('\n\n--- CONTENT ---\n');
+        if (parts.length === 2) {
+            const filenameLine = parts[0];
+            const fileContent = parts[1];
+            contentDiv.innerHTML =
+                `<strong>${filenameLine.replace('File uploaded: ', '')}</strong>` +
+                `<pre><code>${escapeHtml(fileContent)}</code></pre>`;
         }
+    });
 
-        try {
-            const response = await fetch(`/delete_message/${messageId}`, {
-                method: 'DELETE',
+    // Format session start times to local time
+    document.querySelectorAll('.summary-main[data-timestamp]').forEach(function(summary) {
+        const timestamp = summary.getAttribute('data-timestamp');
+        const timeSpan = summary.querySelector('.session-start-time');
+        if (timestamp && timeSpan) {
+            const date = new Date(timestamp);
+            timeSpan.textContent = date.toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit'
             });
-
-            if (response.ok) {
-                const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-                if (messageElement) {
-                    messageElement.remove();
-                }
-            } else {
-                alert('Failed to delete message');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error deleting message');
         }
-    }
-
-    async function deleteThread(sessionId) {
-        if (!confirm(`Are you sure you want to delete this entire chat session (${sessionId})? This action cannot be undone.`)) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`/delete_thread/${sessionId}`, {
-                method: 'DELETE',
+    });
+    // Format individual message times
+    document.querySelectorAll('.history-time').forEach(function(timeElement) {
+        const timestamp = timeElement.getAttribute('data-timestamp');
+        if (timestamp) {
+            const date = new Date(timestamp);
+            // Format to "HH:MM:SS AM/PM" in user's locale
+            timeElement.textContent = date.toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
             });
+        }
+    });
 
-            const data = await response.json();
-            if (response.ok && data.success) {
-                // Find the <details> element for the thread and remove it
-                const threadElement = document.querySelector(`button[data-session="${sessionId}"]`).closest('.thread');
-                if (threadElement) {
-                    threadElement.remove();
-                }
-            } else {
-                alert('Failed to delete thread: ' + (data.error || 'Unknown error'));
+    // Add event listeners for delete buttons
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const messageId = this.closest('.message-container').getAttribute('data-message-id');
+            if (messageId && !this.closest('.system-message-container')) { // Prevent deleting system messages
+                deleteMessage(messageId);
             }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('An error occurred while deleting the thread.');
-        }
+        });
+    });
+
+    // Add event listeners for thread delete buttons
+    document.querySelectorAll('.delete-thread-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault(); // Prevent details from toggling
+            const sessionId = this.getAttribute('data-session');
+            deleteThread(sessionId);
+        });
+    });
+
+    // Add handler for Delete All Threads button
+    const deleteAllBtn = document.getElementById('delete-all-threads-btn');
+    if (deleteAllBtn) {
+        deleteAllBtn.addEventListener('click', async function(e) {
+            if (!confirm('Are you sure you want to delete ALL chat sessions? This cannot be undone.')) return;
+
+            deleteAllBtn.disabled = true;
+            try {
+                const response = await fetch('/delete_all_threads', {
+                    method: 'DELETE',
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (response.ok && data.success) {
+                    // Remove all thread elements
+                    document.querySelectorAll('.thread').forEach(thread => thread.remove());
+
+                    // Show the "no chat history" card
+                    const pageContent = document.querySelector('main.page-content');
+                    if (pageContent) {
+                        pageContent.innerHTML = '';
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        card.innerHTML = '<p>No chat history found. Start a conversation to see your chat threads here.</p>';
+                        pageContent.appendChild(card);
+                    }
+                } else {
+                    alert('Failed to delete all threads: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error deleting all threads:', error);
+                alert('An error occurred while deleting all threads.');
+            } finally {
+                deleteAllBtn.disabled = false;
+            }
+        });
+    }
+});
+
+async function deleteMessage(messageId) {
+    if (!confirm('Are you sure you want to delete this message?')) {
+        return;
     }
 
-    function clearFilter() {
-        // This logic remains the same
-        document.getElementById('clear-filter-btn').style.display = 'none';
-        document.querySelectorAll('.thread').forEach(thread => thread.style.display = 'block');
-        document.querySelectorAll('.history-group-header').forEach(header => header.style.display = 'block');
-        const paginationContainer = document.querySelector('.pagination-container');
-        if (paginationContainer) {
-            paginationContainer.style.display = 'block';
+    try {
+        const response = await fetch(`/delete_message/${messageId}`, {
+            method: 'DELETE',
+        });
+
+        if (response.ok) {
+            const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+            if (messageElement) {
+                messageElement.remove();
+            }
+        } else {
+            alert('Failed to delete message');
         }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting message');
+    }
+}
+
+async function deleteThread(sessionId) {
+    if (!confirm(`Are you sure you want to delete this entire chat session (${sessionId})? This action cannot be undone.`)) {
+        return;
     }
 
-    function escapeHtml(unsafe) {
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+    try {
+        const response = await fetch(`/delete_thread/${sessionId}`, {
+            method: 'DELETE',
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            // Find the <details> element for the thread and remove it
+            const threadElement = document.querySelector(`button[data-session="${sessionId}"]`).closest('.thread');
+            if (threadElement) {
+                threadElement.remove();
+            }
+        } else {
+            alert('Failed to delete thread: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while deleting the thread.');
     }
-    </script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+}
+
+function clearFilter() {
+    // This logic remains the same
+    document.getElementById('clear-filter-btn').style.display = 'none';
+    document.querySelectorAll('.thread').forEach(thread => thread.style.display = 'block');
+    document.querySelectorAll('.history-group-header').forEach(header => header.style.display = 'block');
+    const paginationContainer = document.querySelector('.pagination-container');
+    if (paginationContainer) {
+        paginationContainer.style.display = 'block';
+    }
+}
+
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+</script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 {% endblock %}
