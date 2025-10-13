@@ -811,8 +811,35 @@ code {
 pre {
     padding: 1em;
     margin: 0.5em 0;
+    position: relative; /* Required for positioning the copy button */
     border: 1px solid var(--border);
     overflow-x: auto;
+}
+/* New: Copy button for code blocks */
+pre .copy-code-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--theme-toggle-text);
+    padding: 4px 8px;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s ease-in-out;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+pre:hover .copy-code-btn {
+    opacity: 1; /* Show on hover */
+}
+
+pre .copy-code-btn:hover {
+    background: var(--message-assistant);
 }
 
 pre code {
@@ -1200,97 +1227,4 @@ thead th {
     margin-bottom: 0.25rem;
     padding: 0 1rem; /* Align with history-item padding */
     text-transform: uppercase;
-}
-
-/* ---  Pagination Overrides --- */
-.pagination .page-link {
-    position: relative;
-    display: block;
-    padding: 0.5rem 0.75rem;
-    color: var(--primary);
-    border: 1px solid var(--border);
-    background-color: var(--background);
-}
-
-.pagination .page-link:hover {
-    color: var(--text);
-    background-color: var(--message-assistant);
-    border-color: var(--border);
-}
-
-.pagination .page-item.active .page-link {
-    background-color: var(--primary);
-    border-color: var(--primary);
-    color: white;
-}
-
-.pagination .page-item.disabled .page-link {
-    color: var(--theme-toggle-text);
-    background-color: var(--background);
-    border-color: var(--border);
-}
-
-/* Ensure icons inside page links use the correct color */
-.pagination .page-link .material-icons {
-    color: inherit;
-}
-
-/* --- Bootstrap Utility Classes for Pagination --- */
-.d-flex {
-    display: flex !important;
-}
-
-.justify-content-center {
-    justify-content: center !important;
-}
-
-/* --- Bootstrap Pagination Core Layout --- */
-.pagination {
-    display: flex;
-    padding-left: 0;
-    list-style: none;
-}
-
-.page-item:not(:first-child) .page-link {
-    margin-left: -1px;
-}
-
-.page-item:first-child .page-link {
-    border-top-left-radius: var(--radius-sm);
-    border-bottom-left-radius: var(--radius-sm);
-}
-
-.page-item:last-child .page-link {
-    border-top-right-radius: var(--radius-sm);
-    border-bottom-right-radius: var(--radius-sm);
-}
-
-/* --- Bootstrap Pagination Overrides --- */
-.pagination .page-link {
-    color: var(--primary);
-    border-color: var(--border);
-    background-color: var(--background);
-}
-
-.pagination .page-link:hover {
-    color: var(--text);
-    background-color: var(--message-assistant);
-    border-color: var(--border);
-}
-
-.pagination .page-item.active .page-link {
-    background-color: var(--primary);
-    border-color: var(--primary);
-    color: white;
-}
-
-.pagination .page-item.disabled .page-link {
-    color: var(--theme-toggle-text);
-    background-color: var(--background);
-    border-color: var(--border);
-}
-
-/* Ensure icons inside page links use the correct color */
-.pagination .page-link .material-icons {
-    color: inherit;
 }

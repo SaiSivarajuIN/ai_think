@@ -36,7 +36,40 @@
     };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
-    
+    <!-- highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Add styles for LaTeX rendering -->
+    <style>
+        .mjx-chtml {
+            display: inline-block;
+            line-height: 0;
+            text-indent: 0;
+            text-align: left;
+            font-style: normal;
+            font-weight: normal;
+            font-size: 100%;
+            letter-spacing: normal;
+            word-wrap: normal;
+            word-spacing: normal;
+            white-space: nowrap;
+            direction: ltr;
+            padding: 1px 0;
+            margin: 0;
+            vertical-align: middle;
+        }
+        
+        mjx-container[display="true"] {
+            display: block;
+            margin: 1em 0;
+            text-align: center;
+        }
+        
+        .bot-message .mjx-chtml {
+            font-size: 110%;
+        }
+    </style>
 {% endblock %}
 
 
@@ -121,49 +154,22 @@
         </div>
     {% endif %}
 
-    {% if pagination and pagination.total_pages > 1 %}
-    <div class="pagination-container" style="margin-top: 2.5rem;">
-        <div class="d-flex justify-content-center mb-2">
-            <span class="text-muted">
-                Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} - {{ [pagination.page * pagination.per_page, pagination.total_threads]|min }} of {{ pagination.total_threads }} threads
-            </span>
-        </div>
-
-        <nav aria-label="Chat history pagination" class="d-flex justify-content-center">
-            <ul class="pagination">
-            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('history', page=pagination.prev_num) }}" aria-label="Previous">
-                    <span class="material-icons" style="font-size: 1.2rem; vertical-align: middle;">chevron_left</span>
-                </a>
-            </li>
-
-            {% for page_num in range(1, pagination.total_pages + 1) %}
-                {% if page_num %}
-                    {% if pagination.page == page_num %}
-                        <li class="page-item active" aria-current="page">
-                            <span class="page-link">{{ page_num }}</span>
-                        </li>
-                    {% else %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('history', page=page_num) }}">{{ page_num }}</a>
-                        </li>
-                    {% endif %}
-                {% endif %}
-            {% endfor %}
-            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('history', page=pagination.next_num) }}" aria-label="Next">
-                    <span class="material-icons" style="font-size: 1.2rem; vertical-align: middle;">chevron_right</span>
-                </a>
-            </li>
-            </ul>
-        </nav>
-    </div>
-    {% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+function initializeHistoryPage() {
+    function clearFilter() {
+        // This logic remains the same
+        document.getElementById('clear-filter-btn').style.display = 'none';
+        document.querySelectorAll('.thread').forEach(thread => thread.style.display = 'block');
+        document.querySelectorAll('.history-group-header').forEach(header => header.style.display = 'block');
+        const paginationContainer = document.querySelector('.pagination-container');
+        if (paginationContainer) {
+            paginationContainer.style.display = 'block';
+        }
+    }
+
     const converter = new showdown.Converter({
         simplifiedAutoLink: true,
         strikethrough: true,
@@ -176,6 +182,28 @@ document.addEventListener('DOMContentLoaded', function() {
         sanitize: true // Prevent interpretation of raw HTML in Markdown
     });
 
+    function applyDateFilter() {
+        const startDate = document.getElementById('start-date-filter').value; // YYYY-MM-DD
+        const endDate = document.getElementById('end-date-filter').value;
+        const threads = document.querySelectorAll('.thread');
+        const groupHeaders = document.querySelectorAll('.history-group-header');
+        const paginationContainer = document.querySelector('.pagination-container');
+
+        document.getElementById('clear-filter-btn').style.display = (startDate || endDate) ? 'inline-flex' : 'none';
+        if (paginationContainer) paginationContainer.style.display = (startDate || endDate) ? 'none' : 'block';
+
+        threads.forEach(thread => {
+            const summary = thread.querySelector('.summary-main');
+            const timestamp = summary.getAttribute('data-timestamp');
+            const threadDate = new Date(timestamp).toISOString().split('T')[0];
+
+            const startMatch = !startDate || threadDate >= startDate;
+            const endMatch = !endDate || threadDate <= endDate;
+            thread.style.display = (startMatch && endMatch) ? 'block' : 'none';
+        });
+        groupHeaders.forEach(header => header.style.display = (startDate || endDate) ? 'none' : 'block');
+    }
+
     // --- Date Filter Logic ---
     const startDateFilter = document.getElementById('start-date-filter');
     const endDateFilter = document.getElementById('end-date-filter');
@@ -183,39 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const threads = document.querySelectorAll('.thread');
     const groupHeaders = document.querySelectorAll('.history-group-header');
     const paginationContainer = document.querySelector('.pagination-container');
-
-    function applyDateFilter() {
-        const startDate = startDateFilter.value; // YYYY-MM-DD
-        const endDate = endDateFilter.value;
-
-        if (startDate || endDate) {
-            clearFilterBtn.style.display = 'inline-flex';
-            if (paginationContainer) paginationContainer.style.display = 'none';
-
-            threads.forEach(thread => {
-                const summary = thread.querySelector('.summary-main');
-                const timestamp = summary.getAttribute('data-timestamp');
-                const threadDate = new Date(timestamp).toISOString().split('T')[0];
-
-                const startMatch = !startDate || threadDate >= startDate;
-                const endMatch = !endDate || threadDate <= endDate;
-
-                if (startMatch && endMatch) {
-                    thread.style.display = 'block';
-                } else {
-                    thread.style.display = 'none';
-                }
-            });
-
-            // Hide all group headers when filtering
-            groupHeaders.forEach(header => header.style.display = 'none');
-
-        } else {
-            // If both dates are cleared, reset everything
-            clearFilter();
-        }
-    }
-
+    
     if (startDateFilter && endDateFilter) {
         startDateFilter.addEventListener('change', applyDateFilter);
         endDateFilter.addEventListener('change', applyDateFilter);
@@ -264,6 +260,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return match;
         });
 
+        // Special handling for parenthesis notation (...)
+        text = text.replace(/\(((?:[^\(\)]|\([^\(\)]*\))*)\)/g, (match, content) => {
+            if (content.includes('\\') || content.includes('_') || content.includes('^')) {
+                const token = `%%LATEX${counter}%%`;
+                latexMap.set(token, `\\(${content}\\)`);
+                counter++;
+                return token;
+            }
+            return match;
+        });
+
         // Convert markdown
         let html = converter.makeHtml(text);
 
@@ -275,71 +282,115 @@ document.addEventListener('DOMContentLoaded', function() {
         return html;
     }
 
+    // --- New: Add Copy Buttons to Code Blocks ---
+    function addCopyButtonsToCodeBlocks(container) {
+        const codeBlocks = container.querySelectorAll('pre code');
+        codeBlocks.forEach(block => {
+            const pre = block.parentElement;
+            // Prevent adding duplicate buttons
+            if (pre.querySelector('.copy-code-btn')) {
+                return;
+            }
+
+            const copyButton = document.createElement('button');
+            copyButton.className = 'copy-code-btn';
+            copyButton.innerHTML = '<span class="material-icons" style="font-size: 16px;">content_copy</span> Copy';
+            copyButton.title = 'Copy code';
+
+            copyButton.addEventListener('click', () => {
+                navigator.clipboard.writeText(block.textContent).then(() => {
+                    copyButton.innerHTML = '<span class="material-icons" style="font-size: 16px;">done</span> Copied!';
+                    setTimeout(() => {
+                        copyButton.innerHTML = '<span class="material-icons" style="font-size: 16px;">content_copy</span> Copy';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy code:', err);
+                    copyButton.textContent = 'Error';
+                    setTimeout(() => {
+                        copyButton.innerHTML = '<span class="material-icons" style="font-size: 16px;">content_copy</span> Copy';
+                    }, 2000);
+                });
+            });
+
+            pre.appendChild(copyButton);
+        });
+    }
+
     // Update the message rendering logic
-    document.querySelectorAll('.message-container').forEach(function(container) {
+    document.querySelectorAll('.message-container, .system-message-container').forEach(function(container) {
         const contentDiv = container.querySelector('.history-content');
         if (!contentDiv) return;
 
         const rawContent = contentDiv.dataset.rawContent || contentDiv.textContent;
         let newHtml = '';
 
-        if (container.querySelector('.assistant-sender')) {
-            // Handle bot messages with thoughts
-            const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
-            if (thinkRegex.test(rawContent)) {
-                thinkRegex.lastIndex = 0;
-                const thoughts = [];
-                const mainContent = rawContent.replace(thinkRegex, (match, thoughtContent) => {
-                    thoughts.push(thoughtContent.trim());
-                    return '';
-                }).trim();
-
-                newHtml = formatWithLatex(mainContent);
-
-                thoughts.forEach(thought => {
-                    if (thought) {
-                        newHtml += `<div class="thought"><strong>Thought Process</strong><div>${formatWithLatex(thought)}</div></div>`;
-                    }
-                });
+        if (container.classList.contains('system-message-container')) {
+            // This is a file upload message
+            const parts = rawContent.split('\n\n--- CONTENT ---\n');
+            if (parts.length === 2) {
+                const filenameLine = parts[0];
+                const fileContent = parts[1];
+                newHtml =
+                    `<strong>${filenameLine.replace('File uploaded: ', '')}</strong>` +
+                    `<pre><code>${escapeHtml(fileContent)}</code></pre>`;
             } else {
-                newHtml = formatWithLatex(rawContent);
+                newHtml = `<pre><code>${escapeHtml(rawContent)}</code></pre>`;
             }
-        } else if (container.querySelector('.user-sender')) {
-            // Handle user messages (including search results and file context)
-            const searchRegex = /^Based on the following web search results.*?\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
-            const fileContextRegex = /^Based on the content.*?\n\n---\n\nQUESTION:\n([\s\S]*)$/m;
+        } else {
+             if (container.querySelector('.assistant-sender')) {
+                // Handle bot messages with thoughts
+                const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+                if (thinkRegex.test(rawContent)) {
+                    thinkRegex.lastIndex = 0; // Reset regex index
+                    const thoughts = [];
+                    const mainContent = rawContent.replace(thinkRegex, (match, thoughtContent) => {
+                        thoughts.push(thoughtContent.trim());
+                        return '';
+                    }).trim();
 
-            let messageContent = rawContent;
-            const searchMatch = rawContent.match(searchRegex);
-            const fileMatch = rawContent.match(fileContextRegex);
+                    newHtml = formatWithLatex(mainContent);
 
-            if (searchMatch || fileMatch) {
-                messageContent = (searchMatch || fileMatch)[1].trim();
+                    thoughts.forEach(thought => {
+                        if (thought) {
+                            newHtml += `<div class="thought"><strong>Thought Process</strong><div>${formatWithLatex(thought)}</div></div>`;
+                        }
+                    });
+                } else {
+                    newHtml = formatWithLatex(rawContent);
+                }
+            } else { // This handles user messages
+                const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
+                const searchMatch = rawContent.match(searchRegex);
+
+                if (searchMatch) {
+                    const searchResults = searchMatch[1].trim();
+                    const userQuestion = searchMatch[2].trim();
+
+                    // Format search results like the "Thought Process" block
+                    const searchResultsHtml = `<div class="thought"><strong>Web Search Results</strong><div>${formatWithLatex(searchResults)}</div></div>`;
+                    const userQuestionHtml = formatWithLatex(userQuestion);
+                    newHtml = searchResultsHtml + userQuestionHtml;
+                } else {
+                    newHtml = formatWithLatex(rawContent);
+                }
             }
-
-            newHtml = formatWithLatex(messageContent);
         }
 
         contentDiv.innerHTML = newHtml;
 
         // Ensure MathJax processes this container
         if (window.MathJax) {
-            MathJax.typesetPromise([contentDiv]).catch(err => {
+            MathJax.typesetPromise([contentDiv]).catch(err => { // Added promise for MathJax
                 console.error('MathJax error:', err);
             });
         }
-    });
 
-    // Format file context messages
-    document.querySelectorAll('.file-context-content').forEach(function(contentDiv) {
-        const rawText = contentDiv.textContent;
-        const parts = rawText.split('\n\n--- CONTENT ---\n');
-        if (parts.length === 2) {
-            const filenameLine = parts[0];
-            const fileContent = parts[1];
-            contentDiv.innerHTML =
-                `<strong>${filenameLine.replace('File uploaded: ', '')}</strong>` +
-                `<pre><code>${escapeHtml(fileContent)}</code></pre>`;
+        // Apply syntax highlighting
+        if (window.hljs) {
+            contentDiv.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            addCopyButtonsToCodeBlocks(contentDiv); // Add copy buttons
         }
     });
 
@@ -354,11 +405,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 day: 'numeric',
                 year: 'numeric',
                 hour: 'numeric',
-                minute: '2-digit',
-                second: '2-digit'
+                minute: '2-digit'
             });
         }
     });
+
     // Format individual message times
     document.querySelectorAll('.history-time').forEach(function(timeElement) {
         const timestamp = timeElement.getAttribute('data-timestamp');
@@ -429,7 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-});
+};
 
 async function deleteMessage(messageId) {
     if (!confirm('Are you sure you want to delete this message?')) {
@@ -481,17 +532,6 @@ async function deleteThread(sessionId) {
     }
 }
 
-function clearFilter() {
-    // This logic remains the same
-    document.getElementById('clear-filter-btn').style.display = 'none';
-    document.querySelectorAll('.thread').forEach(thread => thread.style.display = 'block');
-    document.querySelectorAll('.history-group-header').forEach(header => header.style.display = 'block');
-    const paginationContainer = document.querySelector('.pagination-container');
-    if (paginationContainer) {
-        paginationContainer.style.display = 'block';
-    }
-}
-
 function escapeHtml(unsafe) {
     return unsafe
         .replace(/&/g, "&amp;")
@@ -500,6 +540,18 @@ function escapeHtml(unsafe) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // The main initialization logic needs to wait for MathJax to be fully ready,
+    // as it's loaded asynchronously. We can use the pageReady promise for this.
+    if (window.MathJax && window.MathJax.startup) {
+        MathJax.startup.promise.then(() => {
+            console.log('MathJax is ready, initializing page styles.');
+            initializeHistoryPage();
+        });
+    }
+});
 </script>
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 {% endblock %}

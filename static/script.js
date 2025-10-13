@@ -103,6 +103,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return match;
         });
 
+        // Special handling for parenthesis notation (...)
+        text = text.replace(/\(((?:[^\(\)]|\([^\(\)]*\))*)\)/g, (match, content) => {
+            if (content.includes('\\') || content.includes('_') || content.includes('^')) {
+                const token = `%%LATEX${counter}%%`;
+                latexMap.set(token, `\\(${content}\\)`);
+                counter++;
+                return token;
+            }
+            return match;
+        });
+
         // Convert markdown
         let html = converter.makeHtml(text);
 
@@ -112,6 +123,40 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         return html;
+    }
+
+    // --- New: Add Copy Buttons to Code Blocks ---
+    function addCopyButtonsToCodeBlocks(container) {
+        const codeBlocks = container.querySelectorAll('pre code');
+        codeBlocks.forEach(block => {
+            const pre = block.parentElement;
+            // Prevent adding duplicate buttons
+            if (pre.querySelector('.copy-code-btn')) {
+                return;
+            }
+
+            const copyButton = document.createElement('button');
+            copyButton.className = 'copy-code-btn';
+            copyButton.innerHTML = '<span class="material-icons" style="font-size: 16px;">content_copy</span> Copy';
+            copyButton.title = 'Copy code';
+
+            copyButton.addEventListener('click', () => {
+                navigator.clipboard.writeText(block.textContent).then(() => {
+                    copyButton.innerHTML = '<span class="material-icons" style="font-size: 16px;">done</span> Copied!';
+                    setTimeout(() => {
+                        copyButton.innerHTML = '<span class="material-icons" style="font-size: 16px;">content_copy</span> Copy';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy code:', err);
+                    copyButton.textContent = 'Error';
+                    setTimeout(() => {
+                        copyButton.innerHTML = '<span class="material-icons" style="font-size: 16px;">content_copy</span> Copy';
+                    }, 2000);
+                });
+            });
+
+            pre.appendChild(copyButton);
+        });
     }
 
     // If the model selector exists on the page (i.e., on index.html),
@@ -185,11 +230,45 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     // Add message to chat
-    function addMessage(content, isUser = false, messageId = null) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+    function addMessage(content, sender = 'bot', messageId = null) {
+        const isUser = sender === 'user';
+        const isSystem = sender === 'system';
+        let messageContainer;
+
+        if (isSystem) {
+            messageContainer = document.createElement('details');
+            messageContainer.className = 'message-container system-message-container';
+            messageContainer.open = false; // Start collapsed
+
+            const summary = document.createElement('summary');
+            summary.innerHTML = `
+                <div class="history-meta" style="cursor: pointer;">
+                    <span class="history-sender system-sender">
+                        <span class="material-icons">description</span> File Uploaded
+                    </span>
+                </div>
+            `;
+            messageContainer.appendChild(summary);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'history-content file-context-content';
+            const parts = content.split('\n\n--- CONTENT ---\n');
+            if (parts.length === 2) {
+                const filenameLine = parts[0];
+                const fileContent = parts[1];
+                contentDiv.innerHTML = `<strong>${filenameLine.replace('File uploaded: ', '')}</strong><pre><code>${escapeHtml(fileContent)}</code></pre>`;
+            } else {
+                contentDiv.innerHTML = `<pre><code>${escapeHtml(content)}</code></pre>`;
+            }
+            messageContainer.appendChild(contentDiv);
+
+        } else {
+            messageContainer = document.createElement('div');
+            messageContainer.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+        }
+
         if (messageId) {
-            messageDiv.id = messageId;
+            messageContainer.id = messageId;
         }
 
         if (isUser) {
@@ -219,36 +298,44 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const formattedContent = formatMessage(escapeHtml(displayContent));
-            messageDiv.innerHTML = formattedContent;
+            messageContainer.innerHTML = formattedContent;
             // Store the full raw content (with search results) for copy/regen
-            messageDiv.dataset.rawContent = rawContentForCopy;
+            messageContainer.dataset.rawContent = rawContentForCopy;
 
             // Add a footer with just a copy button for user messages
             const footer = document.createElement('div');
             // footer.className = 'message-footer';
             footer.innerHTML = `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
-            messageDiv.appendChild(footer);
-        } else {
+            messageContainer.appendChild(footer);
+        } else if (!isSystem) { // It's a bot message
             // For bot messages, handle LaTeX before removing think blocks
             const cleanedContent = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-            messageDiv.innerHTML = formatMessage(cleanedContent);
-            messageDiv.dataset.rawContent = content;
+            messageContainer.innerHTML = formatMessage(cleanedContent);
+            messageContainer.dataset.rawContent = content;
         }
 
-        chatbox.appendChild(messageDiv);
+        chatbox.appendChild(messageContainer);
         chatbox.scrollTop = chatbox.scrollHeight;
 
         // Trigger MathJax rendering with proper timing
-        if (window.MathJax) {
+        if (window.MathJax && !isSystem) { // No need to typeset the file content block
             // Use setTimeout to ensure content is in DOM
             setTimeout(() => {
-                MathJax.typesetPromise([messageDiv]).catch(err => {
+                MathJax.typesetPromise([messageContainer]).catch(err => {
                     console.error('MathJax error:', err);
                 });
             }, 0);
         }
 
-        return messageDiv;
+        // Apply syntax highlighting
+        if (window.hljs) {
+            messageContainer.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            addCopyButtonsToCodeBlocks(messageContainer); // Add copy buttons
+        }
+
+        return messageContainer;
     }
 
     // Add message footer with stats and actions
@@ -317,6 +404,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
+        // Apply syntax highlighting to the updated message
+        if (window.hljs) {
+            thinkingElement.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            addCopyButtonsToCodeBlocks(thinkingElement); // Add copy buttons
+        }
+
         addMessageFooter(thinkingElement, usage, generationTime);
         thinkingMessageId = null; // Clear the ID as we've used the placeholder
 
@@ -327,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show thinking indicator
     function showThinking() {
         thinkingMessageId = 'thinking-' + Date.now();
-        const thinkingDiv = addMessage('🤔 Thinking...', false, thinkingMessageId);
+        const thinkingDiv = addMessage('🤔 Thinking...', 'bot', thinkingMessageId);
         thinkingDiv.classList.add('thinking');
     }
 
@@ -360,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleSendStopButton(true);
 
         // Add user message to chat
-        const userMessageDiv = addMessage(message, true);
+        const userMessageDiv = addMessage(message, 'user');
         
         // Clear input
         userInput.value = '';
@@ -407,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 removeThinking();
                 console.error('Error:', error);
-                addMessage(`❌ Error: ${error.message}`, false);
+                addMessage(`❌ Error: ${error.message}`, 'bot');
             }
         } finally {
             // Re-enable input
@@ -433,7 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileContextActive = false;
                 chatbox.innerHTML = '';
                 if (!isIncognito) {
-                    addMessage('🆕 New conversation started!', false);
+                    addMessage('🆕 New conversation started!', 'bot');
                     // Reset URL to the base path only if not in incognito
                     window.history.pushState({}, '', '/');
                 }
@@ -445,7 +540,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Also reset URL to the base path
             window.history.pushState({}, '', '/');
             console.error('Error resetting thread:', error);
-            addMessage('❌ Error starting new conversation', false);
+            addMessage('❌ Error starting new conversation', 'bot');
         }
     }
 
@@ -552,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (sessionId) {
             // A session ID is in the URL, try to load its history
-            addMessage(`🔄 Loading chat session: ${escapeHTML(sessionId)}...`, false);
+            addMessage(`🔄 Loading chat session: ${escapeHTML(sessionId)}...`, 'bot');
             try {
                 const response = await fetch(`/api/session/${sessionId}`);
                 if (!response.ok) {
@@ -567,24 +662,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Populate conversation history and UI
                 conversationHistory = history;
                 history.forEach(msg => {
-                    if (msg.role === 'user') {
-                        addMessage(msg.content, true);
-                    } else if (msg.role === 'assistant') {
-                        const botMsgDiv = addMessage(msg.content, false);
+                    if (msg.role === 'assistant') {
+                        const botMsgDiv = addMessage(msg.content, 'assistant');
                         // The addMessage function now handles setting the raw content,
                         // but we call it again here to be explicit and safe.
                         botMsgDiv.dataset.rawContent = msg.content;
                         addMessageFooter(botMsgDiv, null, null); // Add footer with copy/regen
+                    } else { // Handles 'user' and 'system' roles
+                        addMessage(msg.content, msg.role);
                     }
-                    // System messages (like file uploads) are in history but not always shown initially.
-                    // You could add logic here to display them if needed.
                 });
 
             } catch (error) {
                 console.error('Failed to load session:', error);
                 chatbox.innerHTML = ''; // Clear loading message
-                addMessage(`❌ Could not load session: ${error.message}`, false);
-                addMessage('Starting a new conversation instead.', false);
+                addMessage(`❌ Could not load session: ${error.message}`, 'bot');
+                addMessage('Starting a new conversation instead.', 'bot');
             }
         } else {
             // No session ID, start a fresh chat
@@ -719,7 +812,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('file', file);
 
             // Show a temporary "uploading" message
-            const uploadingMsg = addMessage(`Uploading "${file.name}"...`, false);
+            const uploadingMsg = addMessage(`Uploading "${file.name}"...`, 'bot');
             uploadingMsg.classList.add('thinking');
 
             try {
@@ -735,14 +828,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok && data.success) {
                     // Notify user in the chatbox
-                    addMessage(`✅ **${data.message}**`, false);
+                    addMessage(`✅ **${data.message}**`, 'bot');
                     fileContextActive = true;
                 } else {
                     throw new Error(data.error || 'File upload failed.');
                 }
             } catch (error) {
                 uploadingMsg.remove();
-                addMessage(`❌ Error: ${error.message}`, false);
+                addMessage(`❌ Error: ${error.message}`, 'bot');
             }
             // Reset file input to allow uploading the same file again
             event.target.value = '';
@@ -1050,6 +1143,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Create a temporary div to parse the rendered content
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = renderedContent;
+
+                // Remove the "Copy" button from code blocks before exporting
+                tempDiv.querySelectorAll('.copy-code-btn').forEach(btn => btn.remove());
 
                 // Replace web-specific thought/search divs with DOC-specific styled elements
                 tempDiv.querySelectorAll('.thought').forEach(thoughtDiv => {

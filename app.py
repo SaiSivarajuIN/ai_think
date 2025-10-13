@@ -1119,10 +1119,6 @@ def get_sessions():
 
 @app.route('/history')
 def history():
-    page = request.args.get('page', 1, type=int)
-    per_page = 10
-    offset = (page - 1) * per_page
-
     threads = defaultdict(list)
     session_start = {}
     utc_tz = ZoneInfo("UTC")
@@ -1203,18 +1199,6 @@ def history():
         else:
             group_key = str(thread_date.year) # e.g., "2024"
 
-        grouped_threads[group_key].append((session_id, messages))
-
-    # Flatten the grouped threads for pagination
-    all_threads_flat = [(group, thread) for group, threads_in_group in grouped_threads.items() for thread in threads_in_group]
-    
-    total_threads = len(all_threads_flat)
-    paginated_items = all_threads_flat[offset:offset + per_page]
-    total_pages = (total_threads + per_page - 1) // per_page
-
-    # Re-group the paginated items to preserve group headers
-    paginated_grouped_threads = defaultdict(list)
-    for i, (group, (session_id, messages)) in enumerate(paginated_items):
         # Find the first user message to use as a title/summary
         first_user_message = next((m['content'] for m in messages if m['sender'] == 'user'), 'Chat Session')
         summary_text = (first_user_message[:32] + '...') if len(first_user_message) > 75 else first_user_message
@@ -1222,29 +1206,18 @@ def history():
         thread_data = {
             'session_id': session_id,
             'messages': messages,
-            'serial_number': total_threads - (offset + i), # Maintain overall serial number
+            'serial_number': len(sorted_threads) - sorted_threads.index((session_id, messages)),
             'summary': summary_text
         }
-        paginated_grouped_threads[group].append(thread_data)
+        grouped_threads[group_key].append(thread_data)
 
-    pagination = {
-        'page': page,
-        'per_page': per_page,
-        'total_pages': total_pages,
-        'total_threads': total_threads,
-        'has_prev': page > 1,
-        'has_next': page < total_pages,
-        'prev_num': page - 1,
-        'next_num': page + 1
-    }
     return render_template(
         'history.html',
         page_title="Chat History | AI Think Chat",
         page_id="history",
         header_title="📚 Chat History",
-        grouped_threads=paginated_grouped_threads.items(),
+        grouped_threads=grouped_threads.items(),
         session_start=session_start,
-        pagination=pagination,
         newest_session_id=newest_session_id
     )
 
