@@ -29,6 +29,41 @@
     };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <!-- highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <style>
+        /* Styles for the file upload message, copied from history.html context */
+        .system-message-container {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .system-message-container summary {
+            cursor: pointer;
+        }
+        .history-sender.system-sender {
+            color: #64748b;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .file-context-content {
+            background: var(--background);
+            border-top: 1px solid var(--border);
+            padding-top: 1rem;
+            margin-top: 0.75rem;
+        }
+        .file-context-content strong {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+    </style>
 {% endblock %}
 
 {% block header_nav %}
