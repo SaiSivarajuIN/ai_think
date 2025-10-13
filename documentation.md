@@ -271,10 +271,7 @@ The chat history page has been improved for better usability and correctness.
 
 ### 3.10. Stability and Error Handling
 
-- **Pagination**: The history page now supports pagination, displaying 10 chat threads per page.
-    - **Navigation**: Bootstrap-styled pagination controls with icons are provided at the bottom of the history page for easy navigation.
-    - **Information**: The pagination component also displays the total number of threads and the range of threads currently being shown (e.g., "Showing 1-10 of 25 threads").
-    - **Grouping**: Chat sessions are organized by date into collapsible groups like "Today," "Yesterday," "Previous 7 Days," "This Month," and then by previous months and years.
+- **Grouping**: Chat sessions are organized by date into collapsible groups like "Today," "Yesterday," "Previous 7 Days," "This Month," and then by previous months and years.
     - **Default Expansion**: Only the most recent chat session is expanded by default on the first page; all others remain collapsed for a cleaner view.
 
 
