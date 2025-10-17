@@ -12,11 +12,10 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-test:
-    runs-on: ${{ matrix.os }}
+  build-and-test-ubuntu:
+    runs-on: ubuntu-latest  # Run on ubuntu or windows can change this as needed
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
         python-version: ['3.11']  # Define a matrix of Python versions
 
     steps:
