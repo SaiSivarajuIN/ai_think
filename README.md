@@ -1,4 +1,5 @@
 [![CI/CD Pipeline](https://github.com/SaiSivarajuIN/ai_think/actions/workflows/main.yml/badge.svg)](https://github.com/SaiSivarajuIN/ai_think/actions/workflows/main.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 # **AI Think — Local & Cloud LLM Chat**
 

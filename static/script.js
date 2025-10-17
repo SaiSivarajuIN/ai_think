@@ -1,5 +1,5 @@
 // Simple HTML escape utility
-// Update the escapeHTML function to preserve LaTeX content
+// Update the escapeHTML function to preserve LaTeX content. This function is not directly used for user input but is good practice.
 function escapeHTML(str) {
     // Temporarily replace LaTeX expressions with placeholders
     const latexExpressions = [];
@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const userInput = document.getElementById('userMessage');
     const sendButton = document.getElementById('sendButton');
     const modelSelector = document.getElementById('model-selector');
+    const searchPrefix = document.getElementById('search-prefix');
     const uploadButton = document.getElementById('uploadButton');
     const fileInput = document.getElementById('fileUpload');
     const promptSelector = document.getElementById('prompt-selector');
@@ -92,26 +93,20 @@ document.addEventListener('DOMContentLoaded', function() {
             return token;
         });
 
-        // Special handling for square bracket notation [...]
-        text = text.replace(/\[((?:[^\[\]]|\[[^\[\]]*\])*)\]/g, (match, content) => {
-            if (content.includes('\\') || content.includes('_') || content.includes('^')) {
-                const token = `%%LATEX${counter}%%`;
-                latexMap.set(token, `\\[${content}\\]`);
-                counter++;
-                return token;
-            }
-            return match;
+        // Special handling for matrix environments that might not be enclosed in $$
+        text = text.replace(/(\\begin\{[a-zA-Z]*matrix\})([\s\S]*?)(\\end\{[a-zA-Z]*matrix\})/g, (match) => {
+            const token = `%%LATEX${counter}%%`;
+            latexMap.set(token, `$$${match}$$`); // Wrap with $$ for display math
+            counter++;
+            return token;
         });
 
-        // Special handling for parenthesis notation (...)
-        text = text.replace(/\(((?:[^\(\)]|\([^\(\)]*\))*)\)/g, (match, content) => {
-            if (content.includes('\\') || content.includes('_') || content.includes('^')) {
-                const token = `%%LATEX${counter}%%`;
-                latexMap.set(token, `\\(${content}\\)`);
-                counter++;
-                return token;
-            }
-            return match;
+        // Special handling for matrix environments that might not be enclosed in $$
+        text = text.replace(/(\\begin\{[a-zA-Z]*matrix\})([\s\S]*?)(\\end\{[a-zA-Z]*matrix\})/g, (match) => {
+            const token = `%%LATEX${counter}%%`;
+            latexMap.set(token, `$$${match}$$`); // Wrap with $$ for display math
+            counter++;
+            return token;
         });
 
         // Convert markdown
@@ -188,14 +183,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // If the search button exists, add a click listener to focus the input
-    // and pre-fill the search command.
+    // --- Search Mode Logic ---
+    function updateSearchUI() {
+        const isSearchModeActive = localStorage.getItem('isSearchModeActive') === 'true';
+        if (isSearchModeActive) {
+            searchPrefix.style.display = 'inline';
+        } else {
+            searchPrefix.style.display = 'none';
+        }
+    }
+
     if (searchButton && userInput) {
         searchButton.addEventListener('click', function() {
-            userInput.focus();
-            // Only add the command if the input is empty to avoid overwriting user text
-            if (userInput.value.trim() === '') {
-                userInput.value = '/search ';
+            const isSearchActive = searchPrefix.style.display !== 'none';
+            if (isSearchActive) {
+                searchPrefix.style.display = 'none';
+                userInput.textContent = '';
+                localStorage.setItem('isSearchModeActive', 'false');
+            } else {
+                searchPrefix.style.display = 'inline';
+                userInput.textContent = '';
+                userInput.focus();
+                localStorage.setItem('isSearchModeActive', 'true');
             }
         });
     }
@@ -216,6 +225,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // If the incognito button exists, add a listener
     if (incognitoBtn) {
         incognitoBtn.addEventListener('click', function() {
+            // Per request, clear search prefix when incognito is toggled
+            if (searchPrefix.style.display !== 'none') {
+                searchPrefix.style.display = 'none';
+                userInput.textContent = '';
+                localStorage.setItem('isSearchModeActive', 'false');
+            }
             isIncognito = !isIncognito; // Toggle the state
             localStorage.setItem('isIncognito', isIncognito); // Save state
             updateIncognitoUI();
@@ -304,8 +319,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Add a footer with just a copy button for user messages
             const footer = document.createElement('div');
-            // footer.className = 'message-footer';
-            footer.innerHTML = `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
+            footer.className = 'message-footer';
+            let footerHTML = `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
+            
+            if (searchMatch) {
+                footerHTML += `<span class="material-icons" style="font-size: 14px; color: rgba(255, 255, 255, 0.7);" title="Web Search">search</span>`;
+            }
+            footer.innerHTML = footerHTML;
             messageContainer.appendChild(footer);
         } else if (!isSystem) { // It's a bot message
             // For bot messages, handle LaTeX before removing think blocks
@@ -439,13 +459,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Send message to server
     async function sendMessage() {
-        const message = userInput.value.trim();
+        let message = userInput.textContent.trim();
+        if (searchPrefix.style.display !== 'none') {
+            message = `/search ${message}`;
+        }
+
         if (!message) return;
 
         // If a generation is already in progress, do nothing.
         if (abortController) {
             return;
         }
+        
 
         const selectedModel = document.getElementById('model-selector').value;
 
@@ -457,8 +482,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add user message to chat
         const userMessageDiv = addMessage(message, 'user');
         
-        // Clear input
-        userInput.value = '';
+        // Clear input and search prefix
+        userInput.textContent = '';
+        searchPrefix.style.display = 'none';
+        localStorage.setItem('isSearchModeActive', 'false');
 
 
         // Show thinking indicator
@@ -547,15 +574,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listeners
     sendButton.addEventListener('click', sendMessage);
     
-    userInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
+    if (userInput && userInput.contentEditable === 'true') {
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
 
     // Event delegation for message actions (copy, regenerate)
-    chatbox.addEventListener('click', function(e) {
+    if (chatbox) {
+        chatbox.addEventListener('click', function(e) {
         const copyBtn = e.target.closest('.copy-btn');
         if (copyBtn) {
             const messageDiv = copyBtn.closest('.message'); // Works for both .user-message and .bot-message
@@ -586,6 +616,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    }
 
     // --- History Sidebar Logic ---
     if (historySidebarToggle && historySidebar) {
@@ -843,15 +874,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Auto-resize textarea
-    userInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = this.scrollHeight + 'px';
-    });
+    if (userInput) { // Focus input on load
 
-    // Focus input on load
-    userInput.focus();
-
-    initializeChat();
+        updateSearchUI(); // Restore search prefix state on load
+        initializeChat();
+    }
     fetchHistorySidebar();
 
     // Ensure send button is in initial state with correct listener
@@ -1070,6 +1097,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }).save();
     }
 
+    // DOCX Download
     if (e.target.closest('.download-doc-btn')) {
         const btn = e.target.closest('.download-doc-btn');
         const sessionId = btn.getAttribute('data-session');

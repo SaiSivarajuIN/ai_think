@@ -30,8 +30,15 @@
         .about-page {
             max-width: 1800px;
             margin: 0 auto;
-            display: grid;
+            display: flex;
+            flex-direction: column;
             gap: 1.5rem;
+        }
+        .about-page-main-content {
+            display: grid;
+            grid-template-columns: 3fr 1fr; /* Features is 3/4, License card is 1/4 */
+            gap: 1.5rem;
+            align-items: start;
         }
         .card {
             background-color: var(--card);
@@ -67,6 +74,18 @@
             max-height: 300px;
             overflow-y: auto;
         }
+        .license-card {
+            text-align: center;
+        }
+        .license-card img {
+            width: 80px;
+            margin: 1rem auto;
+        }
+        @media (max-width: 768px) {
+            .about-page-main-content {
+                grid-template-columns: 1fr; /* Stack on smaller screens */
+            }
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -78,43 +97,34 @@
             <h2>Welcome to AI Think</h2>
             <p>AI Think is a self-hosted, web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs). It connects to a local Ollama instance and can also integrate with various cloud model providers.</p>
             <p>This project aims to provide a powerful, private, and extensible platform for experimenting with and utilizing generative AI.</p>
-            <p>For more information, visit the <a href="https://github.com/SaiSivarajuIN/ai_think">GitHub repository</a>.</p>
+            <p>For more information, visit the <a href="https://github.com/SaiSivarajuIN/ai_think" target="_blank" rel="noopener noreferrer">GitHub repository</a>.</p>
         </div>
 
-        <div class="card">
-            <h3>Key Features</h3>
-            <ul class="feature-list">
-                <li><strong>Intuitive Chat Interface:</strong> Clean and simple UI for chatting with your local and cloud LLMs.</li>
-                <li><strong>Local & Cloud Model Management:</strong> Easily switch between models, pull new ones from Ollama, or connect to external providers like OpenAI and Perplexity.</li>
-                <li><strong>Persistent Chat History:</strong> Conversations are saved using a local SQLite database, with optional support for a scalable ChromaDB cloud instance.</li>
-                <li><strong>Prompt Hub:</strong> Create, manage, and reuse system prompts to streamline your workflows.</li>
-                <li><strong>Web Search:</strong> Get up-to-date answers from the internet by integrating with a local SearXNG instance.</li>
-                <li><strong>System Health Dashboard:</strong> Monitor real-time CPU, memory, disk, and GPU usage.</li>
-                <li><strong>Dynamic Configuration:</strong> Adjust model parameters and integration settings on the fly without restarting the server.</li>
-                <li><strong>Session Management:</strong> Bookmark, share, and resume conversations via URL session IDs.</li>
-                <li><strong>Langfuse Integration:</strong> Optional, powerful tracing and observability for your LLM interactions.</li>
-                <li><strong>File Upload:</strong> Provide `.txt` files as context for your conversations.</li>
-            </ul>
-        </div>
-
-        <div class="card" style="display: flex; gap: 16px; align-items: flex-start; border: 1px solid #ccc; border-radius: 12px; padding: 16px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-
-            <div style="flex: 1; max-width: 300px;">
-                <h3 style="margin-top: 0;">MIT License</h3>
-                <!-- Image below header -->
-                <img src="https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg" 
-                    alt="MIT Logo" 
-                    style="width: 100%; border-radius: 8px; margin-bottom: 12px;">
-
-                <a href="https://github.com/SaiSivarajuIN/ai_think/blob/main/LICENSE" 
-                    target="_blank" 
-                    style="display: inline-block; color: #007BFF; text-decoration: none;">
-                    View License on GitHub →
+        <div class="about-page-main-content">
+            <div class="card">
+                <h3>Key Features</h3>
+                <ul class="feature-list">
+                    <li><strong>Intuitive Chat Interface:</strong> Clean and simple UI for chatting with your local and cloud LLMs, with full Markdown and LaTeX support.</li>
+                    <li><strong>Local & Cloud Model Management:</strong> Easily switch between models, pull new ones from Ollama, or connect to external providers like OpenAI and Perplexity.</li>
+                    <li><strong>Persistent Chat History:</strong> Conversations are saved using a local SQLite database, with optional support for a scalable ChromaDB cloud instance.</li>
+                    <li><strong>Prompt Hub:</strong> Create, manage, and reuse system prompts to streamline your workflows.</li>
+                    <li><strong>Web Search:</strong> Get up-to-date answers from the internet by integrating with a local SearXNG instance.</li>
+                    <li><strong>System Health Dashboard:</strong> Monitor real-time CPU, memory, disk, and GPU usage.</li>
+                    <li><strong>Dynamic Configuration:</strong> Adjust model parameters and integration settings on the fly without restarting the server.</li>
+                    <li><strong>Session Management:</strong> Bookmark, share, and resume conversations via URL session IDs.</li>
+                    <li><strong>Langfuse Integration:</strong> Optional, powerful tracing and observability for your LLM interactions.</li>
+                    <li><strong>File Upload:</strong> Provide `.txt` files as context for your conversations.</li>
+                </ul>
+            </div>
+            <div class="card license-card">
+                <h3>MIT License</h3>
+                <img src="https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg" alt="MIT Logo">
+                <p>This project is open-source and licensed under the MIT License.</p>
+                <a href="https://github.com/SaiSivarajuIN/ai_think/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="nav-link" style="width: auto; justify-content: center;">
+                    View License on GitHub
                 </a>
             </div>
-
         </div>
-
     </div>
 </body>
 </html>

@@ -75,25 +75,34 @@
 
 {% block content %}
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <label for="start-date-filter" style="font-weight: 600; white-space: nowrap;">Filter from:</label>
-            <input type="date" id="start-date-filter" class="model-selector" style="padding: 0.5rem;">
-            <label for="end-date-filter" style="font-weight: 600; white-space: nowrap;">to:</label>
-            <input type="date" id="end-date-filter" class="model-selector" style="padding: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label for="search-summary-filter" style="font-weight: 600; white-space: nowrap;">Search:</label>
+                <input type="search" id="search-summary-filter" class="model-selector" placeholder="Filter by summary..." style="padding: 0.6rem;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label for="start-date-filter" style="font-weight: 600; white-space: nowrap;">From:</label>
+                <input type="date" id="start-date-filter" class="model-selector" style="padding: 0.5rem;">
+                <label for="end-date-filter" style="font-weight: 600; white-space: nowrap;">To:</label>
+                <input type="date" id="end-date-filter" class="model-selector" style="padding: 0.5rem;">
+            </div>
             <button id="clear-filter-btn" class="icon-btn" title="Clear Filter" style="display: none;">
                 <span class="material-icons">clear</span>
             </button>
         </div>
-        <button id="delete-all-threads-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
-            <span class="material-icons">delete_sweep</span>
-            Delete All
-        </button>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span id="total-sessions-display" style="font-size: 0.9rem; color: var(--theme-toggle-text);">Total Sessions: {{ total_sessions }}</span>
+            <button id="delete-all-threads-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
+                <span class="material-icons">delete_sweep</span>
+                Delete All
+            </button>
+        </div>
     </div>
     {% if grouped_threads %}
         {% for group_name, threads in grouped_threads %}
             <h3 class="history-group-header">{{ group_name }}</h3>
             {% for thread in threads %}
-                <details class="thread" {% if thread.session_id == newest_session_id %}open{% endif %}>
+                <details class="thread">
                     <summary>
                         <div class="summary-main" title="{{ thread.summary }}" data-timestamp="{{ session_start[thread.session_id].isoformat() }}">
                             <div>Chat Session {{ thread.serial_number }} : {{ thread.summary }}</div>
@@ -156,7 +165,7 @@
 
 {% endblock %}
 
-{% block scripts %}
+{% block page_scripts %}
 <script>
 function initializeHistoryPage() {
     function clearFilter() {
@@ -181,17 +190,19 @@ function initializeHistoryPage() {
         emoji: true,
         sanitize: true // Prevent interpretation of raw HTML in Markdown
     });
-
-    function applyDateFilter() {
+    
+    function applyFilters() {
+        const searchTerm = document.getElementById('search-summary-filter').value.toLowerCase();
         const startDate = document.getElementById('start-date-filter').value; // YYYY-MM-DD
         const endDate = document.getElementById('end-date-filter').value;
         const threads = document.querySelectorAll('.thread');
         const groupHeaders = document.querySelectorAll('.history-group-header');
         const paginationContainer = document.querySelector('.pagination-container');
-
-        document.getElementById('clear-filter-btn').style.display = (startDate || endDate) ? 'inline-flex' : 'none';
-        if (paginationContainer) paginationContainer.style.display = (startDate || endDate) ? 'none' : 'block';
-
+        
+        const isFiltering = searchTerm || startDate || endDate;
+        document.getElementById('clear-filter-btn').style.display = isFiltering ? 'inline-flex' : 'none';
+        if (paginationContainer) paginationContainer.style.display = isFiltering ? 'none' : 'block';
+        
         threads.forEach(thread => {
             const summary = thread.querySelector('.summary-main');
             const timestamp = summary.getAttribute('data-timestamp');
@@ -199,26 +210,41 @@ function initializeHistoryPage() {
 
             const startMatch = !startDate || threadDate >= startDate;
             const endMatch = !endDate || threadDate <= endDate;
-            thread.style.display = (startMatch && endMatch) ? 'block' : 'none';
+            
+            const summaryText = summary.innerText.toLowerCase();
+            const textMatch = !searchTerm || summaryText.includes(searchTerm);
+
+            thread.style.display = (startMatch && endMatch && textMatch) ? '' : 'none';
         });
-        groupHeaders.forEach(header => header.style.display = (startDate || endDate) ? 'none' : 'block');
+
+        // Hide group headers if any filter is active
+        groupHeaders.forEach(header => {
+            header.style.display = isFiltering ? 'none' : 'block';
+        });
     }
 
     // --- Date Filter Logic ---
+    const searchInput = document.getElementById('search-summary-filter');
     const startDateFilter = document.getElementById('start-date-filter');
     const endDateFilter = document.getElementById('end-date-filter');
     const clearFilterBtn = document.getElementById('clear-filter-btn');
     const threads = document.querySelectorAll('.thread');
     const groupHeaders = document.querySelectorAll('.history-group-header');
     const paginationContainer = document.querySelector('.pagination-container');
-    
-    if (startDateFilter && endDateFilter) {
-        startDateFilter.addEventListener('change', applyDateFilter);
-        endDateFilter.addEventListener('change', applyDateFilter);
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilters);
+    }
+    if (startDateFilter) {
+        startDateFilter.addEventListener('change', applyFilters);
+    }
+    if (endDateFilter) {
+        endDateFilter.addEventListener('change', applyFilters);
     }
 
     if (clearFilterBtn) {
         clearFilterBtn.addEventListener('click', function() {
+            searchInput.value = '';
             startDateFilter.value = ''; // Clear start date
             endDateFilter.value = '';   // Clear end date
             clearFilter();
@@ -249,26 +275,12 @@ function initializeHistoryPage() {
             return token;
         });
 
-        // Special handling for square bracket notation [...]
-        text = text.replace(/\[((?:[^\[\]]|\[[^\[\]]*\])*)\]/g, (match, content) => {
-            if (content.includes('\\') || content.includes('_') || content.includes('^')) {
-                const token = `%%LATEX${counter}%%`;
-                latexMap.set(token, `\\[${content}\\]`);
-                counter++;
-                return token;
-            }
-            return match;
-        });
-
-        // Special handling for parenthesis notation (...)
-        text = text.replace(/\(((?:[^\(\)]|\([^\(\)]*\))*)\)/g, (match, content) => {
-            if (content.includes('\\') || content.includes('_') || content.includes('^')) {
-                const token = `%%LATEX${counter}%%`;
-                latexMap.set(token, `\\(${content}\\)`);
-                counter++;
-                return token;
-            }
-            return match;
+        // Special handling for matrix environments that might not be enclosed in $$
+        text = text.replace(/(\\begin\{[a-zA-Z]*matrix\})([\s\S]*?)(\\end\{[a-zA-Z]*matrix\})/g, (match) => {
+            const token = `%%LATEX${counter}%%`;
+            latexMap.set(token, `$$${match}$$`); // Wrap with $$ for display math
+            counter++;
+            return token;
         });
 
         // Convert markdown
@@ -544,14 +556,18 @@ function escapeHtml(unsafe) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // The main initialization logic needs to wait for MathJax to be fully ready,
-    // as it's loaded asynchronously. We can use the pageReady promise for this.
+    // as it's loaded asynchronously. We can use the pageReady promise for this,
+    // but we should also have a fallback in case MathJax fails.
     if (window.MathJax && window.MathJax.startup) {
         MathJax.startup.promise.then(() => {
             console.log('MathJax is ready, initializing page styles.');
             initializeHistoryPage();
         });
+    } else {
+        console.log('MathJax not found, initializing page styles directly.');
+        initializeHistoryPage();
     }
 });
 </script>
-<script src="{{ url_for('static', filename='script.js') }}"></script>
+
 {% endblock %}
