@@ -149,7 +149,6 @@ def init_db():
                 top_k INTEGER NOT NULL
             )
         ''') # This was the original schema
-
         # Add columns if they don't exist (for migration)
         cursor = db.cursor()
         table_info = cursor.execute("PRAGMA table_info(settings)").fetchall()
@@ -618,7 +617,7 @@ def ollama_chat(messages, model, session_id=None, max_retries=3, is_incognito=Fa
                     input={"messages": final_messages}
                 ) as span:
                     span.update_trace(
-                        user_id="new-ollama-user", 
+                        user_id="local-model-user", 
                         session_id=session_id or str(uuid4())
                     )
                     
@@ -934,7 +933,6 @@ def generate():
         assistant_response = assistant_response_data['content']
         current_app.logger.info(f"Assistant response generated: '{assistant_response[:80]}...'")
         usage = assistant_response_data['usage']
-
         # --- Save messages AFTER successful generation ---
         if not is_incognito:
             # Save user message to database
@@ -1176,11 +1174,21 @@ def history():
         reverse=True
     )
 
+    total_sessions = len(sorted_threads)
+
     newest_session_id = sorted_threads[0][0] if sorted_threads else None
 
     # Group threads by date
     grouped_threads = defaultdict(list)
     today = datetime.now(utc_tz).date()
+
+    # Fetch custom summaries first to use them as titles
+    custom_summaries = {}
+    try:
+        summary_rows = get_db().execute('SELECT session_id, summary FROM session_summaries').fetchall()
+        custom_summaries = {row['session_id']: row['summary'] for row in summary_rows}
+    except sqlite3.OperationalError: # In case the table doesn't exist yet
+        pass
 
     for session_id, messages in sorted_threads:
         last_message_dt = messages[-1]['timestamp']
@@ -1199,9 +1207,12 @@ def history():
         else:
             group_key = str(thread_date.year) # e.g., "2024"
 
-        # Find the first user message to use as a title/summary
-        first_user_message = next((m['content'] for m in messages if m['sender'] == 'user'), 'Chat Session')
-        summary_text = (first_user_message[:32] + '...') if len(first_user_message) > 75 else first_user_message
+        # Use custom summary if available, otherwise generate one from the first user message
+        if session_id in custom_summaries:
+            summary_text = custom_summaries[session_id]
+        else:
+            first_user_message = next((m['content'] for m in messages if m['sender'] == 'user'), 'Chat Session')
+            summary_text = (first_user_message[:75] + '...') if len(first_user_message) > 75 else first_user_message
 
         thread_data = {
             'session_id': session_id,
@@ -1218,7 +1229,8 @@ def history():
         header_title="📚 Chat History",
         grouped_threads=grouped_threads.items(),
         session_start=session_start,
-        newest_session_id=newest_session_id
+        newest_session_id=newest_session_id,
+        total_sessions=total_sessions
     )
 
 
@@ -1651,6 +1663,77 @@ def feedback_page():
         header_title="✍️ Feedback"
     )
 
+@app.route('/dashboard')
+def dashboard():
+    """Render the user dashboard with usage statistics."""
+    stats = {
+        'total_sessions': 0,
+        'total_messages': 0,
+        'user_messages': 0,
+        'assistant_messages': 0,
+        'model_usage': []
+    }
+
+    try:
+        if chroma_connected:
+            # Fetch stats from ChromaDB
+            results = chroma_collection.get(include=["metadatas"])
+            metadatas = results.get('metadatas', [])
+            
+            session_ids = {meta['session_id'] for meta in metadatas if 'session_id' in meta}
+            stats['total_sessions'] = len(session_ids)
+            
+            user_messages = 0
+            assistant_messages = 0
+            for meta in metadatas:
+                if meta.get('sender') == 'user':
+                    user_messages += 1
+                elif meta.get('sender') == 'assistant':
+                    assistant_messages += 1
+            
+            stats['user_messages'] = user_messages
+            stats['assistant_messages'] = assistant_messages
+            stats['total_messages'] = user_messages + assistant_messages
+        else:
+            # Fetch stats from SQLite
+            db = get_db()
+            stats['total_sessions'] = db.execute('SELECT COUNT(DISTINCT session_id) FROM messages').fetchone()[0] or 0
+            
+            message_counts = db.execute('SELECT sender, COUNT(id) FROM messages GROUP BY sender').fetchall()
+            for row in message_counts:
+                if row['sender'] == 'user':
+                    stats['user_messages'] = row[1]
+                elif row['sender'] == 'assistant':
+                    stats['assistant_messages'] = row[1]
+            stats['total_messages'] = stats['user_messages'] + stats['assistant_messages']
+
+        db = get_db() # For model list regardless of DB
+        # Get model usage from metadata (assuming it's stored in 'metadata' column for assistant messages)
+        # This part is a bit tricky as model usage is not explicitly stored per message.
+        # We will count assistant messages per session as a proxy for model usage in that session.
+        # A more accurate approach would require schema changes.
+        
+        # For now, let's just show a placeholder for model usage as it's not tracked per message.
+        # A more advanced implementation would be needed.
+        # Let's count which models are configured.
+        local_models = db.execute("SELECT name from local_models WHERE active = 1").fetchall()
+        cloud_models = db.execute("SELECT service, model_name from cloud_models WHERE active = 1").fetchall()
+        
+        model_usage_list = [m['name'] for m in local_models]
+        model_usage_list.extend([f"{m['service']} / {m['model_name']}" for m in cloud_models])
+        
+        # This is a simplified view of "usage" - just listing active models.
+        stats['model_usage'] = [{'name': name, 'count': 'N/A'} for name in model_usage_list]
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching dashboard stats: {e}")
+
+    return render_template('dashboard.html', 
+        page_title="User Dashboard | AI Think Chat",
+        page_id="dashboard",
+        header_title="📊 User Dashboard",
+        stats=stats)
+
 # --- Cloud Model Endpoints ---
 
 @app.route('/cloud_models')
@@ -1798,3 +1881,10 @@ def flush_langfuse(error):
             langfuse.flush()
         except Exception as e:
             current_app.logger.warning(f"Error flushing Langfuse: {e}")
+
+
+'''@app.route('/about')
+def about():
+    """Render the feedback page."""
+    return render_template(
+        'about.html')'''

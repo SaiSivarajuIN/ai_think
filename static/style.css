@@ -121,11 +121,13 @@ body.fixed-layout {
     flex-shrink: 0;
 }
 
+
 .header h1, .header h2 {
     margin: 0;
     font-size: 1.15rem;
     white-space: nowrap;
 }
+
 
 .header-nav {
     display: flex;
@@ -133,6 +135,7 @@ body.fixed-layout {
     gap: 0.5rem;
     justify-content: flex-end;
 }
+
 
 .nav-link {
     display: flex;
@@ -337,7 +340,29 @@ body.dark-theme .model-selector {
     margin-bottom: 4px; /* Small margin to vertically align better */
 }
 
-#userMessage {
+.user-message-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    min-height: 44px; /* Match button height */
+}
+
+.search-prefix {
+    font-weight: bold;
+    margin-right: 0.5rem;
+    white-space: nowrap;
+}
+
+#userMessage[contenteditable=true]:empty:before {
+    content: attr(data-placeholder);
+    color: var(--theme-toggle-text);
+    opacity: 0.7;
+    pointer-events: none;
+    display: block; /* For line-break */
+}
+
+#userMessage[contenteditable=true] {
     flex: 1;
     padding: 0.75rem;
     border-radius: var(--radius-md);
@@ -350,6 +375,7 @@ body.dark-theme .model-selector {
     line-height: 1.5;
     max-height: 10rem;
     outline: none;
+    overflow-y: auto;
 }
 
 #sendButton, .send-button {
@@ -1227,4 +1253,39 @@ thead th {
     margin-bottom: 0.25rem;
     padding: 0 1rem; /* Align with history-item padding */
     text-transform: uppercase;
+}
+
+/* Dashboard Specific Styles */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--background);
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: var(--theme-toggle-text);
+    margin-top: 0.5rem;
+}
+.feature-list {
+    padding-left: 20px;
 }

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block header_title %}{{ header_title }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .stat-item {
+        background-color: var(--background);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        transition: all 0.2s ease;
+    }
+    .stat-item:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-sm);
+    }
+    .stat-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .stat-icon {
+        font-size: 1.75rem;
+        color: var(--primary);
+        background-color: color-mix(in srgb, var(--primary) 15%, transparent);
+        padding: 0.5rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .stat-value {
+        font-size: 2.25rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+    .stat-label {
+        font-size: 1rem;
+        color: var(--text-light);
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="stats-grid">
+        <div class="stat-item">
+            <div class="stat-header">
+                <span class="stat-icon material-icons">forum</span>
+                <span class="stat-label">Total Sessions</span>
+            </div>
+            <span class="stat-value">{{ stats.total_sessions }}</span>
+        </div>
+        <div class="stat-item">
+            <div class="stat-header">
+                <span class="stat-icon material-icons">dynamic_feed</span>
+                <span class="stat-label">Total Messages</span>
+            </div>
+            <span class="stat-value">{{ stats.total_messages }}</span>
+        </div>
+        <div class="stat-item">
+            <div class="stat-header">
+                <span class="stat-icon material-icons">person</span>
+                <span class="stat-label">User Messages</span>
+            </div>
+            <span class="stat-value">{{ stats.user_messages }}</span>
+        </div>
+        <div class="stat-item">
+            <div class="stat-header">
+                <span class="stat-icon material-icons">smart_toy</span>
+                <span class="stat-label">Assistant Responses</span>
+            </div>
+            <span class="stat-value">{{ stats.assistant_messages }}</span>
+        </div>
+    </div>
+    <div class="dashboard">
+        <div class="card">
+            <h2>🤖 Model Usage</h2>
+            <p class="text-muted" style="margin-bottom: 1rem;">
+                This section lists your currently active models. Usage counting per model is not yet implemented.
+            </p>
+            {% if stats.model_usage %}
+                <ul class="feature-list">
+                    {% for model in stats.model_usage %}
+                        <li>
+                            <strong>{{ model.name }}</strong>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No active models found.</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block page_scripts %}
+{% endblock %}

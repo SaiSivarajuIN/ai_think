@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ page_title }}{% endblock %}
+{% block title %}Settings | AI Think Chat{% endblock %}
 
 {% block header_title %}{{ header_title }}{% endblock %}
 
@@ -8,11 +8,47 @@
     <style>
         .info-link {
             color: black;
-            text-decoration: none; /* Optional: removes underline */
+            text-decoration: none;
+        }
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+        .tab-link {
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: var(--theme-toggle-text);
+            font-size: 1rem;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .tab-link.active, .tab-link:hover {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .settings-form {
+            display: flex;
+            flex-direction: column;
+        }
+        .settings-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
         }
         .notes {
             font-size: 0.9rem;
-            color: var(--theme-toggle-text);
+            color: var(--text);
             background-color: var(--background);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
@@ -32,95 +68,35 @@
 {% endblock %}
 
 {% block content %}
-    <form class="settings-form" method="POST">
-        <div class="settings-grid">
-            <div class="settings-column card">
-                <h2>Model Parameters</h2>
-                <div class="form-group">
-                    <label for="num_predict">Tokens to Predict</label>
-                    <input type="number" id="num_predict" name="num_predict" value="{{ settings['num_predict'] }}" min="1" max="40960" step="1" required>
+    <div class="tab-container">
+        <button class="tab-link active" onclick="openTab(event, 'general')">General</button>
+        <button class="tab-link" onclick="openTab(event, 'integrations')">Integrations</button>
+    </div>
+
+    <form id="settings-form" class="settings-form" method="POST">
+        <div id="general" class="tab-content active">
+            <div class="settings-section">
+                <div class="card">
+                    <h2>Model Parameters</h2>
+                    <p class="text-muted">Control the behavior of the AI models.</p>
+                    <div class="form-group">
+                        <label for="num_predict">Tokens to Predict</label>
+                        <input type="number" id="num_predict" name="num_predict" value="{{ settings['num_predict'] }}" min="1" max="40960" step="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="temperature">Temperature</label>
+                        <input type="number" id="temperature" name="temperature" value="{{ settings['temperature'] }}" min="0" max="2" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="top_p">Top P</label>
+                        <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="top_k">Top K</label>
+                        <input type="number" id="top_k" name="top_k" value="{{ settings['top_k'] }}" min="1" max="100" step="1" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="temperature">Temperature</label>
-                    <input type="number" id="temperature" name="temperature" value="{{ settings['temperature'] }}" min="0" max="2" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="top_p">Top P</label>
-                    <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="top_k">Top K</label>
-                    <input type="number" id="top_k" name="top_k" value="{{ settings['top_k'] }}" min="1" max="100" step="1" required>
-                </div>
-                
-            </div>
-            <div class="settings-column card">
-                <h2>Langfuse Tracing (Optional)</h2>
-                <div class="form-group toggle-group">
-                    <label for="langfuse_enabled">Enable Langfuse</label>
-                    <label class="switch">
-                        <input type="checkbox" id="langfuse_enabled" name="langfuse_enabled" {% if settings.get('langfuse_enabled') %}checked{% endif %}>
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label for="langfuse_public_key">Public Key</label>
-                    <input type="text" id="langfuse_public_key" name="langfuse_public_key" value="{{ settings['langfuse_public_key'] }}" placeholder="pk-lf-...">
-                </div>
-                <div class="form-group">
-                    <label for="langfuse_secret_key">Secret Key</label>
-                    <input type="password" id="langfuse_secret_key" name="langfuse_secret_key" value="{{ settings['langfuse_secret_key'] }}" placeholder="sk-lf-...">
-                </div>
-                <div class="form-group">
-                    <label for="langfuse_host">Host</label>
-                    <input type="url" id="langfuse_host" name="langfuse_host" value="{{ settings['langfuse_host'] }}" placeholder="https://cloud.langfuse.com">
-                </div>
-            </div>
-            
-        </div>
-        <div class="settings-grid">
-            <div class="settings-column card">
-                <h2>ChromaDB Cloud (Optional)</h2>
-                <div class="form-group toggle-group">
-                    <label for="chromadb_enabled">Enable ChromaDB</label>
-                    <label class="switch">
-                        <input type="checkbox" id="chromadb_enabled" name="chromadb_enabled" {% if settings.get('chromadb_enabled') %}checked{% endif %}>
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label for="chroma_api_key">API Key</label>
-                    <input type="password" id="chroma_api_key" name="chroma_api_key" value="{{ settings.get('chroma_api_key', '') }}" placeholder="Enter your ChromaDB API key">
-                </div>
-                <div class="form-group">
-                    <label for="chroma_tenant">Tenant</label>
-                    <input type="text" id="chroma_tenant" name="chroma_tenant" value="{{ settings.get('chroma_tenant', '') }}" placeholder="default">
-                </div>
-                <div class="form-group">
-                    <label for="chroma_database">Database</label>
-                    <input type="text" id="chroma_database" name="chroma_database" value="{{ settings.get('chroma_database', '') }}" placeholder="default">
-                </div>
-            </div>
-            <div class="settings-column card">
-                <h2>SearXNG Integration (Optional)</h2>
-                <div class="form-group toggle-group">
-                    <label for="searxng_enabled">Enable SearXNG</label>
-                    <label class="switch">
-                        <input type="checkbox" id="searxng_enabled" name="searxng_enabled" {% if settings.get('searxng_enabled') %}checked{% endif %}>
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label for="searxng_url">SearXNG URL</label>
-                    <input type="url" id="searxng_url" name="searxng_url" value="{{ settings.get('searxng_url', '') }}" placeholder="http://localhost:8080">
-                </div>
-                <p><strong>Note</strong> http://localhost:8080 is the default</p>
-            </div>
-        </div>
-        <button type="submit" class="save-btn">Save Settings</button>
-        <div class="settings-grid">
-            <!--Model Parameters Notes-->
-                <div class="notes" style="color: black;">
+                <div class="notes">
                     <h3>Note 🧠 Understanding Model Parameters</h3>
                     <dl style="display: flex; flex-direction: column; gap: 1rem;">
                         <div>
@@ -151,12 +127,94 @@
                         </div>
                     </dl>
                 </div>
+            </div>
         </div>
+
+        <div id="integrations" class="tab-content">
+            <div class="settings-section">
+                <div class="card">
+                    <h2>Langfuse Tracing (Optional)</h2>
+                    <div class="form-group toggle-group">
+                        <label for="langfuse_enabled">Enable Langfuse</label>
+                        <label class="switch">
+                            <input type="checkbox" id="langfuse_enabled" name="langfuse_enabled" {% if settings.get('langfuse_enabled') %}checked{% endif %}>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="langfuse_public_key">Public Key</label>
+                        <input type="text" id="langfuse_public_key" name="langfuse_public_key" value="{{ settings['langfuse_public_key'] }}" placeholder="pk-lf-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="langfuse_secret_key">Secret Key</label>
+                        <input type="password" id="langfuse_secret_key" name="langfuse_secret_key" value="{{ settings['langfuse_secret_key'] }}" placeholder="sk-lf-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="langfuse_host">Host</label>
+                        <input type="url" id="langfuse_host" name="langfuse_host" value="{{ settings['langfuse_host'] }}" placeholder="https://cloud.langfuse.com">
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>ChromaDB Cloud (Optional)</h2>
+                    <div class="form-group toggle-group">
+                        <label for="chromadb_enabled">Enable ChromaDB</label>
+                        <label class="switch">
+                            <input type="checkbox" id="chromadb_enabled" name="chromadb_enabled" {% if settings.get('chromadb_enabled') %}checked{% endif %}>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="chroma_api_key">API Key</label>
+                        <input type="password" id="chroma_api_key" name="chroma_api_key" value="{{ settings.get('chroma_api_key', '') }}" placeholder="Enter your ChromaDB API key">
+                    </div>
+                    <div class="form-group">
+                        <label for="chroma_tenant">Tenant</label>
+                        <input type="text" id="chroma_tenant" name="chroma_tenant" value="{{ settings.get('chroma_tenant', '') }}" placeholder="default">
+                    </div>
+                    <div class="form-group">
+                        <label for="chroma_database">Database</label>
+                        <input type="text" id="chroma_database" name="chroma_database" value="{{ settings.get('chroma_database', '') }}" placeholder="default">
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>SearXNG Integration (Optional)</h2>
+                    <div class="form-group toggle-group">
+                        <label for="searxng_enabled">Enable SearXNG</label>
+                        <label class="switch">
+                            <input type="checkbox" id="searxng_enabled" name="searxng_enabled" {% if settings.get('searxng_enabled') %}checked{% endif %}>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="searxng_url">SearXNG URL</label>
+                        <input type="url" id="searxng_url" name="searxng_url" value="{{ settings.get('searxng_url', '') }}" placeholder="http://localhost:8080">
+                    </div>
+                    <p class="text-muted">The default URL for a local SearXNG instance is <code>http://localhost:8080</code>.</p>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="save-btn">Save Settings</button>
     </form>
 {% endblock %}
 
-{% block scripts %}
-    <script src="{{ url_for('static', filename='prompts.js') }}"></script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
-    {{ super() }}
+{% block page_scripts %}
+    <script>
+        function openTab(evt, tabName) {
+            // Hide all tab content
+            const tabcontent = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            // Remove 'active' class from all tab links
+            const tablinks = document.getElementsByClassName("tab-link");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            // Show the current tab and add an "active" class to the button that opened the tab
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
 {% endblock %}

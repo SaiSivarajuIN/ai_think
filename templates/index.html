@@ -128,7 +128,10 @@
         <div class="input-area">
             <input type="file" id="fileUpload" accept=".txt" title="Upload TXT File" style="display: none;" />
             <button id="uploadButton" class="nav-link" title="Upload TXT File"><span class="material-icons">attach_file</span></button>
-            <textarea id="userMessage" placeholder="Type your message..." rows="1"></textarea>
+            <div id="userMessageContainer" class="user-message-container">
+                <span id="search-prefix" class="search-prefix" style="display: none;">/search</span>
+                <div id="userMessage" contenteditable="true" data-placeholder="Type your message..."></div>
+            </div>
             <button id="sendButton" class="send-button" title="Send"><span class="material-icons">send</span></button>
         </div>
         <footer class="footer" style="padding: 0.05rem 0 0 0; border: none;">

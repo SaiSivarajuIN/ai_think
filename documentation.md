@@ -334,6 +334,7 @@ The application includes an "Incognito Mode" for private, temporary chat session
 ├── static/                 # Static assets (CSS, JS, images)
 │   ├── style.css
 |   ├── script.js
+|   ├── prompts.js
 │   ├── cloud_models.js
 │   └── models.js
 └── templates/              # HTML templates
@@ -386,24 +387,40 @@ The frontend is built with standard HTML, CSS, and vanilla JavaScript.
 
 ### HTML (`templates/`)
 
--   **`index.html`**: The main chat interface. It contains the chatbox, the message input area, and navigation links.
+-   **`base.html`**: The master template that defines the common layout for all pages. It includes the main sidebar navigation, the header structure, and loads all common CSS and JavaScript files. Other templates like `index.html` and `history.html` extend this file and fill in content-specific blocks (`{% block content %}`, `{% block title %}`, etc.).
+-   **`index.html`**: The main chat interface, which extends `base.html`. It contains the chatbox for displaying the conversation, a text area for user input, and a header with several controls:
+    -   **Model Selector**: A dropdown to switch between available local and configured cloud models.
+    -   **Prompt Selector**: A dropdown to load predefined system prompts from the Prompt Hub.
+    -   **File Upload**: A button to upload `.txt` files to be used as context in the conversation.
+    -   **Web Search**: A button to initiate a web search query using SearXNG.
+    -   **Incognito Mode**: A toggle to enable private, non-persistent chat sessions.
+    -   **History Sidebar**: A toggleable sidebar that lists recent conversations. Each session includes a menu (`⋮`) with options to **Rename** or **Delete** the chat session directly from the sidebar.
 -   **`history.html`**: Displays past conversations grouped by session. Each session is a collapsible `<details>` element with a serial number.
 -   **`health.html`**: A dashboard that displays system health metrics fetched from the `/health` endpoint.
 -   **`settings.html`**: A simple form to adjust and save model parameters.
 
-### JavaScript (`static/script.js`)
+### JavaScript (`static/`)
 
-This file manages all the dynamic behavior of the chat interface.
+-   **`script.js`**: The core script for the main chat interface (`index.html`). It handles:
+    -   Sending messages and receiving responses (`sendMessage`, `handleBotResponse`).
+    -   Rendering user and bot messages, including Markdown, LaTeX, and code highlighting (`addMessage`, `formatMessage`).
+    -   Managing the chat history sidebar, including renaming and deleting sessions (`fetchHistorySidebar`).
+    -   Handling UI controls like the model selector, incognito mode, file uploads, and search.
+    -   Stopping message generation.
+    -   Initializing the chat from a URL session ID.
+-   **`models.js`**: Manages the **Local Models Hub** (`/models`). It fetches the list of local Ollama models, handles the UI for pulling new models (with streaming progress), and manages model deletion.
+-   **`cloud_models.js`**: Manages the **Cloud Models Hub** (`/cloud_models`). It handles fetching, creating, updating, and deleting cloud model configurations via a modal interface.
+-   **`prompts.js`**: Manages the **Prompt Hub** (`/prompts`). It fetches, creates, updates, and deletes reusable system prompts using a modal interface.
 
--   **`sendMessage()`**: Triggered when the user sends a message. It captures the input, adds it to the UI, sends the conversation history to the `/generate` endpoint, and handles the response.
--   **`handleBotResponse()`**: Processes the JSON response from `/generate`. It updates the "Thinking..." placeholder with the bot's final message and adds a footer with generation time and action buttons.
--   **`addMessage()`**: A utility function to create and append a new message bubble (either user or bot) to the chatbox.
--   **`regenerateResponse()`**: Triggered by the "regenerate" button. It removes the last bot message from the history and the UI, then calls `/generate` again with the shortened history.
--   **`initializeChat()`**: Checks for a `session_id` in the URL on page load and fetches the corresponding chat history.
--   **`fetchHistorySidebar()`**: Fetches and renders the list of recent conversations in the sidebar on the main chat page.
--   **Event Delegation**: A single event listener on the `chatbox` handles clicks for both the "Copy" and "Regenerate" buttons, improving performance.
--   **Copy Functionality**: When the copy button is clicked, it copies the raw, un-rendered content of the bot's message from a `data-raw-content` attribute to the clipboard.
--   **History Page Logic**: The script on `history.html` formats timestamps to the user's local timezone and handles message deletion.
+### CSS (`static/style.css`)
+
+This file provides all the styling for the application.
+
+-   **Layout**: Uses modern CSS like Flexbox and Grid for the main page structure, including the sidebars and chat area.
+-   **Theming**: Supports both light and dark themes using CSS custom properties (variables), which are toggled by adding a `dark-theme` class to the `<body>`.
+-   **Components**: Contains styles for all UI components, such as message bubbles, buttons, forms, cards, and modals.
+-   **Responsiveness**: Includes media queries to adapt the layout for smaller screens, ensuring a good user experience on mobile devices.
+-   **Icons**: Uses Google's Material Icons for a clean and consistent icon set across the application.
 
 ### 3.13. Response Interruption
 
