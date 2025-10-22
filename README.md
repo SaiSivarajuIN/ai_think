@@ -129,6 +129,7 @@ Then open: [http://localhost:5000](http://localhost:5000)
 * **Cloud Integrations**: OpenAI, Perplexity, ChromaDB, Langfuse
 * Persistent chat history (SQLite by default, optional ChromaDB Cloud)
 * **Prompt Hub** for reusable system prompts
+* **User Dashboard**: View usage statistics like total sessions and messages
 * **Health Dashboard**: CPU / RAM / Disk / GPU, Ollama / Langfuse / Chroma statuses
 * **Runtime settings** (no restart required)
 * **Incognito mode** for ephemeral chats
@@ -142,6 +143,7 @@ Then open: [http://localhost:5000](http://localhost:5000)
 * **Chat:** Open `/` to start chatting and switch models from the dropdown
 * **New Chat:** Click “New Chat” in the header
 * **History:** View previous chats at `/history`
+* **Dashboard:** See your usage stats at `/dashboard`
 * **Settings:** Manage model params, Langfuse keys, and SearXNG at `/settings`
 * **Models Hub:** Browse, pull, and delete models via `/models`
 * **Prompts:** Manage reusable prompts at `/prompts`

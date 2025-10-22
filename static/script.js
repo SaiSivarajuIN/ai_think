@@ -668,12 +668,6 @@ document.addEventListener('DOMContentLoaded', function() {
     async function initializeChat() {
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('session_id');
-
-        // If there's a session ID in the URL, it should override and disable incognito mode for this session.
-        if (sessionId) {
-            isIncognito = false;
-            localStorage.setItem('isIncognito', 'false');
-        }
         updateIncognitoUI(); // Always update UI on load
 
         if (sessionId) {
