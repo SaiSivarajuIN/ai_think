@@ -106,7 +106,7 @@
                     <summary>
                         <div class="summary-main" title="{{ thread.summary }}" data-timestamp="{{ session_start[thread.session_id].isoformat() }}">
                             <div>Chat Session {{ thread.serial_number }} : {{ thread.summary }}</div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-weight: normal;">
+                            <div class="summary-meta" style="display: flex; justify-content: space-between; align-items: center; font-weight: normal;">
                                 <small class="session-id-display">{{ thread.session_id }}</small>
                                 <small ><span class="session-start-time"></span></small>
                             </div>
@@ -165,7 +165,7 @@
 
 {% endblock %}
 
-{% block page_scripts %}
+{% block scripts %}
 <script>
 function initializeHistoryPage() {
     function clearFilter() {
@@ -553,6 +553,8 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 </script>
+{% endblock %}
+{% block page_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // The main initialization logic needs to wait for MathJax to be fully ready,
@@ -569,5 +571,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
 {% endblock %}

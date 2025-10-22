@@ -70,22 +70,34 @@
         <div class="model-selector-wrapper">
         <label for="model-selector" class="visually-hidden">Model:</label>
         <select id="model-selector" class="model-selector">
-            {% if available_models %}
-                <optgroup label="Local Models">
-                {% for model in available_models if model.active %}
-                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>{{ model.name }}</option>
-                {% endfor %}
-                </optgroup>
-            {% else %}
-                <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
-            {% endif %}
-            {% if cloud_models %}
-                <optgroup label="Cloud Models">
-                {% for model in cloud_models if model.active %}
-                    <option value="cloud::{{ model.id }}">{{ model.service }} / {{ model.model_name }}</option>
-                {% endfor %}
-                </optgroup>
-            {% endif %}
+        {% if available_models %}
+            <optgroup label="Local Models">
+            {% for model in available_models if model.active %}
+                {% set parts = model.name.split('/') %}
+                {% if parts|length > 2 and '.' in parts[0] %}
+                    {# Hugging Face model: hf.co/user/model -> model (user) #}
+                    {% set source = parts[1] %}
+                    {% set model_name = parts[2] %}
+                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>
+                        {{ model_name }} <small>({{ source }})</small>
+                    </option>
+                {% else %}
+                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>
+                        {{ model.name }}
+                    </option>
+                {% endif %}
+            {% endfor %}
+            </optgroup>
+        {% else %}
+            <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
+        {% endif %}
+        {% if cloud_models %}
+            <optgroup label="Cloud Models">
+            {% for model in cloud_models if model.active %}
+                <option value="cloud::{{ model.id }}">{{ model.model_name }} <small>({{ model.service }})</small></option>
+            {% endfor %}
+            </optgroup>
+        {% endif %}
         </select>
     </div>
     <div class="model-selector-wrapper">
@@ -155,5 +167,4 @@
 
 {% block scripts %}
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
 {% endblock %}

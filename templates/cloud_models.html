@@ -104,8 +104,7 @@
     </div>
 {% endblock %}
 
-{% block scripts %}
+{% block page_scripts %}
     <script src="{{ url_for('static', filename='cloud_models.js') }}"></script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
     {{ super() }}
 {% endblock %}

@@ -30,8 +30,6 @@
 
     <!-- Scripts -->
     {% block scripts %}
-        <script src="{{ url_for('static', filename='script.js') }}"></script>
-        <script src="{{ url_for('static', filename='script.js', v=cache_buster) }}"></script>
     {% endblock %}
 </head>
 
@@ -91,5 +89,8 @@
         </div>
     </div>
 
+    <!-- Core script, loaded on all pages -->
+    <script src="{{ url_for('static', filename='script.js', v=cache_buster) }}"></script>
+    {% block page_scripts %}{% endblock %}
 </body>
 </html>

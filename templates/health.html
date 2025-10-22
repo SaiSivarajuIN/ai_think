@@ -87,7 +87,7 @@
     </div>
 {% endblock %}
 
-{% block scripts %}
+{% block page_scripts %}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const modelDisplay = document.getElementById('active-model-display');
@@ -100,6 +100,5 @@
             }
         });
     </script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
     {{ super() }}
 {% endblock %}
