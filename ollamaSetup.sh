@@ -39,7 +39,9 @@ pull_models() {
     
     # Pull GGUF model from Hugging Face
     ollama pull hf.co/janhq/Jan-v1-edge-gguf:Q8_0
-    ollama pull hf.co/unsloth/granite-4.0-micro-GGUF
+    ollama pull hf.co/iassivarajuss/llama-3-8b-bnb-4bit-GGUF:Q8_0
+    ollama pull hf.co/iassivarajuss/Mistral-7b-v0.3-bnb-4bit-GGUF:Q8_0
+    # ollama pull hf.co/unsloth/granite-4.0-micro-GGUF
     # ollama pull hf.co/unsloth/gpt-oss-20b-GGUF:Q4_K_M  # Uncomment if needed
 }
 

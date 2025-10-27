@@ -317,6 +317,30 @@ The application includes an "Incognito Mode" for private, temporary chat session
     -   **Temporary Session:** The chat starts when incognito is enabled and is completely cleared when it is disabled.
 
 
+### 3.15. Dashboard (`/dashboard`)
+
+A comprehensive dashboard is available to provide detailed API usage statistics and performance metrics.
+
+-   **Access:** Navigate directly to the `/dashboard` endpoint.
+-   **Implementation:**
+    -   The `/dashboard` route in `app.py` fetches and aggregates data from the `messages` and `api_usage_metrics` tables in the SQLite database.
+    -   The data is filtered based on a time range selected by the user.
+-   **Features & Metrics Displayed:**
+    -   **Time Range Selector:** A modern, Google-style button group allows users to filter the dashboard data by various time frames (e.g., `1h`, `1d`, `7d`, `28d`, `90d`).
+    -   **Statistics Grid:** A high-level overview of key metrics for the selected period, including:
+        -   Total Sessions
+        -   Total Messages (User & Assistant)
+        -   Total API Calls
+        -   Total Input, Output, and Combined Token counts.
+    -   **Active Models:** A card listing all models currently marked as active in the application.
+    -   **API Calls per Model:** A table that shows the total number of API calls made for each model, helping to identify the most frequently used models.
+    -   **API Usage Statistics Table:** A detailed, paginated table showing the most recent API calls. It includes:
+        -   Model used
+        -   Category (e.g., `chat`)
+        -   Session ID (linked to the chat history)
+        -   Input and Output tokens for each message.
+
+
 ```
 .
 ├── .env                    # Application configuration (you must create this)

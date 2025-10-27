@@ -13,6 +13,7 @@ from uuid import uuid4
 from langfuse import Langfuse
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
@@ -149,6 +150,17 @@ def init_db():
                 top_k INTEGER NOT NULL
             )
         ''') # This was the original schema
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS api_usage_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                model TEXT NOT NULL,
+                category TEXT,
+                session_id TEXT NOT NULL,
+                input_tokens_per_message INTEGER NOT NULL,
+                output_tokens_per_message INTEGER NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         # Add columns if they don't exist (for migration)
         cursor = db.cursor()
         table_info = cursor.execute("PRAGMA table_info(settings)").fetchall()
@@ -953,6 +965,21 @@ def generate():
                 db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'user', user_message_to_save))
                 db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'assistant', assistant_response))
                 db.commit()
+            
+            # Save API usage metrics
+            try:
+                model_name_for_log = model_config['model_name'] if is_cloud_model else model
+                db = get_db()
+                db.execute(
+                    '''INSERT INTO api_usage_metrics (model, category, session_id, input_tokens_per_message, output_tokens_per_message)
+                       VALUES (?, ?, ?, ?, ?)''',
+                    (model_name_for_log, 'chat', session_id, usage.get('prompt_tokens', 0), usage.get('completion_tokens', 0))
+                )
+                db.commit()
+                current_app.logger.info(f"Logged API usage for model {model_name_for_log}: Input={usage.get('prompt_tokens', 0)}, Output={usage.get('completion_tokens', 0)}")
+            except Exception as e:
+                current_app.logger.error(f"Failed to save API usage metrics: {e}")
+
 
         elapsed = time.time() - start_time
 
@@ -1666,15 +1693,49 @@ def feedback_page():
 @app.route('/dashboard')
 def dashboard():
     """Render the user dashboard with usage statistics."""
+    time_range = request.args.get('range', '1d') # Default to 1 Day
+    
+    time_deltas = {
+        '5m': timedelta(minutes=5),
+        '15m': timedelta(minutes=15),
+        '30m': timedelta(minutes=30),
+        '1h': timedelta(hours=1),
+        '1d': timedelta(days=1),
+        '7d': timedelta(days=7),
+        '28d': timedelta(days=28),
+        '90d': timedelta(days=90),
+    }
+    
+    time_range_labels = {
+        '5m': '5m',
+        '15m': '15m',
+        '30m': '30m',
+        '1h': '1h',
+        '1d': '1d',
+        '7d': '7d',
+        '28d': '28d',
+        '90d': '90d',
+    }
+
+    delta = time_deltas.get(time_range, timedelta(days=1))
+    start_time = datetime.utcnow() - delta
+
     stats = {
         'total_sessions': 0,
         'total_messages': 0,
         'user_messages': 0,
         'assistant_messages': 0,
-        'model_usage': []
+        'model_usage': [],
+        'api_usage': [],
+        'total_input_tokens': 0,
+        'total_output_tokens': 0,
+        'total_tokens': 0,
+        'model_call_counts': []
     }
 
     try:
+        db = get_db()
+
         if chroma_connected:
             # Fetch stats from ChromaDB
             results = chroma_collection.get(include=["metadatas"])
@@ -1696,13 +1757,12 @@ def dashboard():
             stats['total_messages'] = user_messages + assistant_messages
         else:
             # Fetch stats from SQLite
-            db = get_db()
             stats['total_sessions'] = db.execute('SELECT COUNT(DISTINCT session_id) FROM messages').fetchone()[0] or 0
             
             message_counts = db.execute('SELECT sender, COUNT(id) FROM messages GROUP BY sender').fetchall()
             for row in message_counts:
                 if row['sender'] == 'user':
-                    stats['user_messages'] = row[1]
+                    stats['user_messages'] = row[1] or 0
                 elif row['sender'] == 'assistant':
                     stats['assistant_messages'] = row[1]
             stats['total_messages'] = stats['user_messages'] + stats['assistant_messages']
@@ -1725,14 +1785,49 @@ def dashboard():
         # This is a simplified view of "usage" - just listing active models.
         stats['model_usage'] = [{'name': name, 'count': 'N/A'} for name in model_usage_list]
 
+        # Fetch API Usage Statistics
+        api_usage_rows = db.execute(
+            '''SELECT model, category, session_id, input_tokens_per_message, output_tokens_per_message
+               FROM api_usage_metrics
+               WHERE timestamp >= ?
+               ORDER BY timestamp DESC
+               LIMIT 100''', (start_time,)
+        ).fetchall()
+        stats['api_usage'] = [dict(row) for row in api_usage_rows]
+
+        # Calculate total tokens for the selected time range
+        token_sums = db.execute(
+            '''SELECT
+                   SUM(input_tokens_per_message) as total_input,
+                   SUM(output_tokens_per_message) as total_output
+               FROM api_usage_metrics
+               WHERE timestamp >= ?''', (start_time,)
+        ).fetchone()
+
+        stats['total_input_tokens'] = token_sums['total_input'] or 0
+        stats['total_output_tokens'] = token_sums['total_output'] or 0
+        stats['total_tokens'] = stats['total_input_tokens'] + stats['total_output_tokens']
+
+        # Fetch API Calls per model
+        model_call_counts_rows = db.execute(
+            '''SELECT model, COUNT(id) as call_count
+               FROM api_usage_metrics
+               WHERE timestamp >= ?
+               GROUP BY model
+               ORDER BY call_count DESC''', (start_time,)
+        ).fetchall()
+        stats['model_call_counts'] = [dict(row) for row in model_call_counts_rows]
+
     except Exception as e:
         current_app.logger.error(f"Error fetching dashboard stats: {e}")
 
     return render_template('dashboard.html', 
         page_title="User Dashboard | AI Think Chat",
         page_id="dashboard",
-        header_title="📊 User Dashboard",
-        stats=stats)
+        header_title=f"📊 User Dashboard ({time_range})",
+        stats=stats,
+        time_range_labels=time_range_labels,
+        current_range=time_range)
 
 # --- Cloud Model Endpoints ---
 
