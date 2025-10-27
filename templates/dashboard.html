@@ -52,10 +52,69 @@
         color: var(--text-light);
         font-weight: 500;
     }
+    /* Table styling for API Usage */
+    .api-usage-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1.5rem;
+    }
+    .api-usage-table th,
+    .api-usage-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+    }
+    .api-usage-table th {
+        background-color: var(--background-secondary);
+        font-weight: 600;
+        color: var(--text-light);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+    }
+    .api-usage-table tbody tr:hover {
+        background-color: var(--background-secondary);
+    }
+    .api-usage-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    .time-range-selector {
+        display: flex;
+        gap: 0.5rem;
+        background-color: var(--background-secondary);
+        padding: 0.5rem;
+        border-radius: var(--radius-md);
+        margin-bottom: 2rem;
+        width: fit-content;
+    }
+    .time-range-selector a {
+        padding: 0.5rem 1rem;
+        text-decoration: none;
+        color: var(--text-light);
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    .time-range-selector a:hover {
+        background-color: var(--background);
+        color: var(--text);
+    }
+    .time-range-selector a.active {
+        background-color: var(--background-contrast);
+        color: var(--text-contrast);
+        box-shadow: var(--shadow-xs);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="time-range-selector">
+    {% for key, label in time_range_labels.items() %}
+        <a href="{{ url_for('dashboard', range=key) }}" class="{{ 'active' if current_range == key else '' }}">
+            {{ label }}
+        </a>
+    {% endfor %}
+</div>
     <div class="stats-grid">
         <div class="stat-item">
             <div class="stat-header">
@@ -85,26 +144,121 @@
             </div>
             <span class="stat-value">{{ stats.assistant_messages }}</span>
         </div>
-    </div>
-    <div class="dashboard">
-        <div class="card">
-            <h2>🤖 Model Usage</h2>
-            <p class="text-muted" style="margin-bottom: 1rem;">
-                This section lists your currently active models. Usage counting per model is not yet implemented.
-            </p>
-            {% if stats.model_usage %}
-                <ul class="feature-list">
-                    {% for model in stats.model_usage %}
-                        <li>
-                            <strong>{{ model.name }}</strong>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No active models found.</p>
-            {% endif %}
+        <div class="stat-item">
+            <div class="stat-header">
+                <span class="stat-icon material-icons">api</span>
+                <span class="stat-label">API Calls</span>
+            </div>
+            <span class="stat-value">{{ stats.api_usage | length }}</span>
+        </div>
+        <div class="stat-item">
+            <div class="stat-header">
+                <span class="stat-icon material-icons">input</span>
+                <span class="stat-label">Input Tokens</span>
+            </div>
+            <span class="stat-value">{{ "{:,}".format(stats.total_input_tokens) }}</span>
+        </div>
+        <div class="stat-item">
+            <div class="stat-header">
+                <span class="stat-icon material-icons">output</span>
+                <span class="stat-label">Output Tokens</span>
+            </div>
+            <span class="stat-value">{{ "{:,}".format(stats.total_output_tokens) }}</span>
+        </div>
+        <div class="stat-item">
+            <div class="stat-header">
+                <span class="stat-icon material-icons">token</span>
+                <span class="stat-label">Total Tokens</span>
+            </div>
+            <span class="stat-value">{{ "{:,}".format(stats.total_tokens) }}</span>
         </div>
     </div>
+    <div class="dashboard" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <div>
+            <div class="card">
+                <h2>🤖 Active Models</h2>
+                <p class="text-muted" style="margin-bottom: 1rem;">
+                    This section lists your currently active models.
+                </p>
+                {% if stats.model_usage %}
+                    <ul class="feature-list">
+                        {% for model in stats.model_usage %}
+                            <li>
+                                <strong>{{ model.name }}</strong>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No active models found.</p>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <div class="card">
+                <h2>📞 API Calls per Model</h2>
+                <p class="text-muted" style="margin-bottom: 1rem;">
+                    Number of API calls for each model in the selected time range.
+                </p>
+                {% if stats.model_call_counts %}
+                    <div class="table-responsive">
+                        <table class="api-usage-table">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>API Calls</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in stats.model_call_counts %}
+                                    <tr>
+                                        <td>{{ item.model }}</td>
+                                        <td>{{ "{:,}".format(item.call_count) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p>No API call data available for this period.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="card" style="margin-top: 2rem;">
+            <h2>📊 API Usage Statistics</h2>
+            <p class="text-muted" style="margin-bottom: 1rem;">
+                Detailed breakdown of recent API calls and token usage.
+            </p>
+
+            {% if stats.api_usage %}
+                <div class="table-responsive">
+                    <table class="api-usage-table">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>Session ID</th>
+                                <th>Input Tokens/Msg</th>
+                                <th>Output Tokens/Msg</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usage in stats.api_usage %}
+                                <tr>
+                                    <td>{{ usage.model }}</td>
+                                    <td>
+                                        <a href="{{ url_for('index', session_id=usage.session_id) }}" title="View Session" target="_blank">{{ usage.session_id[:8] }}...</a>
+                                    </td>
+                                    <td>{{ usage.input_tokens_per_message }}</td>
+                                    <td>{{ usage.output_tokens_per_message }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p>No API usage data available for the selected period.</p>
+            {% endif %}
+        </div>
 {% endblock %}
 
 {% block page_scripts %}
