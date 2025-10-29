@@ -1680,16 +1680,6 @@ def api_delete_prompt(prompt_id):
     db.commit()
     return jsonify({'success': True})
 
-@app.route('/feedback')
-def feedback_page():
-    """Render the feedback page."""
-    return render_template(
-        'feedback.html',
-        page_title="Feedback | AI Think Chat",
-        page_id="feedback",
-        header_title="✍️ Feedback"
-    )
-
 @app.route('/dashboard')
 def dashboard():
     """Render the user dashboard with usage statistics."""
@@ -1978,8 +1968,7 @@ def flush_langfuse(error):
             current_app.logger.warning(f"Error flushing Langfuse: {e}")
 
 
-'''@app.route('/about')
+"""@app.route('/about')
 def about():
-    """Render the feedback page."""
     return render_template(
-        'about.html')'''
+        'about.html')"""
