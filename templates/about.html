@@ -40,6 +40,11 @@
             gap: 1.5rem;
             align-items: start;
         }
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
         .card {
             background-color: var(--card);
             border: 1px solid var(--border);
@@ -116,13 +121,18 @@
                     <li><strong>File Upload:</strong> Provide `.txt` files as context for your conversations.</li>
                 </ul>
             </div>
-            <div class="card license-card">
-                <h3>MIT License</h3>
-                <img src="https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg" alt="MIT Logo">
-                <p>This project is open-source and licensed under the MIT License.</p>
-                <a href="https://github.com/SaiSivarajuIN/ai_think/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="nav-link" style="width: auto; justify-content: center;">
-                    View License on GitHub
-                </a>
+            <div class="right-column">
+                <div class="card license-card">
+                    <h3>MIT License</h3>
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg" alt="MIT Logo">
+                    <p>This project is open-source and licensed under the MIT License.</p>
+                    <a href="https://github.com/SaiSivarajuIN/ai_think/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">View License on GitHub</a>
+                </div>
+                <div class="card feedback-card">
+                    <h3>✍️ Feedback & contact us</h3>
+                    <p>Have feedback or a feature request? Share it with us!</p>
+                    <a href="https://forms.gle/5LeiKT1tRoNWmVst5" target="_blank" rel="noopener noreferrer">Share Feedback</a>
+                </div>
             </div>
         </div>
     </div>
