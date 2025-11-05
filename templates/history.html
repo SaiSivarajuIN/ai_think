@@ -357,16 +357,23 @@ function initializeHistoryPage() {
                     const thoughts = [];
                     const mainContent = rawContent.replace(thinkRegex, (match, thoughtContent) => {
                         thoughts.push(thoughtContent.trim());
-                        return '';
+                        return ''; // Remove from main content
                     }).trim();
 
-                    newHtml = formatWithLatex(mainContent);
-
+                    let thoughtsHtml = '';
                     thoughts.forEach(thought => {
                         if (thought) {
-                            newHtml += `<div class="thought"><strong>Thought Process</strong><div>${formatWithLatex(thought)}</div></div>`;
+                            thoughtsHtml += `
+                                <details class="thought" style="margin-bottom: 1rem;">
+                                    <summary style="cursor: pointer; font-weight: 600;">
+                                        🤔 Thought Process
+                                    </summary>
+                                    <div class="thought-body" style="padding-top: 0.5rem;">${formatWithLatex(thought)}</div>
+                                </details>
+                            `;
                         }
                     });
+                    newHtml = thoughtsHtml + formatWithLatex(mainContent);
                 } else {
                     newHtml = formatWithLatex(rawContent);
                 }
@@ -378,9 +385,16 @@ function initializeHistoryPage() {
                     const searchResults = searchMatch[1].trim();
                     const userQuestion = searchMatch[2].trim();
 
-                    // Format search results like the "Thought Process" block
-                    const searchResultsHtml = `<div class="thought"><strong>Web Search Results</strong><div>${formatWithLatex(searchResults)}</div></div>`;
+                    const searchResultsHtml = `
+                        <details class="thought" style="margin-bottom: 1rem;">
+                            <summary style="cursor: pointer; font-weight: 600;">
+                                🌐 Web Search Results
+                            </summary>
+                            <div class="thought-body" style="padding-top: 0.5rem;">${formatWithLatex(searchResults)}</div>
+                        </details>
+                    `;
                     const userQuestionHtml = formatWithLatex(userQuestion);
+                    // Prepend the collapsible search results to the user's question
                     newHtml = searchResultsHtml + userQuestionHtml;
                 } else {
                     newHtml = formatWithLatex(rawContent);

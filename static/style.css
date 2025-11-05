@@ -185,6 +185,25 @@ body.fixed-layout {
     background: var(--message-assistant);
 }
 
+/* --- Specific Sidebar Link Adjustments --- */
+.chat-nav-link {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Reduce size of incognito toggle button */
+#incognito-toggle-btn {
+    padding: 4px;
+    width: auto;
+    height: auto;
+}
+
+#incognito-toggle-btn:hover {
+    color: var(--text);
+    background: var(--message-assistant);
+}
+
 /* Override nav-link styles specifically for buttons inside the input area */
 .input-area .nav-link {
     width: auto; /* Reset width from main nav-link style */
@@ -798,10 +817,13 @@ input:checked + .slider:before {
 
 .thought {
     background: rgba(255, 235, 59, 0.15);
-    border: 1px solid rgba(251, 192, 45, 0.3);
-    padding: 1rem;
+    border: 1px solid rgba(251, 192, 45, 0.2);
+    border-left: 3px solid rgba(251, 192, 45, 0.6);
+    padding: 0.75rem 1rem;
     margin-top: 1rem;
     border-radius: 0.5rem;
+    max-width: 95%; /* Don't take full width of the parent */
+    margin-right: auto; /* Align to the left */
 }
 
 body.dark-theme .thought {

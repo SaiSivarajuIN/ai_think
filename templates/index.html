@@ -169,6 +169,23 @@
             background-color: #ccc; /* A slightly-darker-than-border color */
         }
         
+        /* Style for active search button */
+        #search-button.search-active {
+            background-color: var(--primary); /* Make it more prominent */
+            color: white; /* Text color for active state */
+        }
+        #search-button.search-active .material-icons {
+            color: white; /* Ensure icon is also white */
+        }
+
+        /* 6. Specific button tweaks for size consistency */
+        #search-button {
+            padding: 0.5rem; /* Match other buttons */
+        }
+        #search-button .material-icons {
+            font-size: 20px; /* Slightly smaller icon */
+        }
+
 
         /* 7. Responsive Tweaks */
         @media (max-width: 768px) {
@@ -280,12 +297,6 @@
     <button onclick="resetThread()" class="nav-link" title="New Chat">
         <span class="material-icons">add_comment</span>
     </button>
-    <button id="incognito-toggle-btn" class="nav-link" title="Enable Incognito Mode">
-        <span id="incognito-icon" class="material-icons">visibility</span>
-    </button>
-    <button id="search-button" class="nav-link" title="{% if searxng_enabled %}Web Search (type /search){% else %}Web Search disabled (Enable in Settings){% endif %}" {% if not searxng_enabled %}disabled{% endif %}>
-        <span class="material-icons">search</span>
-    </button>
     <button id="history-sidebar-toggle" class="nav-link" title="Toggle History Sidebar">
         <span class="material-icons">history</span>
     </button>
@@ -302,10 +313,12 @@
 {% block after_content %}
     <div class="input-area-wrapper">
         <div class="input-area">
+            <button id="search-button" class="nav-link" title="{% if searxng_enabled %}Web Search (type /search){% else %}Web Search disabled (Enable in Settings){% endif %}" {% if not searxng_enabled %}disabled{% endif %}>
+                <span class="material-icons">language</span>
+            </button>
             <input type="file" id="fileUpload" accept=".txt" title="Upload TXT File" style="display: none;" />
             <button id="uploadButton" class="nav-link" title="Upload TXT File"><span class="material-icons">attach_file</span></button>
             <div id="userMessageContainer" class="user-message-container">
-                <span id="search-prefix" class="search-prefix" style="display: none;">/search</span>
                 <div id="userMessage" contenteditable="true" data-placeholder="Type your message..."></div>
             </div>
             <button id="sendButton" class="send-button" title="Send"><span class="material-icons">send</span></button>
