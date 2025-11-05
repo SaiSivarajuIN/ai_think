@@ -23,7 +23,9 @@ from werkzeug.exceptions import ClientDisconnected
 
 load_dotenv()
 
+
 app = Flask(__name__)
+
 
 # --- Logging Setup ---
 def setup_logging(app_instance):
@@ -49,6 +51,7 @@ def setup_logging(app_instance):
     app_instance.logger.addHandler(file_handler)
     app_instance.logger.setLevel(logging.INFO)
     app_instance.logger.propagate = False
+
 
 setup_logging(app)
 
@@ -103,7 +106,10 @@ def init_db():
                 sender TEXT NOT NULL,
                 content TEXT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                metadata TEXT
+                metadata TEXT,
+                generation_time REAL,
+                model_used TEXT,
+                tokens_per_second REAL
             )
         ''')
         db.execute('''
@@ -186,6 +192,16 @@ def init_db():
             cursor.execute('ALTER TABLE settings ADD COLUMN searxng_url TEXT')
         if 'searxng_enabled' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN searxng_enabled BOOLEAN DEFAULT 0')
+
+        messages_table_info = cursor.execute("PRAGMA table_info(messages)").fetchall()
+        messages_column_names = [info[1] for info in messages_table_info]
+        if 'generation_time' not in messages_column_names:
+            cursor.execute('ALTER TABLE messages ADD COLUMN generation_time REAL')
+        if 'model_used' not in messages_column_names:
+            cursor.execute('ALTER TABLE messages ADD COLUMN model_used TEXT')
+        if 'tokens_per_second' not in messages_column_names:
+            cursor.execute('ALTER TABLE messages ADD COLUMN tokens_per_second REAL')
+
         if 'active' not in [info[1] for info in cursor.execute("PRAGMA table_info(cloud_models)").fetchall()]:
             cursor.execute('ALTER TABLE cloud_models ADD COLUMN active BOOLEAN DEFAULT 1')
         if 'name' not in [info[1] for info in cursor.execute("PRAGMA table_info(local_models)").fetchall()]:
@@ -231,6 +247,7 @@ def init_db():
 # --- Langfuse Initialization ---
 langfuse = None
 langfuse_enabled = False
+
 
 def get_settings():
     """Fetches settings from SQLite."""
@@ -388,6 +405,7 @@ def check_ollama_connection():
     except requests.exceptions.RequestException:
         return False
 
+
 def check_searxng_connection():
     """Check if SearXNG is running and accessible."""
     settings = get_settings()
@@ -402,6 +420,7 @@ def check_searxng_connection():
         return response.status_code == 200
     except requests.exceptions.RequestException:
         return False
+
 
 def get_ollama_models():
     """Fetch the list of available models from the Ollama API."""
@@ -945,6 +964,12 @@ def generate():
         assistant_response = assistant_response_data['content']
         current_app.logger.info(f"Assistant response generated: '{assistant_response[:80]}...'")
         usage = assistant_response_data['usage']
+        elapsed = time.time() - start_time
+
+        # Calculate tokens per second
+        output_tokens = usage.get('completion_tokens', 0)
+        tokens_per_second = round(output_tokens / elapsed, 2) if elapsed > 0 else 0
+
         # --- Save messages AFTER successful generation ---
         if not is_incognito:
             # Save user message to database
@@ -960,15 +985,15 @@ def generate():
                         ids=[str(uuid.uuid4()), str(uuid.uuid4())]
                     )
                 except Exception as e:
-                    current_app.logger.error(f"Failed to save messages to ChromaDB: {e}")
+                    current_app.logger.error(f"Failed to save messages to ChromaDB: {e}") # generation_time is not supported in ChromaDB metadata for now
             else:
-                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'user', user_message_to_save))
-                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'assistant', assistant_response))
+                model_name_for_log = model_config['model_name'] if is_cloud_model else model
+                db.execute('INSERT INTO messages (session_id, sender, content, generation_time, model_used, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?)', (session_id, 'user', user_message_to_save, None, None, None))
+                db.execute('INSERT INTO messages (session_id, sender, content, generation_time, model_used, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?)', (session_id, 'assistant', assistant_response, round(elapsed, 2), model_name_for_log, tokens_per_second))
                 db.commit()
             
             # Save API usage metrics
             try:
-                model_name_for_log = model_config['model_name'] if is_cloud_model else model
                 db = get_db()
                 db.execute(
                     '''INSERT INTO api_usage_metrics (model, category, session_id, input_tokens_per_message, output_tokens_per_message)
@@ -981,8 +1006,7 @@ def generate():
                 current_app.logger.error(f"Failed to save API usage metrics: {e}")
 
 
-        elapsed = time.time() - start_time
-
+        model_name_for_log = model_config['model_name'] if is_cloud_model else model
         return jsonify({
             "message": {
                 "role": "assistant",
@@ -992,7 +1016,9 @@ def generate():
             "usage": usage,
             "generation_time_seconds": round(elapsed, 2),
             "langfuse_enabled": langfuse_enabled and not is_incognito,
-            "session_id": session_id
+            "session_id": session_id,
+            "model_used": model_name_for_log,
+            "tokens_per_second": tokens_per_second
         })
 
     except ClientDisconnected:
@@ -1043,10 +1069,18 @@ def get_session_history(session_id):
         else:
             db = get_db()
             rows = db.execute(
-                'SELECT sender, content FROM messages WHERE session_id = ? ORDER BY timestamp ASC',
+                'SELECT sender, content, generation_time, model_used, tokens_per_second FROM messages WHERE session_id = ? ORDER BY timestamp ASC',
                 (session_id,)
             ).fetchall()
-            messages = [{'role': row['sender'], 'content': row['content']} for row in rows]
+            for row in rows:
+                msg = {'role': row['sender'], 'content': row['content']}
+                if row['generation_time'] is not None:
+                    msg['generation_time'] = row['generation_time']
+                if row['tokens_per_second'] is not None:
+                    msg['tokens_per_second'] = row['tokens_per_second']
+                if row['model_used'] is not None:
+                    msg['model_used'] = row['model_used']
+                messages.append(msg)
 
         if not messages:
             return jsonify({"error": "Session not found or has no messages"}), 404
@@ -1602,6 +1636,7 @@ def settings():
         # Re-initialize services with new settings
         initialize_langfuse()
         initialize_chroma()
+
         return redirect(url_for('settings'))
 
     # Get current settings
@@ -1866,25 +1901,32 @@ def api_create_cloud_model():
     data = request.get_json()
     service = data.get('service')
     base_url = data.get('base_url')
-    api_key = data.get('api_key')
-    model_name = data.get('model_name')
+    api_key = data.get('api_key') # This will be a list of names
+    model_names = data.get('model_names')
 
-    if not all([service, base_url, api_key, model_name]):
+    if not all([service, base_url, api_key, model_names]):
         return jsonify({"error": "Missing required fields"}), 400
 
     try:
         db = get_db()
-        cursor = db.execute('INSERT INTO cloud_models (service, base_url, api_key, model_name) VALUES (?, ?, ?, ?)',
-                            (service, base_url, api_key, model_name))
+        # Insert one row for each model name
+        for model_name in model_names:
+            if model_name: # Ensure not empty
+                db.execute('INSERT INTO cloud_models (service, base_url, api_key, model_name) VALUES (?, ?, ?, ?)',
+                                   (service, base_url, api_key, model_name.strip()))
         db.commit()
-        return jsonify({"success": True, "id": cursor.lastrowid}), 201
+        return jsonify({"success": True}), 201
     except Exception as e:
         current_app.logger.error(f"Error creating cloud model: {e}")
         return jsonify({"error": "Failed to create cloud model."}), 500
 
 @app.route('/api/cloud_models/update/<int:model_id>', methods=['POST'])
 def api_update_cloud_model(model_id):
-    """API endpoint to update an existing cloud model configuration."""
+    """
+    API endpoint to update an existing cloud model configuration.
+    This now updates all models that share the same service, base_url, and api_key.
+    It handles adding, removing, and updating model names.
+    """
     data = request.get_json()
     allowed_fields = ['service', 'base_url', 'api_key', 'model_name']
     fields_to_update = []
@@ -1899,18 +1941,57 @@ def api_update_cloud_model(model_id):
             fields_to_update.append(f"{field} = ?")
             values_to_update.append(data[field])
 
-    if not fields_to_update:
-        return jsonify({"error": "No fields to update"}), 400
-
-    set_clause = ", ".join(fields_to_update)
-    query = f"UPDATE cloud_models SET {set_clause} WHERE id = ?"
-    values = values_to_update + [model_id]
+    new_model_names = [name.strip() for name in data.get('model_names', []) if name.strip()]
 
     try:
         db = get_db()
-        db.execute(query, tuple(values))
+        # Get the original record to find all associated models
+        original_model = db.execute('SELECT * FROM cloud_models WHERE id = ?', (model_id,)).fetchone()
+        if not original_model:
+            return jsonify({"error": "Model not found"}), 404
+
+        # Find all models belonging to this service configuration
+        existing_models_cursor = db.execute(
+            'SELECT id, model_name FROM cloud_models WHERE service = ? AND base_url = ?',
+            (original_model['service'], original_model['base_url'])
+        )
+        existing_models = {row['model_name']: row['id'] for row in existing_models_cursor}
+        existing_model_names = set(existing_models.keys())
+
+        # --- Update shared properties (service, base_url, api_key) ---
+        update_payload = {}
+        if 'service' in data: update_payload['service'] = data['service']
+        if 'base_url' in data: update_payload['base_url'] = data['base_url']
+        if 'api_key' in data and data['api_key']: update_payload['api_key'] = data['api_key']
+
+        if update_payload:
+            set_clause = ", ".join([f"{key} = ?" for key in update_payload.keys()])
+            query = f"UPDATE cloud_models SET {set_clause} WHERE service = ? AND base_url = ?"
+            values = list(update_payload.values()) + [original_model['service'], original_model['base_url']]
+            db.execute(query, tuple(values))
+
+        # --- Sync model names ---
+        # Models to delete
+        to_delete = existing_model_names - set(new_model_names)
+        if to_delete:
+            delete_ids = [existing_models[name] for name in to_delete]
+            db.execute(f"DELETE FROM cloud_models WHERE id IN ({','.join('?' for _ in delete_ids)})", tuple(delete_ids))
+            current_app.logger.info(f"Deleted cloud models: {to_delete}")
+
+        # Models to add
+        to_add = set(new_model_names) - existing_model_names
+        if to_add:
+            # Use the new values if they were provided, otherwise the original ones
+            service_for_add = data.get('service', original_model['service'])
+            base_url_for_add = data.get('base_url', original_model['base_url'])
+            api_key_for_add = data.get('api_key') if data.get('api_key') else original_model['api_key']
+            for name in to_add:
+                db.execute('INSERT INTO cloud_models (service, base_url, api_key, model_name) VALUES (?, ?, ?, ?)',
+                           (service_for_add, base_url_for_add, api_key_for_add, name))
+            current_app.logger.info(f"Added cloud models: {to_add}")
+
         db.commit()
-        return jsonify({"success": True, "id": model_id})
+        return jsonify({"success": True})
     except Exception as e:
         current_app.logger.error(f"Error updating cloud model {model_id}: {e}")
         return jsonify({"error": "Failed to update cloud model."}), 500
@@ -1928,19 +2009,35 @@ def api_delete_cloud_model(model_id):
         return jsonify({"error": "Failed to delete cloud model."}), 500
 
 @app.route('/api/cloud_models/toggle_active/<int:model_id>', methods=['POST'])
-def api_toggle_cloud_model_active(model_id):
-    """API endpoint to toggle the active state of a cloud model."""
+def api_toggle_cloud_model_active(model_id): # The model_id is used to identify the group
+    """
+    API endpoint to toggle the active state for all cloud models sharing the same
+    service and base_url as the model with the given ID.
+    """
     data = request.get_json()
     is_active = data.get('active')
 
     if is_active is None:
         return jsonify({"error": "Missing 'active' field"}), 400
 
-    db = get_db()
-    db.execute('UPDATE cloud_models SET active = ? WHERE id = ?', (is_active, model_id))
-    db.commit()
-    current_app.logger.info(f"Toggled active state for cloud model {model_id} to {is_active}")
-    return jsonify({'success': True})
+    try:
+        db = get_db()
+        # First, find the service and base_url of the model group to be toggled
+        model_group_info = db.execute('SELECT service, base_url FROM cloud_models WHERE id = ?', (model_id,)).fetchone()
+        if not model_group_info:
+            return jsonify({"error": "Model group not found"}), 404
+
+        service = model_group_info['service']
+        base_url = model_group_info['base_url']
+
+        # Now, update all models that belong to this service/base_url group
+        db.execute('UPDATE cloud_models SET active = ? WHERE service = ? AND base_url = ?', (is_active, service, base_url))
+        db.commit()
+        current_app.logger.info(f"Toggled active state for cloud model group '{service}' to {is_active}")
+        return jsonify({'success': True})
+    except Exception as e:
+        current_app.logger.error(f"Error toggling active state for cloud model group: {e}")
+        return jsonify({"error": "Failed to toggle active state."}), 500
 
 @app.route('/api/local_models/toggle_active', methods=['POST'])
 def api_toggle_local_model_active():

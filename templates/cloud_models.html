@@ -31,6 +31,15 @@
             text-overflow: ellipsis;
             font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
         }
+        footer {
+            background-color: #f8f9fa;
+            text-align: right;
+            padding: 10px 0;
+            font-size: 0.9rem;
+            color: #555;
+            border-top: 1px solid #ddd;
+        }
+
     </style>
 {% endblock %}
 
@@ -74,10 +83,13 @@
                 <div class="form-group">
                     <label for="model-service">Service Name</label>
                     <select id="model-service" name="service" class="model-selector" style="width: 100%;">
+                        <option value="Cohere">Cohere</option>
                         <option value="DeepSeek">DeepSeek</option>
                         <option value="Google Gemini">Google Gemini</option>
+                        <option value="Groq">Groq</option>
+                        <option value="LongCat">LongCat</option>
+                        <option value="Nvidia AI">Nvidia AI</option>
                         <option value="OpenAI">OpenAI</option>
-                        <option value="OpenRouter">OpenRouter</option>
                         <option value="Perplexity">Perplexity</option>
                         <option value="Other">Other</option>
                     </select>
@@ -95,16 +107,49 @@
                     <input type="password" id="model-api-key" name="api_key" placeholder="Leave blank to keep existing key">
                 </div>
                 <div class="form-group">
-                    <label for="model-name">Model Name</label>
-                    <input type="text" id="model-name" name="model_name" required placeholder="e.g., llama-3-sonar-large-32k-online">
+                    <label>Model Names</label>
+                    <div id="model-names-container">
+                        <!-- Model name inputs will be added here by JS -->
+                    </div>
+                    <button type="button" id="add-model-name-btn" class="send-button" style="align-self: flex-start; padding: 0.5rem 1rem; font-size: 0.8rem; height: auto; width: auto; border-radius: var(--radius-md); margin-top: 0.5rem;">Add Another Model</button>
                 </div>
                 <button type="submit" class="save-btn">Save Model</button>
             </form>
         </div>
     </div>
+    <footer>
+        <p>Some services may experience issues.</p>
+    </footer>
+
 {% endblock %}
 
 {% block page_scripts %}
     <script src="{{ url_for('static', filename='cloud_models.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const serviceSelect = document.getElementById('model-service');
+            const baseUrlInput = document.getElementById('model-base-url');
+
+            const serviceUrlMap = {
+                'Cohere': 'https://api.cohere.ai/compatibility/v1',
+                'DeepSeek': 'https://api.deepseek.com',
+                'Google Gemini': 'https://generativelanguage.googleapis.com/v1beta/openai',
+                'Groq': 'https://api.groq.com/openai/v1',
+                'LongCat': 'https://api.longcat.chat/openai',
+                'Nvidia AI': 'https://integrate.api.nvidia.com/v1/chat/completions',
+                'OpenAI': 'https://api.openai.com/v1',
+                'OpenRouter': 'https://openrouter.ai/api/v1',
+                'Perplexity': 'https://api.perplexity.ai',
+                'Other': ''
+            };
+
+            serviceSelect.addEventListener('change', function() {
+                const selectedService = this.value;
+                if (serviceUrlMap.hasOwnProperty(selectedService)) {
+                    baseUrlInput.value = serviceUrlMap[selectedService];
+                }
+            });
+        });
+    </script>
     {{ super() }}
 {% endblock %}

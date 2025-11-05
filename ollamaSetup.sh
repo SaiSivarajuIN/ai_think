@@ -34,7 +34,7 @@ pull_models() {
     echo "📦 Pulling recommended models (this may take some time)..."
     
     # Pull standard models
-    # ollama pull gemma:latest
+    ollama pull gemma3:1b
     # ollama pull llama3:latest
     
     # Pull GGUF model from Hugging Face

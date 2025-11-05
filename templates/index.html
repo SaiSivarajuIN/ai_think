@@ -5,10 +5,8 @@
 {% block header_title %}{{ header_title }}{% endblock %}
 
 {% block head_extra %}
-    <!-- Markdown Converter -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
 
-    <!-- MathJax Configuration -->
     <script>
     MathJax = {
         tex: {
@@ -29,7 +27,6 @@
     };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
-    <!-- highlight.js for code syntax highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
@@ -63,11 +60,180 @@
             display: block;
             margin-bottom: 0.5rem;
         }
+
+        /* --- Gemini UI Style Enhancements --- */
+
+        /* 1. Main Layout */
+        .chat-area-container {
+            max-width: 900px; /* Center the chat content */
+            margin: 0 auto;
+            /* Add padding to avoid overlap with sticky input bar */
+            padding-bottom: 180px; 
+            width: 100%;
+        }
+        
+        /* 2. Input Area Wrapper (Sticky Bottom Bar) */
+        .input-area-wrapper {
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            /* Fade to background to hide scrolling content underneath */
+            background: linear-gradient(180deg, 
+                rgba(255,255,255,0) 0%, 
+                var(--background, #fff) 20%
+            );
+            padding: 1rem 0 0.5rem 0; /* Padding around the input bar */
+            border: none;
+        }
+
+        /* 3. The Input Bar Itself */
+        .input-area {
+            max-width: 900px; /* Match the chat container width */
+            margin: 0 auto;
+            display: flex;
+            align-items: flex-end; /* Align buttons to bottom when text wraps */
+            gap: 0.5rem;
+            background-color: var(--card, #fff);
+            border: 1px solid var(--border, #e0e0e0);
+            border-radius: 1.5rem; /* Rounded corners */
+            padding: 0.5rem 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        /* 4. ContentEditable Text Area */
+        #userMessageContainer {
+            flex: 1; /* Take up remaining space */
+            display: flex;
+            flex-direction: row;
+            align-items: baseline;  /* Align based on text baseline */
+            padding: 0.25rem 0.25rem;
+        }
+        
+        .search-prefix {
+            color: #777;
+            font-weight: 600;
+            margin-right: 0.25rem;
+            padding-left: 0.25rem;
+            white-space: nowrap; /* Keep it on one line */
+            /* This will now be aligned to the bottom by flex-end */
+            font-size: 0.9rem;
+            margin-bottom: 2px; /* Small tweak to align with text */
+        }
+
+        #userMessage {
+            flex: 1; 
+            min-height: 24px; /* Minimum height */
+            max-height: 200px; /* Max height before scrolling */
+            overflow-y: auto;
+            outline: none;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: var(--text-color, #000); /* Use theme text color */
+        }
+        /* Placeholder text */
+        #userMessage:empty:before {
+            content: attr(data-placeholder);
+            color: #999;
+            cursor: text;
+        }
+
+        /* 5. Buttons (Upload & Send) */
+        #uploadButton, #sendButton {
+            background: transparent;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #777; /* Neutral icon color */
+            transition: background-color 0.2s;
+            flex-shrink: 0; /* Prevent buttons from shrinking */
+            width: 40px;
+            height: 40px;
+            margin-bottom: 2px; /* Align with text area */
+        }
+        #uploadButton:hover, #sendButton:hover {
+            background-color: var(--border, #eee); /* Use border color for hover */
+        }
+        
+        #sendButton {
+            /* Make send button slightly more prominent */
+            background-color: var(--border, #eee); 
+        }
+        #sendButton:hover {
+            background-color: #ccc; /* A slightly-darker-than-border color */
+        }
+        
+
+        /* 7. Responsive Tweaks */
+        @media (max-width: 768px) {
+            .chat-area-container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+                padding-bottom: 160px; /* Less padding on mobile */
+            }
+            .input-area-wrapper {
+                padding: 0.5rem 0;
+            }
+            .input-area {
+                margin: 0 0.5rem;
+                max-width: calc(100% - 1rem); /* Full width with margin */
+            }
+            
+        }
+
+        /* Custom floating dropdown for large selects (inner scrollbar after opening) */
+        .custom-select-dropdown {
+            position: absolute;
+            z-index: 9999;
+            max-height: 240px; /* shows inner scrollbar when content exceeds this */
+            overflow-y: auto;
+            background: var(--card, #fff);
+            border: 1px solid var(--border, #e0e0e0);
+            border-radius: 0.5rem;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+            padding: 0.25rem 0;
+            font-size: 0.85rem;
+            display: none; /* hidden until opened */
+            opacity: 0;
+            transition: opacity 0.12s linear;
+            -webkit-overflow-scrolling: touch;
+        }
+        .custom-select-dropdown.open { display: block; opacity: 1; }
+        .custom-select-dropdown .cs-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            white-space: nowrap;
+            color: var(--text-color, #000);
+        }
+        .custom-select-dropdown .cs-item:hover {
+            background: rgba(0,0,0,0.04);
+        }
+        .custom-select-dropdown .cs-item.selected { font-weight: 600; }
+        .custom-select-dropdown .cs-item.disabled { color: #999; cursor: not-allowed; }
+        .custom-select-dropdown .cs-group-label {
+            padding: 0.45rem 0.75rem;
+            font-weight: 700;
+            color: #666;
+            background: transparent;
+            border-top: 1px solid rgba(0,0,0,0.04);
+        }
+
+        /* Preserve line breaks inside Thought Process blocks */
+        .thought .thought-body {
+            white-space: pre-wrap; /* keep newlines and wrap long lines */
+            word-break: break-word;
+        }
     </style>
 {% endblock %}
 
 {% block header_nav %}
-        <div class="model-selector-wrapper">
+    <div class="model-selector-wrapper">
         <label for="model-selector" class="visually-hidden">Model:</label>
         <select id="model-selector" class="model-selector">
         {% if available_models %}
@@ -79,7 +245,7 @@
                     {% set source = parts[1] %}
                     {% set model_name = parts[2] %}
                     <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>
-                        {{ model_name }} <small>({{ source }})</small>
+                        {{ model_name }} <!--<small>({{ source }})</small>-->
                     </option>
                 {% else %}
                     <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>
@@ -94,7 +260,7 @@
         {% if cloud_models %}
             <optgroup label="Cloud Models">
             {% for model in cloud_models if model.active %}
-                <option value="cloud::{{ model.id }}">{{ model.model_name }} <small>({{ model.service }})</small></option>
+                <option value="cloud::{{ model.id }}">{{ model.model_name }} <!--<small>({{ model.service }})</small></option>-->
             {% endfor %}
             </optgroup>
         {% endif %}
@@ -127,7 +293,6 @@
 
 {% block content %}
     <div class="chat-area-container">
-        <!-- Chat Box -->
         <div id="chatbox" class="page-content" style="padding: 0;"></div>
     </div>
 {% endblock %}
@@ -135,7 +300,6 @@
 
 
 {% block after_content %}
-    <!-- Input Area -->
     <div class="input-area-wrapper">
         <div class="input-area">
             <input type="file" id="fileUpload" accept=".txt" title="Upload TXT File" style="display: none;" />
@@ -146,25 +310,152 @@
             </div>
             <button id="sendButton" class="send-button" title="Send"><span class="material-icons">send</span></button>
         </div>
-        <footer class="footer" style="padding: 0.05rem 0 0 0; border: none;">
-            <p>
-                <a href="https://saisivarajuin.github.io/ai_think/" target="_blank" rel="noopener noreferrer">AI Think</a> - Your Local AI Companion
-            </p>
-            <p>AI can mess up.</p>
-            <p>Made with 🖤</p>
-        </footer>
     </div>
-    <!-- Right Sidebar for History -->
     <aside class="history-sidebar">
         <div class="history-sidebar-header">
             <h4>Chat History</h4>
         </div>
         <div id="history-sidebar-content" class="history-sidebar-content">
-            <!-- History items will be populated by JS -->
-        </div>
+            </div>
     </aside>
 {% endblock %}
 
 {% block scripts %}
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+    <script src="https://cdn..jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+
+    <script>
+    (function() {
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // Generic enhancer: builds a floating dropdown with inner scrollbar when > 1 options
+            function enhanceSelect(selId) {
+                const sel = document.getElementById(selId);
+                if (!sel) return;
+                const optionCount = sel.querySelectorAll('option').length;
+                if (optionCount <= 1) return;
+
+                let dropdown = null;
+
+                sel.addEventListener('mousedown', function (e) {
+                    // Prevent native OS dropdown from opening; we'll show our custom one
+                    e.preventDefault();
+                });
+
+                function buildDropdown() {
+                    if (dropdown) return;
+                    dropdown = document.createElement('div');
+                    dropdown.className = 'custom-select-dropdown';
+                    dropdown.setAttribute('role', 'listbox');
+
+                    Array.from(sel.children).forEach(child => {
+                        if (child.tagName === 'OPTGROUP') {
+                            const groupLabel = document.createElement('div');
+                            groupLabel.className = 'cs-group-label';
+                            groupLabel.textContent = child.label || '';
+                            dropdown.appendChild(groupLabel);
+                            Array.from(child.children).forEach(opt => appendOptionItem(dropdown, opt));
+                        } else if (child.tagName === 'OPTION') {
+                            appendOptionItem(dropdown, child);
+                        }
+                    });
+
+                    document.body.appendChild(dropdown);
+
+                    dropdown.addEventListener('click', function (ev) {
+                        const item = ev.target.closest('.cs-item');
+                        if (!item) return;
+                        if (item.classList.contains('disabled')) return;
+                        sel.value = item.dataset.value;
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                        closeDropdown();
+                    });
+                }
+
+                function appendOptionItem(container, opt) {
+                    const item = document.createElement('div');
+                    item.className = 'cs-item';
+                    item.textContent = opt.textContent;
+                    item.dataset.value = opt.value;
+                    if (opt.disabled) item.classList.add('disabled');
+                    if (opt.value === sel.value) item.classList.add('selected');
+                    container.appendChild(item);
+                }
+
+                function positionDropdown() {
+                    if (!dropdown) return;
+                    const rect = sel.getBoundingClientRect();
+                    const left = rect.left + window.scrollX;
+                    const top = rect.bottom + window.scrollY;
+                    dropdown.style.minWidth = rect.width + 'px';
+                    dropdown.style.left = left + 'px';
+                    dropdown.style.top = top + 'px';
+
+                    // Try opening upward if it would overflow the viewport
+                    const ddRect = dropdown.getBoundingClientRect();
+                    const viewportHeight = window.innerHeight;
+                    if (ddRect.bottom > viewportHeight && rect.top > ddRect.height) {
+                        dropdown.style.top = (rect.top + window.scrollY - ddRect.height) + 'px';
+                    }
+                }
+
+                function openDropdown() {
+                    buildDropdown();
+                    positionDropdown();
+
+                    Array.from(dropdown.querySelectorAll('.cs-item')).forEach(it => {
+                        it.classList.toggle('selected', it.dataset.value === sel.value);
+                    });
+
+                    dropdown.classList.add('open');
+                    dropdown.style.display = 'block';
+                    requestAnimationFrame(() => dropdown.style.opacity = '1');
+                }
+
+                function closeDropdown() {
+                    if (!dropdown) return;
+                    dropdown.style.opacity = '0';
+                    dropdown.classList.remove('open');
+                    setTimeout(() => { if (dropdown) dropdown.style.display = 'none'; }, 120);
+                }
+
+                sel.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    if (dropdown && dropdown.style.display === 'block') {
+                        closeDropdown();
+                    } else {
+                        openDropdown();
+                    }
+                });
+
+                // Close on outside click for this select
+                document.addEventListener('click', function (e) {
+                    if (!e.target.closest('.custom-select-dropdown') && e.target !== sel) {
+                        closeDropdown();
+                    }
+                });
+
+                // Close on Escape
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') closeDropdown();
+                });
+
+                // Reposition on resize/scroll (capture scroll on ancestors too)
+                window.addEventListener('resize', function () { if (dropdown && dropdown.style.display === 'block') positionDropdown(); });
+                window.addEventListener('scroll', function () { if (dropdown && dropdown.style.display === 'block') positionDropdown(); }, true);
+
+                // Keep selection in sync if changed programmatically
+                sel.addEventListener('change', function () {
+                    if (!dropdown) return;
+                    Array.from(dropdown.querySelectorAll('.cs-item')).forEach(it => {
+                        it.classList.toggle('selected', it.dataset.value === sel.value);
+                    });
+                });
+            }
+
+            // Apply enhancer to both selectors
+            enhanceSelect('model-selector');
+            enhanceSelect('prompt-selector');
+        });
+    })();
+    </script>
 {% endblock %}
