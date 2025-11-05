@@ -40,6 +40,34 @@
             border-top: 1px solid #ddd;
         }
 
+        /* Custom floating dropdown for model-service when many options exist */
+        .custom-select-dropdown {
+            position: absolute;
+            z-index: 9999;
+            max-height: 180px; /* inner scrollbar appears when content exceeds this */
+            overflow-y: auto;
+            background: var(--card, #fff);
+            border: 1px solid var(--border, #e0e0e0);
+            border-radius: 0.5rem;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+            padding: 0.25rem 0;
+            font-size: 0.95rem;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.12s linear;
+            -webkit-overflow-scrolling: touch;
+        }
+        .custom-select-dropdown.open { display: block; opacity: 1; }
+        .custom-select-dropdown .cs-item {
+            padding: 0.45rem 0.75rem;
+            cursor: pointer;
+            white-space: nowrap;
+            color: var(--text-color, #000);
+        }
+        .custom-select-dropdown .cs-item:hover { background: rgba(0,0,0,0.04); }
+        .custom-select-dropdown .cs-item.selected { font-weight: 600; }
+        .custom-select-dropdown .cs-item.disabled { color: #999; cursor: not-allowed; }
+
     </style>
 {% endblock %}
 
@@ -83,6 +111,8 @@
                 <div class="form-group">
                     <label for="model-service">Service Name</label>
                     <select id="model-service" name="service" class="model-selector" style="width: 100%;">
+                        <option>Select Service</option>
+                        <option value="Cerebras">Cerebras</option>
                         <option value="Cohere">Cohere</option>
                         <option value="DeepSeek">DeepSeek</option>
                         <option value="Google Gemini">Google Gemini</option>
@@ -118,7 +148,7 @@
         </div>
     </div>
     <footer>
-        <p>Some services may experience issues.</p>
+        <p>**Some services may experience issues.</p>
     </footer>
 
 {% endblock %}
@@ -131,6 +161,7 @@
             const baseUrlInput = document.getElementById('model-base-url');
 
             const serviceUrlMap = {
+                'Cerebras': 'https://api.cerebras.ai/v1',
                 'Cohere': 'https://api.cohere.ai/compatibility/v1',
                 'DeepSeek': 'https://api.deepseek.com',
                 'Google Gemini': 'https://generativelanguage.googleapis.com/v1beta/openai',
@@ -150,6 +181,122 @@
                 }
             });
         });
+    </script>
+
+    <script>
+    // Enhance a native <select> with a floating dropdown when it has more than threshold options.
+    (function() {
+        function enhanceSelect(selId, threshold = 2) {
+            const sel = document.getElementById(selId);
+            if (!sel) return;
+            const optionCount = sel.querySelectorAll('option').length;
+            if (optionCount <= threshold) return;
+
+            let dropdown = null;
+
+            sel.addEventListener('mousedown', function(e) {
+                // Prevent native dropdown; we'll show custom one
+                e.preventDefault();
+            });
+
+            function buildDropdown() {
+                if (dropdown) return;
+                dropdown = document.createElement('div');
+                dropdown.className = 'custom-select-dropdown';
+                dropdown.setAttribute('role', 'listbox');
+
+                Array.from(sel.children).forEach(child => {
+                    if (child.tagName === 'OPTGROUP') {
+                        const label = document.createElement('div');
+                        label.className = 'cs-item cs-group-label';
+                        label.textContent = child.label || '';
+                        dropdown.appendChild(label);
+                        Array.from(child.children).forEach(opt => appendOption(opt));
+                    } else if (child.tagName === 'OPTION') {
+                        appendOption(child);
+                    }
+                });
+
+                document.body.appendChild(dropdown);
+
+                dropdown.addEventListener('click', function(ev) {
+                    const item = ev.target.closest('.cs-item');
+                    if (!item || item.classList.contains('cs-group-label') || item.classList.contains('disabled')) return;
+                    sel.value = item.dataset.value;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    closeDropdown();
+                });
+            }
+
+            function appendOption(opt) {
+                const item = document.createElement('div');
+                item.className = 'cs-item';
+                item.textContent = opt.textContent;
+                item.dataset.value = opt.value;
+                if (opt.disabled) item.classList.add('disabled');
+                if (opt.value === sel.value) item.classList.add('selected');
+                dropdown.appendChild(item);
+            }
+
+            function positionDropdown() {
+                if (!dropdown) return;
+                const rect = sel.getBoundingClientRect();
+                const left = rect.left + window.scrollX;
+                const top = rect.bottom + window.scrollY;
+                dropdown.style.minWidth = rect.width + 'px';
+                dropdown.style.left = left + 'px';
+                dropdown.style.top = top + 'px';
+                // if it overflows viewport, try opening upwards
+                const ddRect = dropdown.getBoundingClientRect();
+                if (ddRect.bottom > window.innerHeight && rect.top > ddRect.height) {
+                    dropdown.style.top = (rect.top + window.scrollY - ddRect.height) + 'px';
+                }
+            }
+
+            function openDropdown() {
+                buildDropdown();
+                positionDropdown();
+                Array.from(dropdown.querySelectorAll('.cs-item')).forEach(it => {
+                    it.classList.toggle('selected', it.dataset.value === sel.value);
+                });
+                dropdown.classList.add('open');
+                dropdown.style.display = 'block';
+                requestAnimationFrame(() => dropdown.style.opacity = '1');
+            }
+
+            function closeDropdown() {
+                if (!dropdown) return;
+                dropdown.style.opacity = '0';
+                dropdown.classList.remove('open');
+                setTimeout(() => { if (dropdown) dropdown.style.display = 'none'; }, 120);
+            }
+
+            sel.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (dropdown && dropdown.style.display === 'block') closeDropdown();
+                else openDropdown();
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.custom-select-dropdown') && e.target !== sel) closeDropdown();
+            });
+
+            document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeDropdown(); });
+            window.addEventListener('resize', function() { if (dropdown && dropdown.style.display === 'block') positionDropdown(); });
+            window.addEventListener('scroll', function() { if (dropdown && dropdown.style.display === 'block') positionDropdown(); }, true);
+
+            sel.addEventListener('change', function() {
+                if (!dropdown) return;
+                Array.from(dropdown.querySelectorAll('.cs-item')).forEach(it => {
+                    it.classList.toggle('selected', it.dataset.value === sel.value);
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            enhanceSelect('model-service', 5);
+        });
+    })();
     </script>
     {{ super() }}
 {% endblock %}

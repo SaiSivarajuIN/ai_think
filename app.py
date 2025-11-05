@@ -1603,7 +1603,8 @@ def api_delete_all_models():
         return jsonify({"error": "An error occurred while communicating with Ollama."}), 500
 
 @app.route('/settings', methods=['GET', 'POST'])
-def settings():
+@app.route('/settings/<string:tab_name>', methods=['GET', 'POST'])
+def settings(tab_name='general'):
     if request.method == 'POST':
         settings_to_save = {
             'num_predict': request.form['num_predict'],
@@ -1637,12 +1638,19 @@ def settings():
         initialize_langfuse()
         initialize_chroma()
 
-        return redirect(url_for('settings'))
+        # Redirect back to the tab the user was on
+        return redirect(url_for('settings', tab_name=request.form.get('active_tab', 'general')) or 'general')
 
     # Get current settings
     current_settings = get_settings()
-    
-    return render_template('settings.html',  page_title="Settings | AI Think Chat", page_id="settings", header_title="⚙️ Settings", settings=current_settings)
+    return render_template(
+        'settings.html',
+        page_title="Settings | AI Think Chat",
+        page_id="settings",
+        header_title="⚙️ Settings",
+        settings=current_settings,
+        active_tab=tab_name
+    )
 
 # --- Prompt Hub Endpoints ---
 

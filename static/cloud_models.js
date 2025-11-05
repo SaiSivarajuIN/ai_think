@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const group = document.createElement('div');
         group.className = 'model-name-group';
         group.innerHTML = `
-            <input type="text" name="model_names" required placeholder="e.g., llama-3-sonar-large-32k-online" value="${value}">
+            <input type="text" name="model_names" required placeholder="e.g., gpt-5, llama-3, sonar" value="${value}">
             <button type="button" class="remove-model-name-btn icon-btn" title="Remove Model">&times;</button>
         `;
         modelNamesContainer.appendChild(group);

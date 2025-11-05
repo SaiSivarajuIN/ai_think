@@ -203,6 +203,10 @@ Ensure port **8080** is open.
 
 ---
 
+## Install Tesseract OCR on your system:
+ 
+`sudo apt-get install tesseract-ocr`
+
 ## ⚙️ Configuration Notes
 
 * **Settings** are saved to SQLite (or ChromaDB if configured)

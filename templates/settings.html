@@ -69,12 +69,13 @@
 
 {% block content %}
     <div class="tab-container">
-        <button class="tab-link active" onclick="openTab(event, 'general')">General</button>
-        <button class="tab-link" onclick="openTab(event, 'integrations')">Integrations</button>
+        <button class="tab-link {% if active_tab == 'general' %}active{% endif %}" onclick="openTab(event, 'general')">General</button>
+        <button class="tab-link {% if active_tab == 'integrations' %}active{% endif %}" onclick="openTab(event, 'integrations')">Integrations</button>
     </div>
 
     <form id="settings-form" class="settings-form" method="POST">
-        <div id="general" class="tab-content active">
+        <input type="hidden" name="active_tab" value="{{ active_tab }}">
+        <div id="general" class="tab-content {% if active_tab == 'general' %}active{% endif %}">
             <div class="settings-section">
                 <div class="card">
                     <h2>Model Parameters</h2>
@@ -130,7 +131,7 @@
             </div>
         </div>
 
-        <div id="integrations" class="tab-content">
+        <div id="integrations" class="tab-content {% if active_tab == 'integrations' %}active{% endif %}">
             <div class="settings-section">
                 <div class="card">
                     <h2>Langfuse Tracing (Optional)</h2>
@@ -189,7 +190,11 @@
                         <label for="searxng_url">SearXNG URL</label>
                         <input type="url" id="searxng_url" name="searxng_url" value="{{ settings.get('searxng_url', '') }}" placeholder="http://localhost:8080">
                     </div>
-                    <p class="text-muted">The default URL for a local SearXNG instance is <code>http://localhost:8080</code>.</p>
+                    <p class="text-muted">
+                        The default URL for a local SearXNG instance is 
+                        <a href="http://localhost:8080" target="_blank"><code>localhost:8080</code></a>.
+                    </p>
+
                 </div>
             </div>
         </div>
@@ -201,20 +206,41 @@
 {% block page_scripts %}
     <script>
         function openTab(evt, tabName) {
+            // Update URL without reloading the page
+            const baseUrl = "{{ url_for('settings') }}";
+            const newUrl = tabName === 'general' ? baseUrl : `${baseUrl}/${tabName}`;
+            window.history.pushState({path: newUrl}, '', newUrl);
+
+            // Update the hidden input field with the current tab name
+            document.querySelector('input[name="active_tab"]').value = tabName;
+
             // Hide all tab content
             const tabcontent = document.getElementsByClassName("tab-content");
             for (let i = 0; i < tabcontent.length; i++) {
-                tabcontent[i].style.display = "none";
+                tabcontent[i].classList.remove("active");
             }
             // Remove 'active' class from all tab links
             const tablinks = document.getElementsByClassName("tab-link");
             for (let i = 0; i < tablinks.length; i++) {
-                tablinks[i].className = tablinks[i].className.replace(" active", "");
+                tablinks[i].classList.remove("active");
             }
             // Show the current tab and add an "active" class to the button that opened the tab
-            document.getElementById(tabName).style.display = "block";
-            evt.currentTarget.className += " active";
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
         }
+
+        // Handle back/forward browser navigation
+        window.addEventListener('popstate', function(event) {
+            const path = window.location.pathname;
+            const tabName = path.split('/').pop();
+            const targetTab = (tabName === 'settings' || tabName === '') ? 'general' : tabName;
+            // Find the button element to pass to openTab
+            const tabButton = document.querySelector(`.tab-link[onclick*="'${targetTab}'"]`);
+            if (tabButton) {
+                // Directly call openTab, simulating an event object
+                openTab({ currentTarget: tabButton }, targetTab);
+            }
+        });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
 {% endblock %}

@@ -183,29 +183,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // --- Search Mode Logic ---
-    function updateSearchUI() {
+    // --- Search Mode Logic: Update button style ---
+    function updateSearchButtonState() {
         const isSearchModeActive = localStorage.getItem('isSearchModeActive') === 'true';
-        if (isSearchModeActive) {
-            searchPrefix.style.display = 'inline';
-        } else {
-            searchPrefix.style.display = 'none';
+        if (searchButton) {
+            if (isSearchModeActive) {
+                searchButton.classList.add('search-active');
+            } else {
+                searchButton.classList.remove('search-active');
+            }
         }
+        // The search-prefix span is removed from HTML, so no need to manage its display.
+        // If it were still present, this would ensure it's always hidden:
+        // if (searchPrefix) {
+        //     searchPrefix.style.display = 'none';
+        // }
     }
 
     if (searchButton && userInput) {
         searchButton.addEventListener('click', function() {
-            const isSearchActive = searchPrefix.style.display !== 'none';
+            const isSearchActive = localStorage.getItem('isSearchModeActive') === 'true';
             if (isSearchActive) {
-                searchPrefix.style.display = 'none';
-                userInput.textContent = '';
                 localStorage.setItem('isSearchModeActive', 'false');
+                userInput.textContent = '';
             } else {
-                searchPrefix.style.display = 'inline';
+                localStorage.setItem('isSearchModeActive', 'true');
                 userInput.textContent = '';
                 userInput.focus();
-                localStorage.setItem('isSearchModeActive', 'true');
             }
+            updateSearchButtonState(); // Update button style
         });
     }
 
@@ -226,10 +232,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (incognitoBtn) {
         incognitoBtn.addEventListener('click', function() {
             // Per request, clear search prefix when incognito is toggled
-            if (searchPrefix.style.display !== 'none') {
-                searchPrefix.style.display = 'none';
-                userInput.textContent = '';
+            if (localStorage.getItem('isSearchModeActive') === 'true') {
                 localStorage.setItem('isSearchModeActive', 'false');
+                userInput.textContent = '';
             }
             isIncognito = !isIncognito; // Toggle the state
             localStorage.setItem('isIncognito', isIncognito); // Save state
@@ -242,6 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 addMessage('✅ **Incognito Mode Disabled.** Chat history will now be saved.', false);
             }
+            updateSearchButtonState(); // Update search button state after incognito change
         });
     }
     // Add message to chat
@@ -365,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let footerHTML = '';
         if (generationTime) {
-            footerHTML += `<span class="generation-time">${generationTime.toFixed(2)}s</span>`;
+            footerHTML += `<span class="generation-time">⏱️ ${generationTime.toFixed(2)}s</span>`;
         }
         if (tokensPerSecond) {
             if (footerHTML) footerHTML += `<span style="margin: 0 0.1rem;">|</span>`;
@@ -381,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .split(' ')
                 .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter of each word
                 .join(' ');
-            footerHTML += `<span class="model-used" title="Model used for this response">${formattedModelName}</span>`;
+            footerHTML += `<span class="model-used" title="Model used for this response">📦 ${formattedModelName}</span>`;
         }
 
         footerHTML += `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
@@ -511,17 +517,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Send message to server
     async function sendMessage() {
         let message = userInput.textContent.trim();
-        if (searchPrefix.style.display !== 'none') {
+        if (localStorage.getItem('isSearchModeActive') === 'true') {
             message = `/search ${message}`;
         }
 
         if (!message) return;
 
-        // If a generation is already in progress, do nothing.
-        if (abortController) {
-            return;
-        }
-        
+        // If a generation is already in progress, do nothing. (This logic is fine)
+        if (abortController) return;
 
         const selectedModel = document.getElementById('model-selector').value;
 
@@ -531,12 +534,17 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleSendStopButton(true);
 
         // Add user message to chat
-        const userMessageDiv = addMessage(message, 'user');
+        let displayMessage = message;
+        if (localStorage.getItem('isSearchModeActive') === 'true') {
+            // Don't show the "/search " prefix in the UI
+            displayMessage = message.replace(/^\/search\s*/, '');
+        }
+        const userMessageDiv = addMessage(displayMessage, 'user');
         
-        // Clear input and search prefix
+        // Clear input and reset search mode
         userInput.textContent = '';
-        searchPrefix.style.display = 'none';
         localStorage.setItem('isSearchModeActive', 'false');
+        updateSearchButtonState(); // Update button state after clearing search mode
 
 
         // Show thinking indicator
@@ -770,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 thoughtsHtml += `
                                     <details class="thought" style="margin-bottom: 1rem;">
                                         <summary style="cursor: pointer; font-weight: 600;">
-                                            💭 Thought Process
+                                            🤔 Thought Process
                                         </summary>
                                         <div class="thought-body" style="padding-top: 0.5rem;">${formatMessage(thoughtContent.trim())}</div>
                                     </details>
@@ -909,59 +917,81 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // --- File Upload Logic ---
+    // --- File Upload & OCR Popup Logic ---
     if (uploadButton && fileInput) {
-        uploadButton.addEventListener('click', () => {
-            fileInput.click(); // Trigger the hidden file input
-        });
+        uploadButton.addEventListener('click', () => fileInput.click());
 
-        fileInput.addEventListener('change', async (event) => {
-            const file = event.target.files[0];
-            if (!file) {
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) { // User cancelled the dialog
+                e.target.value = ''; // Reset for next time
                 return;
             }
-
-            const formData = new FormData();
-            formData.append('file', file);
 
             // Show a temporary "uploading" message
             const uploadingMsg = addMessage(`Uploading "${file.name}"...`, 'bot');
             uploadingMsg.classList.add('thinking');
+            
+            const formData = new FormData();
+            formData.append('file', file);
 
             try {
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData,
                 });
-
                 const data = await response.json();
-
-                // Remove the "uploading" message
                 uploadingMsg.remove();
 
                 if (response.ok && data.success) {
-                    // Notify user in the chatbox
-                    addMessage(`✅ **${data.message}**`, 'bot');
-                    fileContextActive = true;
+                    if (file.type.startsWith('image/')) {
+                        // For images, show the OCR popup
+                        const popup = document.getElementById('ocrPopup');
+                        if (popup) {
+                            document.getElementById('ocrText').textContent = data.ocr_text || '';
+                            document.getElementById('ocrPreview').src = data.image_preview || '';
+                            popup.style.display = 'flex';
+                        }
+                    } else {
+                        // For text files, just reload the page to show the system message
+                        window.location.reload();
+                    }
                 } else {
                     throw new Error(data.error || 'File upload failed.');
                 }
             } catch (error) {
                 uploadingMsg.remove();
                 addMessage(`❌ Error: ${error.message}`, 'bot');
+            } finally {
+                // Reset file input to allow uploading the same file again
+                e.target.value = '';
             }
-            // Reset file input to allow uploading the same file again
-            event.target.value = '';
         });
     }
 
     // Auto-resize textarea
     if (userInput) { // Focus input on load
 
-        updateSearchUI(); // Restore search prefix state on load
+        updateSearchButtonState(); // Restore search button state on load
         initializeChat();
     }
     fetchHistorySidebar();
+
+    // --- OCR Popup Handlers (moved from index.html) ---
+    const ocrPopup = document.getElementById('ocrPopup');
+    const ocrOkBtn = document.getElementById('ocrOk');
+
+    if (ocrPopup && ocrOkBtn) {
+        // OK button closes popup and refreshes page
+        ocrOkBtn.addEventListener('click', function() {
+            ocrPopup.style.display = 'none';
+            window.location.reload();
+        });
+        // Click outside to close (optional - does not reload)
+        ocrPopup.addEventListener('click', function(e) {
+            if (e.target === this) this.style.display = 'none';
+        });
+    }
 
     // Ensure send button is in initial state with correct listener
     toggleSendStopButton(false);
@@ -1232,6 +1262,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         border: 1px solid #000000;
                         padding: 5pt;
                     }
+                    .highlight-section {
+                        background-color: #fef9e7; /* Light yellow, similar to rgba(251, 192, 45, 0.1) */
+                        border: 1px solid #f1c40f;
+                    }
                 </style>
             </head>
             <body>
@@ -1258,15 +1292,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 tempDiv.querySelectorAll('.copy-code-btn').forEach(btn => btn.remove());
 
                 // Replace web-specific thought/search divs with DOC-specific styled elements
-                tempDiv.querySelectorAll('.thought').forEach(thoughtDiv => {
-                    const headingElement = thoughtDiv.querySelector('strong');
-                    const contentElement = thoughtDiv.querySelector('div');
-                    if (headingElement && contentElement) {
-                        const headingText = headingElement.innerText;
-                        headingElement.outerHTML = `<p class="section-heading">${escapeHTML(headingText)}</p>`;
+                tempDiv.querySelectorAll('details.thought').forEach(detailsElement => {
+                    const summaryElement = detailsElement.querySelector('summary');
+                    const contentElement = detailsElement.querySelector('div'); // The div inside details
+                    if (summaryElement && contentElement) {
+                        const headingText = summaryElement.innerText;
+                        summaryElement.outerHTML = `<p class="section-heading">${escapeHTML(headingText)}</p>`;
                         
-                        if (headingText.toLowerCase().includes('thought process')) {
-                            contentElement.outerHTML = `<table class="thought-table"><tr><td>${contentElement.innerHTML}</td></tr></table>`;
+                        if (headingText.toLowerCase().includes('thought process') || headingText.toLowerCase().includes('web search results')) {
+                            contentElement.outerHTML = `<table class="thought-table highlight-section"><tr><td>${contentElement.innerHTML}</td></tr></table>`;
                         }
                     }
                 });

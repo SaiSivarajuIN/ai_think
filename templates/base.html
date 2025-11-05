@@ -40,8 +40,15 @@
                 <h4>AI Menu</h4>
             </div>
             <!--dashboard-->
-            <a href="/dashboard" class="nav-link" title="Dashboard">Dashboard</a>
-            <a href="/" onclick="resetThread()" class="nav-link" title="New Chat">Chat</a>
+            <a href="/dashboard" class="nav-link" title="Dashboard"><span>Dashboard</span></a>
+            <a href="/" onclick="resetThread()" class="nav-link chat-nav-link" title="New Chat">
+                <span>Chat</span>
+                {% if page_id == 'chat' %}
+                    <button id="incognito-toggle-btn" class="nav-link" title="Enable Incognito Mode">
+                        <span id="incognito-icon" class="material-icons">visibility</span>
+                    </button>
+                {% endif %}
+            </a>
             <a href="/history" class="nav-link" title="Chat History" >Chat History</a>
             <details class="nav-dropdown" {% if page_id in ['models', 'cloud_models', 'prompts'] %}open{% endif %}>
                 <summary class="nav-link">
@@ -62,6 +69,8 @@
                 <a href="/health" class="nav-link" title="System Health">System Health</a>
                 <a href="https://saisivarajuin.github.io/ai_think/" class="nav-link" title="About" target="_blank" rel="noopener noreferrer">About</a>
             </details>
+
+            
         </aside>
         <div class="main-content-wrapper">
             <!-- Header -->
