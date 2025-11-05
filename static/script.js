@@ -359,13 +359,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Add message footer with stats and actions
-    function addMessageFooter(messageDiv, usage, generationTime) {
+    function addMessageFooter(messageDiv, usage, generationTime, modelUsed, tokensPerSecond) {
         const footer = document.createElement('div');
         footer.className = 'message-footer';
 
         let footerHTML = '';
         if (generationTime) {
             footerHTML += `<span class="generation-time">${generationTime.toFixed(2)}s</span>`;
+        }
+        if (tokensPerSecond) {
+            if (footerHTML) footerHTML += `<span style="margin: 0 0.1rem;">|</span>`;
+            footerHTML += `<span class="tokens-per-second" title="Tokens per second">${tokensPerSecond.toFixed(2)} tok/sec</span>`;
+        }
+
+        if (modelUsed) {
+            // Add a separator if other info is present
+            if (footerHTML) footerHTML += `<span style="margin: 0 0.1rem;">|</span>`;
+            // Format the model name for display
+            const formattedModelName = modelUsed
+                .replace(/[-_/]/g, ' ') // Replace hyphens/underscores with spaces
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter of each word
+                .join(' ');
+            footerHTML += `<span class="model-used" title="Model used for this response">${formattedModelName}</span>`;
         }
 
         footerHTML += `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
@@ -385,17 +401,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const botResponse = data.message.content;
         const generationTime = data.generation_time_seconds;
         const usage = data.usage;
+        const modelUsed = data.model_used;
+        const tokensPerSecond = data.tokens_per_second;
         // The user message is now confirmed and can be added to the history
         // along with the bot response.
         const userMessageContent = data.user_message_content;
         conversationHistory.push({ role: 'user', content: userMessageContent });
         const sessionId = data.session_id;
+        let searchResultsHtml = '';
 
         // Update URL with session_id if it's not already there
         if (!isIncognito && sessionId) {
             const url = new URL(window.location);
             url.searchParams.set('session_id', sessionId);
             window.history.pushState({ path: url.href }, '', url.href);
+
+            // Check if the user message had search results to display them with the bot response
+            const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
+            const searchMatch = userMessageContent.match(searchRegex);
+            if (searchMatch) {
+                const searchResults = searchMatch[1].trim();
+                if (searchResults) {
+                    searchResultsHtml = `
+                        <details class="thought" style="margin-bottom: 1rem;">
+                            <summary style="cursor: pointer; font-weight: 600;">
+                                🌐 Web Search Results
+                            </summary>
+                            <div class="thought-body" style="padding-top: 0.5rem;">${formatMessage(searchResults)}</div>
+                        </details>`;
+                }
+            }
 
             // Refresh history sidebar to include the new session
             fetchHistorySidebar();
@@ -407,15 +442,31 @@ document.addEventListener('DOMContentLoaded', function() {
             content: botResponse
         });
 
-        // Fix and trim the text between <think> and   </think> for display
-        const cleanedBotResponse = botResponse.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        // Store raw content for the copy button, which includes thoughts
+        thinkingElement.dataset.rawContent = botResponse;
 
-        // Store raw content for the copy button
-        thinkingElement.dataset.rawContent = cleanedBotResponse;
+        // --- New: Handle <think> blocks ---
+        const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+        let thoughtsHtml = '';
+        const mainContent = botResponse.replace(thinkRegex, (match, thoughtContent) => {
+            if (thoughtContent.trim()) {
+                thoughtsHtml += `
+                    <details class="thought" style="margin-bottom: 1rem;">
+                        <summary style="cursor: pointer; font-weight: 600;">
+                            🤔 Thought Process
+                        </summary>
+                        <div class="thought-body" style="padding-top: 0.5rem;">${formatMessage(thoughtContent.trim())}</div>
+                    </details>
+                `;
+            }
+            return ''; // Remove the <think> block from the main content
+        }).trim();
 
         // Update the thinking message placeholder with the actual response and footer
         thinkingElement.classList.remove('thinking');
-        thinkingElement.innerHTML = formatMessage(cleanedBotResponse || "..."); // Show something if response is empty
+        // Prepend thoughts HTML to the formatted main content
+        const finalHtml = searchResultsHtml + thoughtsHtml + formatMessage(mainContent || "...");
+        thinkingElement.innerHTML = finalHtml;
 
         // Ensure MathJax processes the new content
         if (window.MathJax) {
@@ -432,7 +483,7 @@ document.addEventListener('DOMContentLoaded', function() {
             addCopyButtonsToCodeBlocks(thinkingElement); // Add copy buttons
         }
 
-        addMessageFooter(thinkingElement, usage, generationTime);
+        addMessageFooter(thinkingElement, usage, generationTime, modelUsed, tokensPerSecond);
         thinkingMessageId = null; // Clear the ID as we've used the placeholder
 
         // Scroll to the bottom to ensure the new message is visible
@@ -689,10 +740,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 history.forEach(msg => {
                     if (msg.role === 'assistant') {
                         const botMsgDiv = addMessage(msg.content, 'assistant');
-                        // The addMessage function now handles setting the raw content,
-                        // but we call it again here to be explicit and safe.
                         botMsgDiv.dataset.rawContent = msg.content;
-                        addMessageFooter(botMsgDiv, null, null); // Add footer with copy/regen
+
+                        // --- New: Handle Web Search Results for historical messages ---
+                        let searchResultsHtml = '';
+                        // Find the preceding user message in the history to check for search results
+                        const currentIndex = history.indexOf(msg);
+                        if (currentIndex > 0) {
+                            const userMsg = history[currentIndex - 1];
+                            if (userMsg.role === 'user') {
+                                const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
+                                const searchMatch = userMsg.content.match(searchRegex);
+                                if (searchMatch) {
+                                    const searchResults = searchMatch[1].trim();
+                                    searchResultsHtml = `
+                                        <details class="thought" style="margin-bottom: 1rem;">
+                                            <summary style="cursor: pointer; font-weight: 600;">🌐 Web Search Results</summary>
+                                            <div class="thought-body" style="padding-top: 0.5rem;">${formatMessage(searchResults)}</div>
+                                        </details>`;
+                                }
+                            }
+                        }
+
+                        // --- New: Handle <think> blocks for historical messages ---
+                        const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+                        let thoughtsHtml = '';
+                        const mainContent = msg.content.replace(thinkRegex, (match, thoughtContent) => {
+                            if (thoughtContent.trim()) {
+                                thoughtsHtml += `
+                                    <details class="thought" style="margin-bottom: 1rem;">
+                                        <summary style="cursor: pointer; font-weight: 600;">
+                                            💭 Thought Process
+                                        </summary>
+                                        <div class="thought-body" style="padding-top: 0.5rem;">${formatMessage(thoughtContent.trim())}</div>
+                                    </details>
+                                `;
+                            }
+                            return '';
+                        }).trim();
+                        
+                        botMsgDiv.innerHTML = searchResultsHtml + thoughtsHtml + formatMessage(mainContent);
+                        addMessageFooter(botMsgDiv, null, msg.generation_time, msg.model_used, msg.tokens_per_second); // Add footer with copy/regen
                     } else { // Handles 'user' and 'system' roles
                         addMessage(msg.content, msg.role);
                     }

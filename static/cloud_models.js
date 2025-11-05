@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiKeyInput = document.getElementById('model-api-key');
     const serviceSelect = document.getElementById('model-service');
     const otherServiceGroup = document.getElementById('other-service-group');
+    const modelNamesContainer = document.getElementById('model-names-container');
+    const addModelNameBtn = document.getElementById('add-model-name-btn');
 
     // --- Modal Logic ---
     function openModalForCreate() {
@@ -21,6 +23,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('model-service-other').required = false;
         apiKeyInput.placeholder = 'Enter your API key';
         apiKeyInput.required = true;
+        modelNamesContainer.innerHTML = ''; // Clear previous
+        addModelNameInput(); // Add one by default
     }
 
     function openModalForEdit(model) {
@@ -28,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modelForm.reset();
         modelIdInput.value = model.id;
         modalTitle.textContent = 'Edit Cloud Model';
-        
+
         // Check if the service is one of the predefined options
         const isPredefined = [...serviceSelect.options].some(option => option.value === model.service);
 
@@ -45,7 +49,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         document.getElementById('model-base-url').value = model.base_url;
-        document.getElementById('model-name').value = model.model_name;
+        
+        // Populate all model names for this service
+        modelNamesContainer.innerHTML = '';
+        model.model_names.forEach(name => {
+            addModelNameInput(name);
+        });
 
         apiKeyInput.placeholder = 'Leave blank to keep existing key';
         apiKeyInput.required = false;
@@ -56,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modelIdInput.value = '';
         otherServiceGroup.style.display = 'none';
         document.getElementById('model-service-other').required = false;
+        modelNamesContainer.innerHTML = '';
     }
 
     addModelBtn.addEventListener('click', openModalForCreate);
@@ -65,6 +75,30 @@ document.addEventListener('DOMContentLoaded', function() {
             closeModal();
         }
     });
+
+    // --- Dynamic Model Name Inputs ---
+    function addModelNameInput(value = '') {
+        const group = document.createElement('div');
+        group.className = 'model-name-group';
+        group.innerHTML = `
+            <input type="text" name="model_names" required placeholder="e.g., llama-3-sonar-large-32k-online" value="${value}">
+            <button type="button" class="remove-model-name-btn icon-btn" title="Remove Model">&times;</button>
+        `;
+        modelNamesContainer.appendChild(group);
+
+        group.querySelector('.remove-model-name-btn').addEventListener('click', () => {
+            // Don't allow removing the last one
+            if (modelNamesContainer.children.length > 1) {
+                group.remove();
+            }
+        });
+    }
+
+    addModelNameBtn.addEventListener('click', () => addModelNameInput());
+
+
+
+
 
     // Show/hide custom service input
     serviceSelect.addEventListener('change', function() {
@@ -83,7 +117,16 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch('/api/cloud_models');
             if (!response.ok) throw new Error('Failed to fetch models');
-            const models = await response.json();
+            let models = await response.json();
+
+            // Group models by service configuration
+            const groupedModels = {};
+            models.forEach(m => {
+                const key = `${m.service}::${m.base_url}`;
+                if (!groupedModels[key]) groupedModels[key] = { ...m, model_names: [] };
+                groupedModels[key].model_names.push(m.model_name);
+            });
+            models = Object.values(groupedModels);
             renderModels(models);
         } catch (error) {
             console.error('Error fetching models:', error);
@@ -97,11 +140,16 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
         const formData = new FormData(modelForm);
         const data = Object.fromEntries(formData.entries());
+        
+        // Handle multiple model names
+        data.model_names = formData.getAll('model_names').filter(name => name.trim() !== '');
+        delete data.model_name; // remove single entry if it exists
 
         if (data.service === 'Other' && data.service_other) {
             data.service = data.service_other;
         }
         delete data.service_other;
+        delete data.model_id; // remove from payload
 
         const modelId = modelIdInput.value;
         const url = modelId ? `/api/cloud_models/update/${modelId}` : '/api/cloud_models/create';
@@ -156,16 +204,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    async function toggleActive(modelId, isActive) {
+    async function toggleActive(model, isActive) {
         try {
-            const response = await fetch(`/api/cloud_models/toggle_active/${modelId}`, {
+            const response = await fetch(`/api/cloud_models/toggle_active/${model.id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ active: isActive }),
             });
             if (!response.ok) {
                 const result = await response.json();
-                throw new Error(result.error || 'Failed to toggle model status');
+                throw new Error(result.error || 'Failed to toggle model group status');
             }
             // No need to fetchModels() here as the UI is already updated.
             // This prevents the table from re-rendering and losing focus.
@@ -173,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error toggling model active state:', error);
             alert(`Failed to update model status: ${error.message}`);
             // Revert the toggle on error
-            const toggle = document.querySelector(`tr[data-id="${modelId}"] .active-toggle`);
+            const toggle = document.querySelector(`tr[data-id="${model.id}"] .active-toggle`);
             if (toggle) toggle.checked = !isActive;
         }
     }
@@ -208,7 +256,11 @@ document.addEventListener('DOMContentLoaded', function() {
             row.dataset.id = model.id;
             row.innerHTML = `
                 <td>${model.service}</td>
-                <td>${model.model_name}</td>
+                <td>
+                    <ul style="margin: 0; padding-left: 1.2rem;">
+                        ${model.model_names.map(name => `<li>${name}</li>`).join('')}
+                    </ul>
+                </td>
                 <td>
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
                         <span class="api-key-text" title="${model.base_url}">${displayUrl}</span>
@@ -243,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 copyToClipboard(model.base_url, btn);
             });
             row.querySelector('.active-toggle').addEventListener('change', (e) => {
-                toggleActive(model.id, e.target.checked);
+                toggleActive(model, e.target.checked);
             });
         });
     }

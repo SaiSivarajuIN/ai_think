@@ -86,9 +86,34 @@
             width: 80px;
             margin: 1rem auto;
         }
+        /* Footer */
+        .footer {
+            max-width: 900px;
+            margin: 0.75rem auto 0 auto; /* Margin-top to push it below the input */
+            text-align: center;
+            font-size: 0.75rem;
+            color: #999;
+            padding: 0 !important; /* Override inline style */
+            border: none !important; /* Override inline style */
+        }
+        .footer p {
+            margin: 0.1rem;
+            display: inline; /* Make them flow inline */
+            padding: 0 0.5rem; /* Add spacing */
+        }
+        .footer p:first-child {
+            display: block; /* Keep 'AI Think' on its own line */
+            margin-bottom: 0.25rem;
+        }
         @media (max-width: 768px) {
             .about-page-main-content {
                 grid-template-columns: 1fr; /* Stack on smaller screens */
+            }
+
+            .footer p {
+                display: block; /* Stack footer text on mobile */
+                padding: 0;
+                margin: 0;
             }
         }
     </style>
@@ -136,5 +161,10 @@
             </div>
         </div>
     </div>
+    <footer class="footer" style="padding: 0.05rem 0 0 0; border: none;">
+        <p>AI Think - Your Local AI Companion</p>
+        <p>AI can mess up.</p>
+        <p>Made with 🖤</p>
+    </footer>
 </body>
 </html>
