@@ -7,24 +7,24 @@
 {% block content %}
     <div class="card">
         <h2>Pull New Model</h2>
-        <p>Enter a model name from the <a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., `mistral:latest`).<br>
-    Get Models from <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face</a> (e.g., `ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M`).
-    </p>
-    <div class="form-group">
-        <label for="model-name-input">Model Name</label>
-        <div class="input-group">
-            <input type="text" id="model-name-input" class="input-group-input" placeholder="e.g., gemma:2b">
-            <button id="pull-model-btn" class="send-button" title="Pull Model">
-                <span class="material-icons">cloud_download</span>
-            </button>
+        <p> Enter a model name from the <a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., `mistral:latest`).<br>
+            Get Models from <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face</a> (e.g., `ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M`).
+        </p>
+        <div class="form-group">
+            <label for="model-name-input">Model Name</label>
+            <div class="input-group">
+                <input type="text" id="model-name-input" class="input-group-input" placeholder="e.g., gemma:2b">
+                <button id="pull-model-btn" class="send-button" title="Pull Model">
+                    <span class="material-icons">cloud_download</span>
+                </button>
+            </div>
         </div>
-    </div>
-    <div id="pull-status-container" class="pull-status-container" style="display: none;">
-        <pre id="pull-status"></pre>
-        <div class="progress-bar-container">
-            <div id="progress-bar" class="progress-bar"></div>
+        <div id="pull-status-container" class="pull-status-container" style="display: none;">
+            <pre id="pull-status"></pre>
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
         </div>
-    </div>
     </div>
 
     <div class="card">
@@ -41,13 +41,22 @@
                 {{ ollama_status }}
             </span>
         </p>
+        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+        <span style="font-weight: 500; font-size: 0.9rem;">De/Activate All Models</span>
+        <label class="switch" title="Toggle All Models Active/Inactive">
+            <input type="checkbox" id="toggle-all-active">
+            <span class="slider round"></span>
+        </label>
+    </div>
         <table id="local-models-table" class="models-table">
             <thead>
                 <tr>
                     <th>Name</th>
                     <th>Size</th>
                     <th>Modified</th>
-                    <th>Active</th>
+                    <th style="display: flex; align-items: center; justify-content: space-between;">
+                        <span>Active</span>
+                    </th>
                     <th>Actions</th>
                 </tr>
             </thead>

@@ -194,7 +194,7 @@ body.fixed-layout {
 
 /* Reduce size of incognito toggle button */
 #incognito-toggle-btn {
-    padding: 4px;
+    padding: 2px; /* Further reduce padding */
     width: auto;
     height: auto;
 }
@@ -202,6 +202,11 @@ body.fixed-layout {
 #incognito-toggle-btn:hover {
     color: var(--text);
     background: var(--message-assistant);
+}
+
+/* Reduce icon size inside the incognito button */
+#incognito-toggle-btn .material-icons {
+    font-size: 18px;
 }
 
 /* Override nav-link styles specifically for buttons inside the input area */
@@ -308,6 +313,16 @@ body.dark-theme .model-selector {
   border-bottom-left-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
+}
+.message-content-wrapper {
+    outline: none;
+}
+
+.message-content-wrapper[contenteditable="true"] {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem;
+    margin: -0.25rem; /* Counteract padding to maintain size */
 }
 
 
@@ -1060,6 +1075,11 @@ thead th {
 
 .delete-model-btn:hover {
     color: var(--disconnected);
+}
+
+.edit-btn:hover {
+    color: #eeeae4; /* Amber color for edit */
+    background: rgba(247, 245, 244, 0.1);
 }
 
 .delete-thread-btn:hover {

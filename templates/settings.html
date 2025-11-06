@@ -89,16 +89,16 @@
                         <input type="number" id="temperature" name="temperature" value="{{ settings['temperature'] }}" min="0" max="2" step="0.01" required>
                     </div>
                     <div class="form-group">
-                        <label for="top_p">Top P</label>
-                        <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
-                    </div>
-                    <div class="form-group">
                         <label for="top_k">Top K</label>
                         <input type="number" id="top_k" name="top_k" value="{{ settings['top_k'] }}" min="1" max="100" step="1" required>
                     </div>
+                    <div class="form-group">
+                        <label for="top_p">Top P</label>
+                        <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
+                    </div>
                 </div>
                 <div class="notes">
-                    <h3>Note 🧠 Understanding Model Parameters</h3>
+                    <h3>Note- Understanding Model Parameters</h3>
                     <dl style="display: flex; flex-direction: column; gap: 1rem;">
                         <div>
                             <dt><strong>Tokens to Predict:</strong></dt>
@@ -115,18 +115,53 @@
                         </div>
                         <div>
                             <dt><strong>Top-K (1+):</strong></dt>
-                            <dd>Limits the model's choices to the top <code>K</code> most likely tokens at each step of generation, ignoring all other less probable tokens.
-                            <br><br>Example: If <code>K=3</code>, and the top predicted tokens are "cat" (40%), "dog" (30%), and "mouse" (20%), the model will only choose from those three.
-                            </dd>
+                            <dd>Selects the K most likely words and picks one randomly from them.
+                            <br><br>Example: With K=3, from probabilities [cat: 0.5, dog: 0.3, bird: 0.1, fish: 0.05], it samples only from cat, dog, bird.</dd>
                         </div>
                         <div>
                             <dt><strong>Top-P (0–1):</strong></dt>
-                            <dd>Also called Nucleus Sampling, this selects from the smallest set of tokens whose combined probability is at least <code>P</code>. This provides a more dynamic way to control randomness.
-                            
-                            <br><br>Example: If <code>P=0.7</code>, and "cat" has a 40% probability and "dog" has 30%, the model will choose only between "cat" and "dog" since their combined probability is 70%.
+                            <dd>Selects the smallest group of words whose total probability exceeds P, then samples from them.
+                            <br><br>Example: With P=0.9, from the same probabilities, it includes cat (0.5) + dog (0.3) + bird (0.1) = 0.9, and samples from these three (excluding fish)
                             </dd>
                         </div>
                     </dl>
+                    <table border="1" cellspacing="0" cellpadding="6">
+                        <thead>
+                            <tr>
+                                <th>Goal</th>
+                                <th>Top-K</th>
+                                <th>Top-P</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Accurate / focused answers</strong></td>
+                                <td>20–50</td>
+                                <td>0.8–0.9</td>
+                                <td>Keeps the model on topic, less randomness.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Creative writing / brainstorming</strong></td>
+                                <td>50–100</td>
+                                <td>0.9–0.95</td>
+                                <td>Allows more variety and imagination.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Very random / experimental text</strong></td>
+                                <td>100–200</td>
+                                <td>0.95–1.0</td>
+                                <td>Output is unpredictable and diverse.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Balanced / natural</strong> <em>(most common)</em></td>
+                                <td>40–60</td>
+                                <td>0.9</td>
+                                <td>Feels fluent and human-like.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
                 </div>
             </div>
         </div>

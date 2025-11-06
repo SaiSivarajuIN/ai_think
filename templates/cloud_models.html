@@ -81,13 +81,22 @@
             </button>
         </div>
         <p>Configure external models from providers like OpenAI, Perplexity, etc. These models will appear in the dropdown on the main chat page.</p>
+        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <span style="font-weight: 500; font-size: 0.9rem;">De/Activate All Models</span>
+            <label class="switch" title="Toggle All Models Active/Inactive">
+                <input type="checkbox" id="toggle-all-active">
+                <span class="slider round"></span>
+            </label>
+        </div>
         <table id="cloud-models-table" class="models-table">
             <thead>
                 <tr>
                     <th>Service</th>
                     <th>Model Name</th>
                     <th>Base URL & API Key</th>
-                    <th>Status & Actions</th>
+                    <th style="display: flex; align-items: center; justify-content: space-between;">
+                        <span>Status & Actions</span>
+                    </th>
                 </tr>
             </thead>
             <tbody>
