@@ -25,7 +25,7 @@ Lightweight, self-hosted web chat for local **Ollama** models with optional clou
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -106,7 +106,7 @@ TOP_P=0.9
 TOP_K=40
 ```
 
-> 🔧 Additional credentials (Langfuse, ChromaDB, etc.) can be configured via the web UI under **Settings**.
+> Additional credentials (Langfuse, ChromaDB, etc.) can be configured via the web UI under **Settings**.
 
 ---
 
@@ -122,7 +122,7 @@ Then open: [http://localhost:1111](http://localhost:1111)
 
 ---
 
-## ✨ Features
+## Features
 
 * Clean chat UI with **model selector** and **history sidebar**
 * **Local Models Hub**: pull / delete models from Ollama
@@ -138,7 +138,7 @@ Then open: [http://localhost:1111](http://localhost:1111)
 
 ---
 
-## 💬 Usage
+## Usage
 
 * **Chat:** Open `/` to start chatting and switch models from the dropdown
 * **New Chat:** Click “New Chat” in the header
@@ -157,7 +157,7 @@ ollama pull hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M
 
 ---
 
-## 🌐 Optional - SearXNG WebSearch
+## Optional - SearXNG WebSearch
 
 Run a local **SearXNG** instance and enable it in Settings to allow `/search` commands in chat.
 
@@ -188,7 +188,7 @@ Ensure port **8080** is open.
 
 **Usage in Chat:**
 
-* Click the 🔍 icon, or
+* Click the 🌐 icon, or
 * Type `/search latest AI news`
 
 ---
@@ -204,7 +204,7 @@ Ensure port **8080** is open.
 ---
 
 
-## ⚙️ Configuration Notes
+## Configuration Notes
 
 * **Settings** are saved to SQLite (or ChromaDB if configured)
 * **Langfuse** credentials apply immediately after update
@@ -212,7 +212,7 @@ Ensure port **8080** is open.
 
 ---
 
-## 📄 Documentation & Feedback
+## Documentation & Feedback
 
-* Full developer docs: [documentation.md](documentation.md)
+* Full developer docs: [documentation.md](./documentation/backend.md)
 * Feedback form: [Google Form](https://forms.gle/5LeiKT1tRoNWmVst5)
