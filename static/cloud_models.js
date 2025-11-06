@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const modelNamesContainer = document.getElementById('model-names-container');
     const addModelNameBtn = document.getElementById('add-model-name-btn');
 
+
     // --- Modal Logic ---
     function openModalForCreate() {
         modal.style.display = 'block';
@@ -226,6 +227,46 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    async function toggleAllActive(isActive) {
+        try {
+            const response = await fetch('/api/cloud_models/toggle_all_active', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: isActive }),
+            });
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || 'Failed to toggle all models status');
+            }
+            // Update all visible toggles
+            document.querySelectorAll('#cloud-models-table .active-toggle').forEach(toggle => {
+                toggle.checked = isActive;
+            });
+        } catch (error) {
+            console.error('Error toggling all models active state:', error);
+            alert(`Failed to update all models status: ${error.message}`);
+            // Revert the master toggle on error
+            const masterToggle = document.getElementById('toggle-all-active');
+            if (masterToggle) {
+                masterToggle.checked = !isActive;
+            }
+        }
+    }
+
+    function updateMasterToggleState() {
+        const masterToggle = document.getElementById('toggle-all-active');
+        if (!masterToggle) return;
+
+        const allToggles = document.querySelectorAll('#cloud-models-table .active-toggle');
+        if (allToggles.length === 0) {
+            masterToggle.checked = false;
+            return;
+        }
+
+        const anyChecked = [...allToggles].some(toggle => toggle.checked);
+        masterToggle.checked = anyChecked;
+    }
+
     function copyToClipboard(text, buttonElement) {
         navigator.clipboard.writeText(text).then(() => {
             const icon = buttonElement.querySelector('.material-icons');
@@ -296,12 +337,20 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             row.querySelector('.active-toggle').addEventListener('change', (e) => {
                 toggleActive(model, e.target.checked);
+                // Update the master toggle's state after a short delay to allow the DOM to update.
+                setTimeout(updateMasterToggleState, 100);
             });
         });
+        updateMasterToggleState(); // Set initial state of master toggle after rendering
     }
 
     // --- Event Listeners ---
     modelForm.addEventListener('submit', saveModel);
+
+    const toggleAllCheckbox = document.getElementById('toggle-all-active');
+    if (toggleAllCheckbox) {
+        toggleAllCheckbox.addEventListener('change', (e) => toggleAllActive(e.target.checked));
+    }
 
     // Initial load
     fetchModels();

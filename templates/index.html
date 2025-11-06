@@ -68,7 +68,7 @@
             max-width: 900px; /* Center the chat content */
             margin: 0 auto;
             /* Add padding to avoid overlap with sticky input bar */
-            padding-bottom: 180px; 
+            padding-bottom: 120px; 
             width: 100%;
         }
         
@@ -83,7 +83,7 @@
                 rgba(255,255,255,0) 0%, 
                 var(--background, #fff) 20%
             );
-            padding: 1rem 0 0.5rem 0; /* Padding around the input bar */
+            padding: 0 0 0.5rem 0; /* Padding around the input bar, removed top padding */
             border: none;
         }
 
@@ -192,7 +192,7 @@
             .chat-area-container {
                 padding-left: 1rem;
                 padding-right: 1rem;
-                padding-bottom: 160px; /* Less padding on mobile */
+                padding-bottom: 120px; /* Less padding on mobile */
             }
             .input-area-wrapper {
                 padding: 0.5rem 0;
@@ -262,7 +262,7 @@
                     {% set source = parts[1] %}
                     {% set model_name = parts[2] %}
                     <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>
-                        {{ model_name }} <!--<small>({{ source }})</small>-->
+                        <small>({{ source }})</small> {{ model_name }}
                     </option>
                 {% else %}
                     <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>
@@ -277,7 +277,7 @@
         {% if cloud_models %}
             <optgroup label="Cloud Models">
             {% for model in cloud_models if model.active %}
-                <option value="cloud::{{ model.id }}">{{ model.model_name }} <!--<small>({{ model.service }})</small></option>-->
+                <option value="cloud::{{ model.id }}"><small>({{ model.service }})</small> {{ model.model_name }}</option>
             {% endfor %}
             </optgroup>
         {% endif %}
@@ -286,7 +286,7 @@
     <div class="model-selector-wrapper">
         <label for="prompt-selector" class="visually-hidden">Prompt:</label>
         <select id="prompt-selector" class="model-selector">
-            <option value="" data-content="">🚀 Select a Prompt...</option>
+            <option value="" data-content="">Select a Prompt...</option>
             {% for prompt in prompts %}
                 <option value="{{ prompt.id }}" data-content="{{ prompt.content | e }}">
                     {{ prompt.title }}
@@ -328,17 +328,24 @@
         <div class="history-sidebar-header">
             <h4>Chat History</h4>
         </div>
-        <div id="history-sidebar-content" class="history-sidebar-content">
-            </div>
+        <div id="history-sidebar-content" class="history-sidebar-content"></div>
     </aside>
 {% endblock %}
 
 {% block scripts %}
-    <script src="https://cdn..jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
 
     <script>
     (function() {
         document.addEventListener('DOMContentLoaded', function () {
+            // Add send button click handler
+            document.getElementById('sendButton').addEventListener('click', function() {
+                const messageInput = document.getElementById('userMessage');
+                if (messageInput && messageInput.textContent.trim()) {
+                    // Assuming there's a global sendMessage function
+                    sendMessage();
+                }
+            });
 
             // Generic enhancer: builds a floating dropdown with inner scrollbar when > 1 options
             function enhanceSelect(selId) {

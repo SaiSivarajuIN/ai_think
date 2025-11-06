@@ -318,12 +318,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayContent = `*(Querying about ${filename})*\n\n${userQuestion}`;
             }
 
-            const formattedContent = formatMessage(escapeHtml(displayContent));
-            messageContainer.innerHTML = formattedContent;
+            // Wrap content for editing
+            const contentWrapper = document.createElement('div');
+            contentWrapper.className = 'message-content-wrapper';
+            contentWrapper.innerHTML = formatMessage(escapeHtml(displayContent));
+            messageContainer.appendChild(contentWrapper);
             // Store the full raw content (with search results) for copy/regen
             messageContainer.dataset.rawContent = rawContentForCopy;
 
-            // Add a footer with just a copy button for user messages
+            // Add a footer with edit and copy buttons for user messages
             const footer = document.createElement('div');
             footer.className = 'message-footer';
             let footerHTML = `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
@@ -331,6 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (searchMatch) {
                 footerHTML += `<span class="material-icons" style="font-size: 14px; color: rgba(255, 255, 255, 0.7);" title="Web Search">search</span>`;
             }
+            footerHTML = `<button class="edit-btn icon-btn" title="Edit message"><span class="material-icons">edit</span></button>` + footerHTML;
             footer.innerHTML = footerHTML;
             messageContainer.appendChild(footer);
         } else if (!isSystem) { // It's a bot message
@@ -383,14 +387,15 @@ document.addEventListener('DOMContentLoaded', function() {
             if (footerHTML) footerHTML += `<span style="margin: 0 0.1rem;">|</span>`;
             // Format the model name for display
             const formattedModelName = modelUsed
-                .replace(/[-_/]/g, ' ') // Replace hyphens/underscores with spaces
+                .replace(/[]/g, ' ') // Replace hyphens/underscores with spaces
                 .split(' ')
                 .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter of each word
                 .join(' ');
             footerHTML += `<span class="model-used" title="Model used for this response">📦 ${formattedModelName}</span>`;
         }
 
-        footerHTML += `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>`;
+        footerHTML += `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>
+                       <button class="regenerate-btn icon-btn" title="Regenerate response"><span class="material-icons">refresh</span></button>`;
         footer.innerHTML = footerHTML;
         messageDiv.appendChild(footer);
     }
@@ -515,13 +520,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Send message to server
-    async function sendMessage() {
-        let message = userInput.textContent.trim();
+    async function sendMessage(overrideMessage = null, isRegeneration = false) {
+        let message = overrideMessage || userInput.textContent.trim();
         if (localStorage.getItem('isSearchModeActive') === 'true') {
             message = `/search ${message}`;
         }
 
-        if (!message) return;
+        if (!message && !overrideMessage) return;
 
         // If a generation is already in progress, do nothing. (This logic is fine)
         if (abortController) return;
@@ -533,18 +538,20 @@ document.addEventListener('DOMContentLoaded', function() {
         // Change to Stop button
         toggleSendStopButton(true);
 
-        // Add user message to chat
-        let displayMessage = message;
-        if (localStorage.getItem('isSearchModeActive') === 'true') {
-            // Don't show the "/search " prefix in the UI
-            displayMessage = message.replace(/^\/search\s*/, '');
+        // Only add user message to UI and clear input if it's not a regeneration
+        if (!isRegeneration) {
+            let displayMessage = message;
+            if (localStorage.getItem('isSearchModeActive') === 'true') {
+                // Don't show the "/search " prefix in the UI
+                displayMessage = message.replace(/^\/search\s*/, '');
+            }
+            const userMessageDiv = addMessage(displayMessage, 'user');
+            
+            // Clear input and reset search mode
+            userInput.textContent = '';
+            localStorage.setItem('isSearchModeActive', 'false');
+            updateSearchButtonState(); // Update button state after clearing search mode
         }
-        const userMessageDiv = addMessage(displayMessage, 'user');
-        
-        // Clear input and reset search mode
-        userInput.textContent = '';
-        localStorage.setItem('isSearchModeActive', 'false');
-        updateSearchButtonState(); // Update button state after clearing search mode
 
 
         // Show thinking indicator
@@ -562,7 +569,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     messages: conversationHistory,
                     model: selectedModel,
                     newMessage: { role: 'user', content: message }, // Send new message separately
-                    incognito: isIncognito // Send incognito status
+                    incognito: isIncognito, // Send incognito status
+                    is_regeneration: isRegeneration // Send regeneration flag
                 }),
                 signal: signal // Pass the abort signal
             });
@@ -631,8 +639,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Event listeners
-    sendButton.addEventListener('click', sendMessage);
-    
+    // Prevent the default mousedown action on the send button to avoid
+    // the contenteditable div from losing focus and potentially clearing its content.
+    sendButton.addEventListener('mousedown', function(e) {
+        if (document.activeElement === userInput) {
+            e.preventDefault();
+        }
+    });
+    // The 'click' listener is now managed exclusively by toggleSendStopButton to prevent duplicates.
+
     if (userInput && userInput.contentEditable === 'true') {
         userInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -673,6 +688,112 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('Failed to copy message.');
                 });
             }
+        }
+    });
+
+    // --- New: Event listener for Edit button ---
+    chatbox.addEventListener('click', async function(e) {
+        const editBtn = e.target.closest('.edit-btn');
+        if (editBtn) {
+            const userMessageDiv = editBtn.closest('.user-message');
+            if (!userMessageDiv) return;
+
+            const contentWrapper = userMessageDiv.querySelector('.message-content-wrapper');
+            if (!contentWrapper) return;
+
+            // Make content editable and set focus
+            contentWrapper.contentEditable = true;
+            contentWrapper.focus();
+            document.execCommand('selectAll', false, null); // Select all text
+
+            // Temporarily disable other buttons
+            userMessageDiv.querySelectorAll('.icon-btn').forEach(btn => btn.style.display = 'none');
+
+            const handleEditFinish = async () => {
+                contentWrapper.contentEditable = false;
+                userMessageDiv.querySelectorAll('.icon-btn').forEach(btn => btn.style.display = 'inline-flex'); // Restore buttons
+
+                const newMessageContent = contentWrapper.textContent.trim();
+
+                // Find the following bot message to remove it
+                let botMessageDiv = userMessageDiv.nextElementSibling;
+                while (botMessageDiv && !botMessageDiv.classList.contains('bot-message')) {
+                    botMessageDiv = botMessageDiv.nextElementSibling;
+                }
+
+                if (!botMessageDiv) {
+                    alert("Could not find the bot message to regenerate from. Cannot proceed with edit.");
+                    return;
+                }
+
+                // Add the edited user message back to the UI before sending
+                addMessage(newMessageContent, 'user');
+
+                // Remove the old user and bot messages from the UI
+                userMessageDiv.remove();
+                botMessageDiv.remove();
+
+                // Remove the last two messages (user and bot) from the conversation history array
+                if (conversationHistory.length >= 2) {
+                    conversationHistory.splice(-2, 2);
+                }
+
+                // Trigger regeneration
+                await sendMessage(newMessageContent, true);
+            };
+
+            contentWrapper.addEventListener('keydown', function onKeydown(event) {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    contentWrapper.removeEventListener('keydown', onKeydown);
+                    handleEditFinish();
+                }
+            });
+        }
+    });
+
+    // --- New: Event listener for Regenerate button ---
+    chatbox.addEventListener('click', async function(e) {
+        const regenerateBtn = e.target.closest('.regenerate-btn');
+        if (regenerateBtn) {
+            const botMessageDiv = regenerateBtn.closest('.bot-message');
+            if (!botMessageDiv) return;
+
+            // Find the preceding user message
+            let userMessageDiv = botMessageDiv.previousElementSibling;
+            while (userMessageDiv && !userMessageDiv.classList.contains('user-message')) {
+                userMessageDiv = userMessageDiv.previousElementSibling;
+            }
+
+            if (!userMessageDiv) {
+                alert("Could not find the original user message to regenerate from.");
+                return;
+            }
+
+            const userMessageContent = userMessageDiv.dataset.rawContent;
+            if (!userMessageContent) {
+                alert("Could not retrieve content from the original user message.");
+                return;
+            }
+
+            // Add the user message back to the UI before sending the request
+            let displayMessage = userMessageContent;
+            if (displayMessage.startsWith('/search ')) {
+                displayMessage = displayMessage.replace(/^\/search\s*/, '');
+            }
+            addMessage(displayMessage, 'user');
+
+            // Remove the bot and user messages from the UI
+            botMessageDiv.remove();
+            userMessageDiv.remove();
+
+            // Remove the last two messages (user and bot) from the conversation history array
+            if (conversationHistory.length >= 2) {
+                conversationHistory.splice(-2, 2);
+            }
+
+            // Now, send a new message with the old content, but with a regeneration flag
+            await sendMessage(userMessageContent, true);
         }
     });
     }
@@ -994,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Ensure send button is in initial state with correct listener
-    toggleSendStopButton(false);
+    toggleSendStopButton(false); // This correctly adds the initial 'click' listener for sendMessage
 });
 
 function renameSidebarThread(historyItem, sessionId) {

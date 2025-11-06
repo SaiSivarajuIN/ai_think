@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const pullStatusContainer = document.getElementById('pull-status-container');
     const pullStatus = document.getElementById('pull-status');
     const deleteAllBtn = document.getElementById('delete-all-models-btn');
+    const toggleAllCheckbox = document.getElementById('toggle-all-active');
     const progressBar = document.getElementById('progress-bar');
 
     // --- Fetch and Display Local Models ---
@@ -51,6 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
             modelsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--disconnected);">Error fetching models. Is Ollama running?</td></tr>`;
         } finally {
             loadingIndicator.style.display = 'none';
+            updateMasterToggleState();
         }
     }
 
@@ -172,6 +174,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // --- Toggle All Active State ---
+    async function toggleAllActive(isActive) {
+        try {
+            const response = await fetch('/api/local_models/toggle_all_active', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: isActive }),
+            });
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || 'Failed to toggle all models status');
+            }
+            // Update all visible toggles
+            document.querySelectorAll('#local-models-table .active-toggle').forEach(toggle => {
+                toggle.checked = isActive;
+            });
+        } catch (error) {
+            console.error('Error toggling all models active state:', error);
+            alert(`Failed to update all models status: ${error.message}`);
+            // Revert the master toggle on error
+            if (toggleAllCheckbox) {
+                toggleAllCheckbox.checked = !isActive;
+            }
+        }
+    }
+
+    function updateMasterToggleState() {
+        if (!toggleAllCheckbox) return;
+
+        const allToggles = document.querySelectorAll('#local-models-table .active-toggle');
+        if (allToggles.length === 0) {
+            toggleAllCheckbox.checked = false;
+            return;
+        }
+
+        const anyChecked = [...allToggles].some(toggle => toggle.checked);
+        toggleAllCheckbox.checked = anyChecked;
+    }
+
     // --- Delete All Models ---
     async function deleteAllModels() {
         if (!confirm('Are you sure you want to delete ALL local models? This action is irreversible and will permanently remove all model data.')) {
@@ -229,12 +270,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const activeToggle = e.target.closest('.active-toggle');
         if (activeToggle) {
             const modelName = activeToggle.dataset.modelName;
-            toggleActive(modelName, activeToggle.checked);
+            toggleActive(modelName, activeToggle.checked).then(() => {
+                // Update master toggle after individual toggle action is complete
+                updateMasterToggleState();
+            });
         }
     });
     
     if (deleteAllBtn) {
         deleteAllBtn.addEventListener('click', deleteAllModels);
+    }
+    if (toggleAllCheckbox) {
+        toggleAllCheckbox.addEventListener('change', (e) => toggleAllActive(e.target.checked));
     }
 
     // --- Initial Load ---

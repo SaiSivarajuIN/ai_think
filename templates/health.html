@@ -11,27 +11,27 @@
 
     <div class="dashboard">
         <div class="card">
-            <h2>🖥️ CPU</h2>
+            <h2>CPU</h2>
             <p><strong>Cores:</strong> {{ cpu.count }}</p>
             <p><strong>Usage:</strong> {{ cpu.percent }}%</p>
         </div>
 
         <div class="card">
-            <h2>💾 Memory</h2>
+            <h2>Memory</h2>
             <p><strong>Total:</strong> {{ memory.total }}</p>
             <p><strong>Available:</strong> {{ memory.available }}</p>
             <p><strong>Used:</strong> {{ memory.used }} ({{ memory.percent }}%)</p>
         </div>
 
         <div class="card">
-            <h2>💽 Disk</h2>
+            <h2>Disk</h2>
             <p><strong>Total:</strong> {{ disk.total }}</p>
             <p><strong>Available:</strong> {{ disk.free }}</p>
             <p><strong>Used:</strong> {{ disk.used }} ({{ disk.percent }}%)</p>
         </div>
 
         <div class="card">
-            <h2>🎮 GPU</h2>
+            <h2>GPU</h2>
             {% if gpu_info is string %}
                 <p>{{ gpu_info }}</p>
             {% elif gpu_info %}
@@ -50,7 +50,7 @@
         </div>
 
         <div class="card">
-            <h2>🗃️ Ollama Service</h2>
+            <h2>Ollama Service</h2>
             <p><strong>Status:</strong>
                 <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
                     {{ ollama_status }}
@@ -60,7 +60,7 @@
             <small>This reflects the model selected on the main chat page. The default is shown if no selection has been made.</small>
         </div>
         <div class="card">
-            <h2>📊 Langfuse Tracing</h2>
+            <h2>Langfuse Tracing</h2>
             <p><strong>Status:</strong>
                 <span class="status-indicator {{ 'connected' if langfuse_enabled else 'disconnected' }}">
                     {{ 'Enabled' if langfuse_enabled else 'Disabled' }}
@@ -68,7 +68,7 @@
             </p>
         </div>
         <div class="card">
-            <h2>📂 ChromaDB</h2>
+            <h2>ChromaDB</h2>
             <p><strong>Status:</strong>
                 <span class="status-indicator {{ 'connected' if chroma_connected else 'disconnected' }}">
                     {{ 'Connected' if chroma_connected else 'Disconnected' }}
@@ -77,7 +77,7 @@
             <small>If connected, chat history is stored in ChromaDB. Otherwise, it falls back to the local SQLite database.</small>
         </div>
         <div class="card">
-            <h2>🔍 SearXNG</h2>
+            <h2>SearXNG</h2>
             <p><strong>Status:</strong>
                 <span class="status-indicator {{ 'connected' if searxng_status == 'Connected' else 'disconnected' }}">
                     {{ searxng_status }}

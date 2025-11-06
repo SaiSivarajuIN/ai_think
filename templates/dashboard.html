@@ -104,6 +104,109 @@
         color: var(--text-contrast);
         box-shadow: var(--shadow-xs);
     }
+
+    /* Table container with fixed height and scrollbar */
+    .table-container {
+        max-height: 240px; /* Height of ~5 rows + header */
+        overflow-y: auto;
+        position: relative;
+    }
+
+    /* Table container styles - add variant for larger tables */
+    .table-container.table-container-lg {
+        max-height: 420px; /* Height for ~10 rows + header */
+    }
+
+    /* Keep header fixed while scrolling */
+    .table-container table {
+        position: relative;
+    }
+
+    .table-container thead {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    .table-container thead tr {
+        background-color: #2c2929;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    .table-container thead th {
+        color: #fff;
+        font-weight: 600;
+        position: relative;
+    }
+
+    /* Ensure bottom border of header remains visible */
+    .table-container thead::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* Feature list container with scrollbar */
+    .feature-list-container {
+        max-height: 240px; /* Height of ~5 items */
+        overflow-y: auto;
+        position: relative;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+    }
+    
+    .feature-list-container .feature-list {
+        margin: 0;
+        padding: 0.5rem 0;
+    }
+    
+    .feature-list-container .feature-list li {
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .feature-list-container .feature-list li:last-child {
+        border-bottom: none;
+    }
+
+    /* Search input styling */
+    .table-search {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+        background-color: var(--background);
+        color: var(--text);
+        font-size: 0.9rem;
+    }
+
+    .table-search:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+    }
+
+    .search-wrapper {
+        position: relative;
+        margin-bottom: 1rem;
+    }
+
+    .search-wrapper::before {
+        content: "search";
+        font-family: 'Material Icons';
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-light);
+        font-size: 1.2rem;
+    }
 </style>
 {% endblock %}
 
@@ -176,18 +279,20 @@
     <div class="dashboard" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
         <div>
             <div class="card">
-                <h2>🤖 Active Models</h2>
+                <h2>Active Models</h2>
                 <p class="text-muted" style="margin-bottom: 1rem;">
                     This section lists your currently active models.
                 </p>
                 {% if stats.model_usage %}
-                    <ul class="feature-list">
-                        {% for model in stats.model_usage %}
-                            <li>
-                                <strong>{{ model.name }}</strong>
-                            </li>
-                        {% endfor %}
-                    </ul>
+                    <div class="feature-list-container">
+                        <ul class="feature-list">
+                            {% for model in stats.model_usage %}
+                                <li>
+                                    <strong>{{ model.name | format_model_name }}</strong>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 {% else %}
                     <p>No active models found.</p>
                 {% endif %}
@@ -195,13 +300,16 @@
         </div>
         <div>
             <div class="card">
-                <h2>📞 API Calls per Model</h2>
+                <h2>API Calls per Model</h2>
                 <p class="text-muted" style="margin-bottom: 1rem;">
                     Number of API calls for each model in the selected time range.
                 </p>
                 {% if stats.model_call_counts %}
-                    <div class="table-responsive">
-                        <table class="api-usage-table">
+                    <div class="search-wrapper">
+                        <input type="text" class="table-search" placeholder="Search models..." onkeyup="filterTable(this, 'model-calls-table')">
+                    </div>
+                    <div class="table-container">
+                        <table class="api-usage-table" id="model-calls-table">
                             <thead>
                                 <tr>
                                     <th>Model</th>
@@ -211,7 +319,7 @@
                             <tbody>
                                 {% for item in stats.model_call_counts %}
                                     <tr>
-                                        <td>{{ item.model }}</td>
+                                        <td>{{ item.model | format_model_name }}</td>
                                         <td>{{ "{:,}".format(item.call_count) }}</td>
                                     </tr>
                                 {% endfor %}
@@ -225,14 +333,17 @@
         </div>
     </div>
     <div class="card" style="margin-top: 2rem;">
-            <h2>📊 API Usage Statistics</h2>
+            <h2>API Usage Statistics</h2>
             <p class="text-muted" style="margin-bottom: 1rem;">
                 Detailed breakdown of recent API calls and token usage.
             </p>
 
             {% if stats.api_usage %}
-                <div class="table-responsive">
-                    <table class="api-usage-table">
+                <div class="search-wrapper">
+                    <input type="text" class="table-search" placeholder="Search models..." onkeyup="filterTable(this, 'api-usage-table')">
+                </div>
+                <div class="table-container table-container-lg">
+                    <table class="api-usage-table" id="api-usage-table">
                         <thead>
                             <tr>
                                 <th>Model</th>
@@ -244,7 +355,7 @@
                         <tbody>
                             {% for usage in stats.api_usage %}
                                 <tr>
-                                    <td>{{ usage.model }}</td>
+                                    <td>{{ usage.model | format_model_name }}</td>
                                     <td>
                                         <a href="{{ url_for('index', session_id=usage.session_id) }}" title="View Session" target="_blank">{{ usage.session_id[:8] }}...</a>
                                     </td>
@@ -262,4 +373,19 @@
 {% endblock %}
 
 {% block page_scripts %}
+<script>
+function filterTable(input, tableId) {
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById(tableId);
+    const rows = table.getElementsByTagName('tr');
+
+    for (let i = 1; i < rows.length; i++) { // Start from 1 to skip header
+        const modelCell = rows[i].cells[0]; // Model name is in first column
+        if (modelCell) {
+            const text = modelCell.textContent || modelCell.innerText;
+            rows[i].style.display = text.toLowerCase().includes(filter) ? '' : 'none';
+        }
+    }
+}
+</script>
 {% endblock %}

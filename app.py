@@ -23,6 +23,24 @@ from werkzeug.exceptions import ClientDisconnected
 
 load_dotenv()
 
+def format_model_name(name):
+    """Jinja filter to format model names for display."""
+    if not isinstance(name, str):
+        return name
+
+    def capitalize_words(text):
+        # Capitalize each word, but keep "AI" in uppercase
+        return ' '.join(word if word.upper() == 'AI' else word.capitalize() for word in text.split())
+
+    if '/' in name:
+        parts = name.split('/', 1)
+        provider = parts[0].strip()
+        model_part = parts[1].strip()
+        return f"({capitalize_words(provider)}) {capitalize_words(model_part)}"
+    else:
+        # For names without a '/', just format as before
+        return capitalize_words(name.replace('_', '_'))
+
 
 app = Flask(__name__)
 
@@ -56,6 +74,9 @@ def setup_logging(app_instance):
 setup_logging(app)
 
 app.secret_key = secrets.token_hex(32)
+
+# Register the custom filter
+app.jinja_env.filters['format_model_name'] = format_model_name
 
 @app.before_request
 def log_request_info():
@@ -637,7 +658,7 @@ def ollama_chat(messages, model, session_id=None, max_retries=3, is_incognito=Fa
                     "num_predict": int(settings.get('num_predict')),
                     "temperature": float(settings.get('temperature')),
                     "top_p": float(settings.get('top_p')),
-                    "top_k": int(settings.get('top_k'))
+                    "top_k": int(settings.get('top_k')),
                 }
             }
             
@@ -755,7 +776,7 @@ def index():
         'index.html', 
         page_title="AI Think | AI Think Chat",
         page_id="chat",
-        header_title="💬 AI Think",
+        header_title="AI Think",
         nav_links=[
             {"href": "/history", "title": "Chat History", "icon": "history"},
             {"href": "/cloud_models", "title": "Cloud Models", "icon": "cloud"},
@@ -842,6 +863,7 @@ def generate():
 
     # Check for incognito mode
     is_incognito = data.get('incognito', False)
+    is_regeneration = data.get('is_regeneration', False)
     if is_incognito:
         current_app.logger.info("Incognito mode is active. Tracing and database storage will be skipped.")
 
@@ -849,6 +871,32 @@ def generate():
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     session_id = session['session_id']
+
+    # If this is a regeneration request, delete the last two messages (user and assistant)
+    if is_regeneration and not is_incognito:
+        current_app.logger.info(f"Regeneration request for session {session_id}. Deleting last message pair.")
+        try:
+            if chroma_connected:
+                # This is complex in ChromaDB without message IDs. A simpler approach is to not delete for now.
+                # For a robust solution, we'd need to fetch, sort, and delete the last two.
+                # As a safe default, we'll log this and proceed without deletion for Chroma.
+                current_app.logger.warning("Regeneration deletion is not yet supported for ChromaDB. Proceeding without deleting.")
+            else:
+                db = get_db()
+                # Find the IDs of the last two messages in the session
+                last_two_ids = db.execute(
+                    'SELECT id FROM messages WHERE session_id = ? ORDER BY timestamp DESC LIMIT 2',
+                    (session_id,)
+                ).fetchall()
+
+                if len(last_two_ids) == 2:
+                    ids_to_delete = [row['id'] for row in last_two_ids]
+                    db.execute(f"DELETE FROM messages WHERE id IN (?, ?)", (ids_to_delete[0], ids_to_delete[1]))
+                    db.commit()
+                    current_app.logger.info(f"Deleted messages with IDs {ids_to_delete} for regeneration.")
+
+        except Exception as e:
+            current_app.logger.error(f"Error deleting messages for regeneration in session {session_id}: {e}")
 
     # Handle /search command
     if new_message_content.strip().startswith('/search'):
@@ -986,14 +1034,15 @@ def generate():
                     )
                 except Exception as e:
                     current_app.logger.error(f"Failed to save messages to ChromaDB: {e}") # generation_time is not supported in ChromaDB metadata for now
-            else:
-                model_name_for_log = model_config['model_name'] if is_cloud_model else model
+            else:  # Using SQLite
+                model_name_for_log = f"({model_config['service']}) {model_config['model_name']}" if is_cloud_model else model
                 db.execute('INSERT INTO messages (session_id, sender, content, generation_time, model_used, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?)', (session_id, 'user', user_message_to_save, None, None, None))
                 db.execute('INSERT INTO messages (session_id, sender, content, generation_time, model_used, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?)', (session_id, 'assistant', assistant_response, round(elapsed, 2), model_name_for_log, tokens_per_second))
                 db.commit()
             
             # Save API usage metrics
             try:
+                model_name_for_log = f"{model_config['service']} / {model_config['model_name']}" if is_cloud_model else model
                 db = get_db()
                 db.execute(
                     '''INSERT INTO api_usage_metrics (model, category, session_id, input_tokens_per_message, output_tokens_per_message)
@@ -1006,7 +1055,7 @@ def generate():
                 current_app.logger.error(f"Failed to save API usage metrics: {e}")
 
 
-        model_name_for_log = model_config['model_name'] if is_cloud_model else model
+        model_name_for_log = f"({model_config['service']}) {model_config['model_name']}" if is_cloud_model else model
         return jsonify({
             "message": {
                 "role": "assistant",
@@ -1209,7 +1258,7 @@ def history():
             threads = defaultdict(list)
     else:
         db = get_db()
-        messages = db.execute('SELECT id, session_id, sender, content, timestamp FROM messages ORDER BY timestamp ASC').fetchall()
+        messages = db.execute('SELECT id, session_id, sender, content, timestamp, generation_time, model_used, tokens_per_second FROM messages ORDER BY timestamp ASC').fetchall()
         
         for msg in messages:
             session_id = msg['session_id']
@@ -1222,7 +1271,10 @@ def history():
                 'id': msg['id'],
                 'sender': msg['sender'],
                 'content': msg['content'],
-                'timestamp': utc_timestamp
+                'timestamp': utc_timestamp,
+                'generation_time': msg['generation_time'],
+                'model_used': msg['model_used'],
+                'tokens_per_second': msg['tokens_per_second']
             })
             
             if session_id not in session_start:
@@ -1287,7 +1339,7 @@ def history():
         'history.html',
         page_title="Chat History | AI Think Chat",
         page_id="history",
-        header_title="📚 Chat History",
+        header_title="Chat History",
         grouped_threads=grouped_threads.items(),
         session_start=session_start,
         newest_session_id=newest_session_id,
@@ -1489,7 +1541,7 @@ def health():
         status=overall_status,
         page_title="System Health | AI Think Chat",
         page_id="health",
-        header_title="🏥 System Health Dashboard",
+        header_title="System Health Dashboard",
         cpu={"count": cpu_count, "percent": cpu_percent},
         memory=memory,
         disk=disk,
@@ -1510,7 +1562,7 @@ def models_hub():
         'models.html',
         page_title="Models Hub | AI Think Chat",
         page_id="models",
-        header_title="📦 Models Hub",
+        header_title="Models Hub",
         nav_links=[{"href": "/cloud_models", "title": "Cloud Models", "icon": "cloud"}],
         ollama_status=ollama_status
     )
@@ -1647,7 +1699,7 @@ def settings(tab_name='general'):
         'settings.html',
         page_title="Settings | AI Think Chat",
         page_id="settings",
-        header_title="⚙️ Settings",
+        header_title="Settings",
         settings=current_settings,
         active_tab=tab_name
     )
@@ -1661,7 +1713,7 @@ def prompts_hub():
         'prompts.html',
         page_title="Prompt Hub | AI Think Chat",
         page_id="prompts",
-        header_title="🚀 Prompt Hub"
+        header_title="Prompt Hub"
     )
 
 @app.route('/api/prompts', methods=['GET'])
@@ -1857,7 +1909,7 @@ def dashboard():
     return render_template('dashboard.html', 
         page_title="User Dashboard | AI Think Chat",
         page_id="dashboard",
-        header_title=f"📊 User Dashboard ({time_range})",
+        header_title=f"User Dashboard ({time_range})",
         stats=stats,
         time_range_labels=time_range_labels,
         current_range=time_range)
@@ -1871,7 +1923,7 @@ def cloud_models_page():
         'cloud_models.html',
         page_title="Cloud Models | AI Think Chat",
         page_id="cloud_models",
-        header_title="☁️ Cloud Model Management"
+        header_title="Cloud Model Management"
     )
 
 @app.route('/api/cloud_models', methods=['GET'])
@@ -2046,6 +2098,44 @@ def api_toggle_cloud_model_active(model_id): # The model_id is used to identify 
     except Exception as e:
         current_app.logger.error(f"Error toggling active state for cloud model group: {e}")
         return jsonify({"error": "Failed to toggle active state."}), 500
+
+@app.route('/api/cloud_models/toggle_all_active', methods=['POST'])
+def api_toggle_all_cloud_models_active():
+    """API endpoint to toggle the active state for all cloud models."""
+    data = request.get_json()
+    is_active = data.get('active')
+
+    if is_active is None:
+        return jsonify({"error": "Missing 'active' field"}), 400
+
+    try:
+        db = get_db()
+        db.execute('UPDATE cloud_models SET active = ?', (is_active,))
+        db.commit()
+        current_app.logger.info(f"Toggled active state for ALL cloud models to {is_active}")
+        return jsonify({'success': True})
+    except Exception as e:
+        current_app.logger.error(f"Error toggling active state for all cloud models: {e}")
+        return jsonify({"error": "Failed to toggle active state for all models."}), 500
+
+@app.route('/api/local_models/toggle_all_active', methods=['POST'])
+def api_toggle_all_local_models_active():
+    """API endpoint to toggle the active state for all local models."""
+    data = request.get_json()
+    is_active = data.get('active')
+
+    if is_active is None:
+        return jsonify({"error": "Missing 'active' field"}), 400
+
+    try:
+        db = get_db()
+        db.execute('UPDATE local_models SET active = ?', (is_active,))
+        db.commit()
+        current_app.logger.info(f"Toggled active state for ALL local models to {is_active}")
+        return jsonify({'success': True})
+    except Exception as e:
+        current_app.logger.error(f"Error toggling active state for all local models: {e}")
+        return jsonify({"error": "Failed to toggle active state for all models."}), 500
 
 @app.route('/api/local_models/toggle_active', methods=['POST'])
 def api_toggle_local_model_active():

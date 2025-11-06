@@ -118,7 +118,7 @@ Start the Flask server:
 python main.py
 ```
 
-Then open: [http://localhost:5000](http://localhost:5000)
+Then open: [http://localhost:1111](http://localhost:1111)
 
 ---
 
@@ -203,9 +203,6 @@ Ensure port **8080** is open.
 
 ---
 
-## Install Tesseract OCR on your system:
- 
-`sudo apt-get install tesseract-ocr`
 
 ## ⚙️ Configuration Notes
 
