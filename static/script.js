@@ -1,4 +1,17 @@
 // Simple HTML escape utility
+// Helper function to get the actual scrollable container
+function getScrollContainer() {
+    // The chatbox (#chatbox) is inside .page-content, which is the scrollable element.
+    return document.querySelector('.page-content');
+}
+
+// Helper function to scroll the chatbox to the bottom
+function scrollToBottom() {
+    const scrollContainer = getScrollContainer();
+    if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    }
+}
 // Update the escapeHTML function to preserve LaTeX content. This function is not directly used for user input but is good practice.
 function escapeHTML(str) {
     // Temporarily replace LaTeX expressions with placeholders
@@ -346,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         chatbox.appendChild(messageContainer);
-        chatbox.scrollTop = chatbox.scrollHeight;
+        scrollToBottom();
 
         // Trigger MathJax rendering with proper timing
         if (window.MathJax && !isSystem) { // No need to typeset the file content block
@@ -432,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Handle bot response from server
-    function handleBotResponse(data) {
+    async function handleBotResponse(data) {
         const thinkingElement = document.getElementById(thinkingMessageId);
         if (!thinkingElement) {
             // This can happen if there was an error and it was already removed.
@@ -512,9 +525,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Ensure MathJax processes the new content
         if (window.MathJax) {
-            MathJax.typesetPromise([thinkingElement]).catch(err => {
-                console.error('MathJax error:', err);
-            });
+            await MathJax.typesetPromise([thinkingElement]).catch(err => console.error('MathJax error:', err));
         }
 
         // Apply syntax highlighting to the updated message
@@ -529,7 +540,7 @@ document.addEventListener('DOMContentLoaded', function() {
         thinkingMessageId = null; // Clear the ID as we've used the placeholder
 
         // Scroll to the bottom to ensure the new message is visible
-        chatbox.scrollTop = chatbox.scrollHeight;
+        scrollToBottom();
     }
     // --- New: Remove a thread marker ---
     function removeLastThreadMarker() {
