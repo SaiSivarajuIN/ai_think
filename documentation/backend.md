@@ -17,7 +17,7 @@ AI Think Chat is a Flask-based web application that provides an intelligent chat
 
 ## Installation and Setup
 
-For Quick Installation and Setup docs: [README.md](README.md)
+For Quick Installation and Setup docs: [README.md](../README.md)
 
 
 ### Step 1: Database Initialization
