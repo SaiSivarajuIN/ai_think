@@ -102,12 +102,32 @@ body.fixed-layout {
 .page-content {
     flex: 1 1 auto;
     overflow-y: auto;
-    padding: 1.5rem;
+    padding: 1.5rem;  /* Remove right padding since marker bar is now fixed */
+    position: relative;
 }
+
+/* Update the thread marker bar styling */
+#thread-marker-bar {
+    position: fixed;  /* Keep fixed positioning */
+    right: 20px;     /* Move it 20px from the right edge to avoid scrollbar */
+    top: 50%;  /* Center vertically in viewport */
+    transform: translateY(-50%);
+    width: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    overflow: hidden;
+    font-family: monospace;
+    line-height: 1;
+    z-index: 50;  /* Ensure it stays above content but below modals */
+}
+
 /* The main chat area now has a container */
 .chat-area-container {
     flex-grow: 1;
     display: flex;
+    position: relative; /* For positioning the thread marker bar */
     flex-direction: column;
 }
 
@@ -1327,6 +1347,39 @@ thead th {
     font-size: 0.9rem;
     color: var(--theme-toggle-text);
     margin-top: 0.5rem;
+}
+.feature-list {
+    padding-left: 20px;
+}
+
+/* Style for the new thread marker bar */
+#thread-marker-bar {
+    position: fixed;  /* Keep fixed positioning */
+    right: 20px;     /* Move it 20px from the right edge to avoid scrollbar */
+    top: 50%;  /* Center vertically in viewport */
+    transform: translateY(-50%);
+    width: 20px; /* Adjust width as needed */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px; /* Add a small gap between markers */
+    overflow: hidden;
+    font-family: monospace;
+    line-height: 1;
+    z-index: 50;  /* Ensure it stays above content but below modals */
+}
+
+.thread-marker {
+    cursor: pointer;
+    color: var(--theme-toggle-text);
+    font-size: 14px;
+    padding: 1px 0;
+    transition: color 0.2s, transform 0.2s;
+}
+
+.thread-marker:hover {
+    color: var(--text);
+    transform: scale(1.5);
 }
 .feature-list {
     padding-left: 20px;

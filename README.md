@@ -9,14 +9,14 @@ Lightweight, self-hosted web chat for local **Ollama** models with optional clou
 
 ## 📚 Table of Contents
 
-* [Quick Start](#-quick-start)
+* [Quick Start](#quick-start)
 
   * [Prerequisites](#prerequisites)
   * [Install Ollama](#install-ollama)
   * [Environment & Dependencies](#environment--dependencies)
   * [Configuration](#configuration)
   * [Run](#run)
-* [Features](#✨-features)
+* [Features](#features)
 * [Usage](#-usage)
 * [Optional SearXNG WebSearch](#-optional---searxng-websearch) 
 * [Keyboard Shortcuts](#-keyboard-shortcuts)
@@ -214,5 +214,5 @@ Ensure port **8080** is open.
 
 ## Documentation & Feedback
 
-* Full developer docs: [documentation.md](./documentation/backend.md)
-* Feedback form: [Google Form](https://forms.gle/5LeiKT1tRoNWmVst5)
+* Developer  [Documentation](documentation/backend.md)
+* Feedback [Google Form](https://forms.gle/5LeiKT1tRoNWmVst5)
