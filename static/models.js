@@ -204,13 +204,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!toggleAllCheckbox) return;
 
         const allToggles = document.querySelectorAll('#local-models-table .active-toggle');
-        if (allToggles.length === 0) {
+        const totalToggles = allToggles.length;
+        if (totalToggles === 0) {
             toggleAllCheckbox.checked = false;
             return;
         }
 
-        const anyChecked = [...allToggles].some(toggle => toggle.checked);
-        toggleAllCheckbox.checked = anyChecked;
+        const checkedCount = [...allToggles].filter(toggle => toggle.checked).length;
+        // The master toggle is checked only if all individual toggles are checked.
+        toggleAllCheckbox.checked = totalToggles > 0 && checkedCount === totalToggles;
     }
 
     // --- Delete All Models ---

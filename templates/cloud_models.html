@@ -129,6 +129,7 @@
                         <option value="LongCat">LongCat</option>
                         <option value="Nvidia AI">Nvidia AI</option>
                         <option value="OpenAI">OpenAI</option>
+                        <option value="Open router">Open router</option>
                         <option value="Perplexity">Perplexity</option>
                         <option value="Other">Other</option>
                     </select>
@@ -169,19 +170,11 @@
             const serviceSelect = document.getElementById('model-service');
             const baseUrlInput = document.getElementById('model-base-url');
 
-            const serviceUrlMap = {
-                'Cerebras': 'https://api.cerebras.ai/v1',
-                'Cohere': 'https://api.cohere.ai/compatibility/v1',
-                'DeepSeek': 'https://api.deepseek.com',
-                'Google Gemini': 'https://generativelanguage.googleapis.com/v1beta/openai',
-                'Groq': 'https://api.groq.com/openai/v1',
-                'LongCat': 'https://api.longcat.chat/openai',
-                'Nvidia AI': 'https://integrate.api.nvidia.com/v1/chat/completions',
-                'OpenAI': 'https://api.openai.com/v1',
-                'OpenRouter': 'https://openrouter.ai/api/v1',
-                'Perplexity': 'https://api.perplexity.ai',
-                'Other': ''
-            };
+            let serviceUrlMap = {};
+            fetch('/api/cloud_models/service_url_map')
+                .then(res => res.ok ? res.json() : {})
+                .then(data => { serviceUrlMap = data || {}; })
+                .catch(() => { serviceUrlMap = {}; });
 
             serviceSelect.addEventListener('change', function() {
                 const selectedService = this.value;

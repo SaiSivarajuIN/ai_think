@@ -804,6 +804,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     event.preventDefault();
                     contentWrapper.removeEventListener('keydown', onKeydown);
                     handleEditFinish();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    contentWrapper.removeEventListener('keydown', onKeydown);
+                    // Cancel the edit: restore original content and UI state
+                    contentWrapper.innerHTML = formatMessage(escapeHtml(userMessageDiv.dataset.rawContent));
+                    contentWrapper.contentEditable = false;
+                    userMessageDiv.querySelectorAll('.icon-btn').forEach(btn => btn.style.display = 'inline-flex');
+                    contentWrapper.blur(); // Remove focus
                 }
             });
         }
@@ -998,6 +1006,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
 
+                // Restore scroll position after rendering messages
+                const lastSessionId = sessionStorage.getItem('lastSessionId');
+                const savedScrollPosition = sessionStorage.getItem('scrollPosition');
+                const scrollContainer = getScrollContainer();
+
+                // If it's a refresh of the same session, restore scroll position.
+                if (savedScrollPosition && scrollContainer && sessionId === lastSessionId) {
+                    setTimeout(() => {
+                        scrollContainer.scrollTop = parseInt(savedScrollPosition, 10);
+                    }, 100);
+                } else {
+                    // Otherwise (loading a new session), scroll to the first user message.
+                    const firstUserMessage = chatbox.querySelector('.user-message');
+                    if (firstUserMessage) {
+                        setTimeout(() => {
+                            // We scroll the container to the top of the message element.
+                            // 'start' aligns the top of the element with the top of the scroll container.
+                            scrollContainer.scrollTop = firstUserMessage.offsetTop - 24; // 24px offset for padding
+                        }, 100);
+                    } else {
+                        scrollToBottom(); // Fallback for sessions with no user messages
+                    }
+                }
+
             } catch (error) {
                 console.error('Failed to load session:', error);
                 chatbox.innerHTML = ''; // Clear loading message
@@ -1173,9 +1205,24 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // --- New: Save scroll position on page unload ---
+    window.addEventListener('beforeunload', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentSessionId = urlParams.get('session_id');
+        const scrollContainer = getScrollContainer();
+        if (scrollContainer) {
+            sessionStorage.setItem('scrollPosition', String(scrollContainer.scrollTop));
+            if (currentSessionId) {
+                sessionStorage.setItem('lastSessionId', currentSessionId);
+            } else {
+                sessionStorage.removeItem('lastSessionId'); // Clear if we are on the main page without a session
+            }
+        }
+    });
+
     // Auto-resize textarea
     if (userInput) { // Focus input on load
-
+        // Store the session ID from the previous page load to detect navigation vs. refresh
         updateSearchButtonState(); // Restore search button state on load
         initializeChat();
     }

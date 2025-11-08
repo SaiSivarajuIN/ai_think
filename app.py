@@ -9,6 +9,7 @@ import secrets
 import sqlite3
 import requests
 import httpx
+import csv
 from uuid import uuid4
 from langfuse import Langfuse
 from datetime import datetime
@@ -2136,6 +2137,29 @@ def api_toggle_all_local_models_active():
     except Exception as e:
         current_app.logger.error(f"Error toggling active state for all local models: {e}")
         return jsonify({"error": "Failed to toggle active state for all models."}), 500
+
+@app.route('/api/cloud_models/service_url_map', methods=['GET'])
+def api_get_service_url_map():
+    """Return mapping of service name to base URL loaded from CSV."""
+    try:
+        csv_path = os.path.join(os.path.dirname(__file__), 'data', 'cloud_modals.csv')
+        service_map = {}
+        with open(csv_path, newline='', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if not row or len(row) < 2:
+                    continue
+                # strip to be safe
+                name = row[0].strip()
+                url = row[1].strip()
+                if name:
+                    service_map[name] = url
+        return jsonify(service_map)
+    except FileNotFoundError:
+        return jsonify({"error": "cloud_modals.csv not found"}), 404
+    except Exception as e:
+        current_app.logger.error(f"Error reading service_url_map: {e}")
+        return jsonify({"error": "Failed to load service URL map"}), 500
 
 @app.route('/api/local_models/toggle_active', methods=['POST'])
 def api_toggle_local_model_active():

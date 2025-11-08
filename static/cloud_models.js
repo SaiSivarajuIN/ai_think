@@ -258,13 +258,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!masterToggle) return;
 
         const allToggles = document.querySelectorAll('#cloud-models-table .active-toggle');
-        if (allToggles.length === 0) {
+        const totalToggles = allToggles.length;
+        if (totalToggles === 0) {
             masterToggle.checked = false;
             return;
         }
 
-        const anyChecked = [...allToggles].some(toggle => toggle.checked);
-        masterToggle.checked = anyChecked;
+        const checkedCount = [...allToggles].filter(toggle => toggle.checked).length;
+        // The master toggle is checked only if all individual toggles are checked.
+        masterToggle.checked = totalToggles > 0 && checkedCount === totalToggles;
     }
 
     function copyToClipboard(text, buttonElement) {
