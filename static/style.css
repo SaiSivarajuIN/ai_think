@@ -1,14 +1,23 @@
 :root {
-    --primary: #323138;
+    --primary: #000000;
+    --primary-light: #1a1a1a;
+    --primary-gradient: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
     --text: #111827;
+    --text-light: #6b7280;
     --background: #ffffff;
+    --background-secondary: #f9fafb;
     --card: #f9fafb;
     --border: #e5e7eb;
-    --message-user: #323138;
+    --message-user: #000000;
     --message-assistant: #f3f4f6;
     --theme-toggle-text: #6b7280;
     --connected: #22c55e;
     --disconnected: #ef4444;
+    --accent-purple: #1a1a1a;
+    --accent-pink: #2d2d2d;
+    --accent-black: #000000;
+    --accent-dark-gray: #1a1a1a;
+    --accent-gray: #2d2d2d;
     --container-margin: 1.5rem;
     --container-max-width: 1200px;
     --container-padding: 1.5rem; /* Adjusted padding */
@@ -19,17 +28,28 @@
     --radius-md: 0.75rem;
     --radius-lg: 1rem;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12);
 }
 
 body.dark-theme {
-    --primary: #323138;
+    --primary: #000000;
+    --primary-light: #1a1a1a;
+    --primary-gradient: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
     --text: #f3f4f6;
+    --text-light: #9ca3af;
     --background: #1a1b1e;
+    --background-secondary: #2a2b2f;
     --card: #2a2b2f;
     --border: #374151; /* Adjusted border for dark mode */
-    --message-user: #323138;
+    --message-user: #000000;
     --message-assistant: #2a2b2f;
     --theme-toggle-text: #d1d5db;
+    --accent-purple: #1a1a1a;
+    --accent-pink: #2d2d2d;
+    --accent-black: #000000;
+    --accent-dark-gray: #1a1a1a;
+    --accent-gray: #2d2d2d;
 }
 
 * {
@@ -448,7 +468,7 @@ body.dark-theme .model-selector {
     flex-shrink: 0;
 }
 #sendButton:hover, .send-button:hover {
-    background: #1c1b20; /* Darker version of the new primary */
+    background: #1a1a1a; /* Lighter shade of black for hover */
 }
 
 .send-button.stop-button {
@@ -469,11 +489,12 @@ body.dark-theme .model-selector {
 }
 
 .card {
-    background: var(--card);
+    background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
     border: 1px solid var(--border);
     border-radius: 1rem;
-    padding: 1.25rem 1.5rem; /* Adjusted padding */
-    box-shadow: var(--shadow-sm);
+    padding: 1.5rem 1.75rem; /* Adjusted padding */
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
 }
 
 .settings-form {
@@ -535,7 +556,7 @@ body.dark-theme .model-selector {
 }
 
 .save-btn:hover {
-    background: #1c1b20; /* Darker on hover */
+    background: #1a1a1a; /* Lighter shade of black for hover */
 }
 
 /* Toggle Switch Styles */
@@ -605,11 +626,12 @@ input:checked + .slider:before {
 }
 
 .card h2 {
-    color: var(--primary);
-    font-size: 1.25rem;
+    color: var(--text);
+    font-size: 1.35rem;
+    font-weight: 700;
     margin-bottom: 1rem;
-    border-bottom: 2px solid var(--primary);
-    padding-bottom: 0.5rem;
+    border-bottom: none;
+    padding-bottom: 0;
 }
 
 .card p {
@@ -729,7 +751,7 @@ input:checked + .slider:before {
 
 .copy-btn:hover {
     color: var(--primary);
-    background: rgba(76, 81, 191, 0.1);
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .message-footer {
@@ -1112,8 +1134,8 @@ thead th {
 }
 
 .edit-btn:hover {
-    color: #eeeae4; /* Amber color for edit */
-    background: rgba(247, 245, 244, 0.1);
+    color: var(--primary); /* Black color for edit */
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .delete-thread-btn:hover {
@@ -1640,3 +1662,5 @@ thead th {
 
 /* Hide old table */
 #cloud-models-table, #loading-models { display: none; }
+
+

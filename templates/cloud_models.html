@@ -6,72 +6,488 @@
 
 {% block head_extra %}
     <style>
-        /* Modal styles from prompts.html, slightly adapted */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: var(--card); margin: 10% auto; padding: 2rem; border: 1px solid var(--border); width: 80%; max-width: 600px; border-radius: var(--radius-lg); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-        .modal-header h2 { margin: 0; }
-        .close-btn { color: var(--text); font-size: 28px; font-weight: bold; cursor: pointer; }
-        .model-name-group {
+        /* Modern Cloud Models Page Styling */
+        .cloud-models-container {
+            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cloud-models-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #000000, #2d2d2d);
+        }
+
+        .cloud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .cloud-header h2 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            margin-bottom: 0.5rem;
         }
-        .model-name-group input {
-            flex-grow: 1;
+
+        .cloud-header h2::before {
+            content: '☁';
+            font-size: 1.5rem;
         }
-        #model-names-container .form-group {
-            margin-bottom: 0; /* Remove bottom margin from individual model name groups */
+
+        .add-model-btn {
+            padding: 0.625rem 1.25rem;
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
+
+        .add-model-btn:hover {
+            background: linear-gradient(135deg, #1a1a1a 0%, #404040 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+
+        .cloud-description {
+            background: var(--background);
+            border-left: 4px solid #000000;
+            padding: 0.875rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.25rem;
+            line-height: 1.6;
+            color: var(--text);
+        }
+
+        /* Toggle Controls */
+        .toggle-controls {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1rem;
+            background: var(--background);
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.25rem;
+        }
+
+        .toggle-controls span {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        /* Services Layout */
+        .services-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .services-sidebar {
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            height: fit-content;
+        }
+
+        #service-filter {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 2px solid var(--border);
+            border-radius: 0.5rem;
+            background: var(--card);
+            color: var(--text);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        #service-filter:focus {
+            outline: none;
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
+        }
+
+        .services-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .services-list li {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text);
+            border-left: 3px solid transparent;
+        }
+
+        .services-list li:hover {
+            background: linear-gradient(90deg, rgba(0,0,0,0.05) 0%, transparent 100%);
+            border-left-color: #000000;
+            padding-left: 1rem;
+        }
+
+        .services-list li.active {
+            background: rgba(0,0,0,0.08);
+            border-left-color: #000000;
+            font-weight: 600;
+        }
+
+        .services-detail {
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .card-simple {
+            color: var(--theme-toggle-text);
+            text-align: center;
+            padding: 2rem;
+        }
+
+        /* Enhanced Table */
+        .models-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--background);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .models-table thead {
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+        }
+
+        .models-table thead th {
+            padding: 1rem 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .models-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .models-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .models-table tbody tr:hover {
+            background: linear-gradient(90deg, rgba(0,0,0,0.03) 0%, transparent 100%);
+        }
+
+        .models-table tbody td {
+            padding: 1rem 1.25rem;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+
+        .models-table tbody td:first-child {
+            font-weight: 600;
+        }
+
         .api-key-text {
             flex-grow: 1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
-        }
-        footer {
-            background-color: #f8f9fa;
-            text-align: right;
-            padding: 10px 0;
-            font-size: 0.9rem;
-            color: #555;
-            border-top: 1px solid #ddd;
+            font-family: 'Courier New', monospace;
+            background: rgba(0,0,0,0.05);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
         }
 
-        /* Custom floating dropdown for model-service when many options exist */
+        /* Loading State */
+        .loading-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--theme-toggle-text);
+        }
+
+        .loading-state .material-icons {
+            font-size: 3rem;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Enhanced Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+            margin: 5% auto;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            width: 85%;
+            max-width: 650px;
+            border-radius: 1rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s ease;
+            position: relative;
+        }
+
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #000000, #2d2d2d);
+            border-radius: 1rem 1rem 0 0;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .close-btn {
+            color: var(--theme-toggle-text);
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--disconnected);
+            transform: rotate(90deg);
+        }
+
+        /* Form Elements */
+        .form-group input,
+        .form-group select {
+            border: 2px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .model-name-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .model-name-group input {
+            flex-grow: 1;
+        }
+
+        #model-names-container .form-group {
+            margin-bottom: 0;
+        }
+
+        /* Buttons */
+        .save-btn {
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            margin-top: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .save-btn:hover {
+            background: linear-gradient(135deg, #1a1a1a 0%, #404040 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+
+        .add-model-name-btn {
+            align-self: flex-start;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .add-model-name-btn:hover {
+            background: linear-gradient(135deg, #1a1a1a 0%, #404040 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* Custom Dropdown */
         .custom-select-dropdown {
             position: absolute;
             z-index: 9999;
-            max-height: 180px; /* inner scrollbar appears when content exceeds this */
+            max-height: 240px;
             overflow-y: auto;
-            background: var(--card, #fff);
-            border: 1px solid var(--border, #e0e0e0);
-            border-radius: 0.5rem;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-            padding: 0.25rem 0;
-            font-size: 0.95rem;
+            background: var(--background);
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+            padding: 0.5rem 0;
+            font-size: 0.9rem;
             display: none;
             opacity: 0;
-            transition: opacity 0.12s linear;
+            transition: all 0.2s ease;
             -webkit-overflow-scrolling: touch;
+        }
+
+        .custom-select-dropdown.open {
+            display: block;
+            opacity: 1;
+        }
+
+        .custom-select-dropdown .cs-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            color: var(--text);
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .custom-select-dropdown .cs-item:hover {
+            background: linear-gradient(90deg, rgba(0,0,0,0.05) 0%, transparent 100%);
+            border-left-color: #000000;
+            padding-left: 1.25rem;
+        }
+
+        .custom-select-dropdown .cs-item.selected {
+            font-weight: 600;
+            background: rgba(0,0,0,0.05);
+            border-left-color: #000000;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--card);
+            text-align: right;
+            padding: 1rem 1.5rem;
+            font-size: 0.875rem;
+            color: var(--theme-toggle-text);
+            border-top: 2px solid var(--border);
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .services-layout {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 {% endblock %}
 
 
 {% block content %}
-    <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="cloud-models-container">
+        <div class="cloud-header">
             <h2>Configured Cloud Models</h2>
-            <button id="add-model-btn" class="send-button">
+            <button id="add-model-btn" class="add-model-btn">
+                <span class="material-icons" style="font-size: 1.1rem;">add_circle</span>
                 Add Model
             </button>
         </div>
-        <p>Configure external models from providers like OpenAI, Perplexity, etc. These models will appear in the dropdown on the main chat page.</p>
-        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-            <span style="font-weight: 500; font-size: 0.9rem;">De/Activate All Models</span>
+        <div class="cloud-description">
+            <p>Configure external models from providers like OpenAI, Perplexity, etc. These models will appear in the dropdown on the main chat page.</p>
+        </div>
+        <div class="toggle-controls">
+            <span>De/Activate All Models</span>
             <label class="switch" title="Toggle All Models Active/Inactive">
                 <input type="checkbox" id="toggle-all-active">
                 <span class="slider round"></span>
@@ -79,12 +495,12 @@
         </div>
         <div id="services-layout" class="services-layout">
             <aside class="services-sidebar">
-                <input id="service-filter" type="text" placeholder="Filter services" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--background);">
+                <input id="service-filter" type="text" placeholder="Filter services...">
                 <ul id="services-list" class="services-list"></ul>
             </aside>
             <section id="service-detail" class="services-detail">
                 <div class="card-simple">
-                    <div style="color: var(--muted-foreground);">Select a service from the left to view details.</div>
+                    <div>Select a service from the left to view details.</div>
                 </div>
             </section>
         </div>
@@ -94,16 +510,17 @@
                     <th>Service</th>
                     <th>Model Name</th>
                     <th>Base URL & API Key</th>
-                    <th style="display: flex; align-items: center; justify-content: space-between;">
-                        <span>Status & Actions</span>
-                    </th>
+                    <th>Status & Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <!-- Models will be populated by JavaScript -->
             </tbody>
         </table>
-        <div id="loading-models" style="text-align: center; padding: 1rem;">Loading...</div>
+        <div id="loading-models" class="loading-state">
+            <span class="material-icons">refresh</span>
+            <p>Loading cloud models...</p>
+        </div>
     </div>
 {% endblock %}
 
@@ -151,7 +568,10 @@
                     <div id="model-names-container">
                         <!-- Model name inputs will be added here by JS -->
                     </div>
-                    <button type="button" id="add-model-name-btn" class="send-button" style="align-self: flex-start; padding: 0.5rem 1rem; font-size: 0.8rem; height: auto; width: auto; border-radius: var(--radius-md); margin-top: 0.5rem;">Add Another Model</button>
+                    <button type="button" id="add-model-name-btn" class="add-model-name-btn">
+                        <span class="material-icons" style="font-size: 1rem;">add</span>
+                        Add Another Model
+                    </button>
                 </div>
                 <button type="submit" class="save-btn">Save Model</button>
             </form>

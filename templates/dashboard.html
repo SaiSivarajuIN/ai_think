@@ -8,72 +8,107 @@
 <style>
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 1.5rem;
-        margin-bottom: 1.5rem;
+        margin-bottom: 2rem;
     }
     .stat-item {
-        background-color: var(--background);
+        background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
         border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 1.5rem;
+        border-radius: 1rem;
+        padding: 1.75rem;
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        transition: all 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        position: relative;
+        overflow: hidden;
+    }
+    .stat-item::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #000000, #1a1a1a, #2d2d2d);
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
     .stat-item:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--shadow-sm);
+        transform: translateY(-6px) scale(1.02);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18), 0 4px 8px rgba(0, 0, 0, 0.12);
+        border-color: rgba(0, 0, 0, 0.3);
+    }
+    .stat-item:hover::before {
+        opacity: 1;
     }
     .stat-header {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+        width: 100%;
     }
     .stat-icon {
-        font-size: 1.75rem;
-        color: var(--primary);
-        background-color: color-mix(in srgb, var(--primary) 15%, transparent);
-        padding: 0.5rem;
-        border-radius: 50%;
+        font-size: 1.5rem;
+        color: white;
+        background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+        padding: 0.75rem;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        transition: transform 0.3s ease;
+    }
+    .stat-item:hover .stat-icon {
+        transform: scale(1.1) rotate(5deg);
     }
     .stat-value {
-        font-size: 2.25rem;
-        font-weight: 600;
+        font-size: 2.5rem;
+        font-weight: 700;
         line-height: 1;
+        background: linear-gradient(135deg, var(--text) 0%, var(--primary) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
     }
     .stat-label {
-        font-size: 1rem;
-        color: var(--text-light);
-        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--theme-toggle-text);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
     /* Table styling for API Usage */
     .api-usage-table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 1.5rem;
     }
     .api-usage-table th,
     .api-usage-table td {
-        padding: 0.75rem 1rem;
+        padding: 1rem 1.25rem;
         text-align: left;
         border-bottom: 1px solid var(--border);
         white-space: nowrap;
     }
     .api-usage-table th {
-        background-color: var(--background-secondary);
+        background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
         font-weight: 600;
-        color: var(--text-light);
-        font-size: 0.9rem;
+        color: white;
+        font-size: 0.8rem;
         text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .api-usage-table tbody tr {
+        transition: all 0.2s ease;
     }
     .api-usage-table tbody tr:hover {
-        background-color: var(--background-secondary);
+        background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.05) 100%);
+        transform: scale(1.01);
     }
     .api-usage-table tbody tr:last-child td {
         border-bottom: none;
@@ -81,40 +116,60 @@
     .time-range-selector {
         display: flex;
         gap: 0.5rem;
-        background-color: var(--background-secondary);
+        background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
         padding: 0.5rem;
-        border-radius: var(--radius-md);
+        border-radius: 1rem;
         margin-bottom: 2rem;
         width: fit-content;
+        border: 1px solid var(--border);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
     .time-range-selector a {
-        padding: 0.5rem 1rem;
+        padding: 0.625rem 1.25rem;
         text-decoration: none;
-        color: var(--text-light);
-        border-radius: var(--radius-sm);
-        font-weight: 500;
-        transition: all 0.2s ease;
+        color: var(--theme-toggle-text);
+        border-radius: 0.75rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    .time-range-selector a::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, #000000, #2d2d2d);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: -1;
     }
     .time-range-selector a:hover {
-        background-color: var(--background);
         color: var(--text);
+        transform: translateY(-2px);
     }
     .time-range-selector a.active {
-        background-color: var(--background-contrast);
-        color: var(--text-contrast);
-        box-shadow: var(--shadow-xs);
+        background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        transform: translateY(-2px);
     }
 
     /* Table container with fixed height and scrollbar */
     .table-container {
-        max-height: 240px; /* Height of ~5 rows + header */
+        max-height: 280px; /* Height of ~5 rows + header */
         overflow-y: auto;
         position: relative;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
     }
 
     /* Table container styles - add variant for larger tables */
     .table-container.table-container-lg {
-        max-height: 420px; /* Height for ~10 rows + header */
+        max-height: 450px; /* Height for ~10 rows + header */
     }
 
     /* Keep header fixed while scrolling */
@@ -153,11 +208,12 @@
 
     /* Feature list container with scrollbar */
     .feature-list-container {
-        max-height: 240px; /* Height of ~5 items */
+        max-height: 280px; /* Height of ~5 items */
         overflow-y: auto;
         position: relative;
         border: 1px solid var(--border);
-        border-radius: var(--radius-md);
+        border-radius: 0.75rem;
+        background: var(--background);
     }
     
     .feature-list-container .feature-list {
@@ -166,8 +222,31 @@
     }
     
     .feature-list-container .feature-list li {
-        padding: 0.5rem 1rem;
+        padding: 0.875rem 1.25rem;
         border-bottom: 1px solid var(--border);
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .feature-list-container .feature-list li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(135deg, #000000, #2d2d2d);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    
+    .feature-list-container .feature-list li:hover {
+        background: linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0%, transparent 100%);
+        padding-left: 1.5rem;
+    }
+    
+    .feature-list-container .feature-list li:hover::before {
+        opacity: 1;
     }
     
     .feature-list-container .feature-list li:last-child {
@@ -177,19 +256,22 @@
     /* Search input styling */
     .table-search {
         width: 100%;
-        padding: 0.5rem 0.75rem;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
+        padding: 0.75rem 1rem;
+        padding-right: 2.75rem;
+        border: 2px solid var(--border);
+        border-radius: 0.75rem;
         margin-bottom: 1rem;
         background-color: var(--background);
         color: var(--text);
         font-size: 0.9rem;
+        transition: all 0.3s ease;
     }
 
     .table-search:focus {
         outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+        border-color: #000000;
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
     }
 
     .search-wrapper {
@@ -201,11 +283,318 @@
         content: "search";
         font-family: 'Material Icons';
         position: absolute;
-        right: 0.75rem;
+        right: 1rem;
         top: 50%;
         transform: translateY(-50%);
-        color: var(--text-light);
-        font-size: 1.2rem;
+        color: #000000;
+        font-size: 1.25rem;
+        pointer-events: none;
+    }
+
+    /* Enhanced card styling */
+    .dashboard .card {
+        background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dashboard .card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #000000, #1a1a1a, #2d2d2d);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .dashboard .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+    }
+
+    .dashboard .card:hover::before {
+        opacity: 1;
+    }
+
+    .dashboard .card h2 {
+        color: var(--text);
+        font-size: 1.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: 700;
+        border-bottom: none;
+        padding-bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .dashboard .card .text-muted {
+        color: var(--theme-toggle-text);
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    /* Full width card styling */
+    .full-width-card {
+        background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .full-width-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #000000, #1a1a1a, #2d2d2d);
+    }
+
+    .full-width-card h2 {
+        color: var(--text);
+        font-size: 1.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: 700;
+    }
+
+    .full-width-card .text-muted {
+        color: var(--theme-toggle-text);
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    /* Custom Date Range Picker */
+    .custom-date-range {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        background: var(--background);
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .custom-date-range:hover {
+        border-color: #000000;
+        background: rgba(0, 0, 0, 0.02);
+    }
+
+    .custom-date-range .material-icons {
+        font-size: 1.1rem;
+        color: #000000;
+    }
+
+    .custom-date-range span {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .date-picker-inputs {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .date-picker-inputs input[type="date"] {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-family: var(--font-family);
+        background: var(--background);
+        color: var(--text);
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .date-picker-inputs input[type="date"]:focus {
+        outline: none;
+        border-color: #000000;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .date-picker-inputs input[type="date"]::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+        filter: invert(1);
+    }
+
+    .apply-date-btn {
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+    }
+
+    .apply-date-btn:hover {
+        background: linear-gradient(135deg, #1a1a1a 0%, #404040 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .date-range-divider {
+        color: var(--theme-toggle-text);
+        font-weight: 600;
+    }
+
+    /* Modal for custom date picker */
+    .date-picker-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .date-picker-modal.active {
+        display: flex;
+    }
+
+    .date-picker-content {
+        background: var(--background);
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        max-width: 500px;
+        width: 90%;
+    }
+
+    .date-picker-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .date-picker-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: var(--text);
+    }
+
+    .close-modal {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--theme-toggle-text);
+        transition: color 0.2s ease;
+    }
+
+    .close-modal:hover {
+        color: var(--text);
+    }
+
+    .date-inputs-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .date-input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .date-input-group label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .date-input-group input[type="date"] {
+        padding: 0.75rem;
+        border: 2px solid var(--border);
+        border-radius: 0.75rem;
+        font-size: 1rem;
+        width: 100%;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .modal-btn-clear {
+        background: transparent;
+        color: var(--disconnected);
+        border: 1px solid var(--disconnected);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .modal-btn-clear:hover {
+        background: rgba(239, 68, 68, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .modal-btn-cancel {
+        background: var(--card);
+        color: var(--text);
+        border: 1px solid var(--border);
+    }
+
+    .modal-btn-cancel:hover {
+        background: var(--background-secondary);
+    }
+
+    .modal-btn-apply {
+        background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+        color: white;
+    }
+
+    .modal-btn-apply:hover {
+        background: linear-gradient(135deg, #1a1a1a 0%, #404040 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-actions-right {
+        display: flex;
+        gap: 1rem;
     }
 </style>
 {% endblock %}
@@ -217,6 +606,47 @@
             {{ label }}
         </a>
     {% endfor %}
+    
+    <!-- Custom Date Range Button -->
+    <div class="custom-date-range" id="customDateBtn">
+        <span class="material-icons">calendar_today</span>
+        <span>Custom Range</span>
+    </div>
+</div>
+
+<!-- Custom Date Picker Modal -->
+<div class="date-picker-modal" id="datePickerModal">
+    <div class="date-picker-content">
+        <div class="date-picker-header">
+            <h3>Select Custom Date Range</h3>
+            <button class="close-modal" id="closeModalBtn">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        
+        <div class="date-inputs-wrapper">
+            <div class="date-input-group">
+                <label for="startDate">Start Date</label>
+                <input type="date" id="startDate" name="startDate">
+            </div>
+            
+            <div class="date-input-group">
+                <label for="endDate">End Date</label>
+                <input type="date" id="endDate" name="endDate">
+            </div>
+        </div>
+        
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-clear" id="clearDateBtn">
+                <span class="material-icons" style="font-size: 1rem;">clear</span>
+                Clear
+            </button>
+            <div class="modal-actions-right">
+                <button class="modal-btn modal-btn-cancel" id="cancelBtn">Cancel</button>
+                <button class="modal-btn modal-btn-apply" id="applyDateBtn">Apply Range</button>
+            </div>
+        </div>
+    </div>
 </div>
     <div class="stats-grid">
         <div class="stat-item">
@@ -332,7 +762,7 @@
             </div>
         </div>
     </div>
-    <div class="card" style="margin-top: 2rem;">
+    <div class="full-width-card" style="margin-top: 2rem;">
             <h2>API Usage Statistics</h2>
             <p class="text-muted" style="margin-bottom: 1rem;">
                 Detailed breakdown of recent API calls and token usage.
@@ -387,5 +817,97 @@ function filterTable(input, tableId) {
         }
     }
 }
+
+// Custom Date Range Picker
+document.addEventListener('DOMContentLoaded', function() {
+    const customDateBtn = document.getElementById('customDateBtn');
+    const datePickerModal = document.getElementById('datePickerModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const clearDateBtn = document.getElementById('clearDateBtn');
+    const applyDateBtn = document.getElementById('applyDateBtn');
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+
+    // Set default dates (last 7 days)
+    const today = new Date();
+    const lastWeek = new Date();
+    lastWeek.setDate(today.getDate() - 7);
+    
+    endDateInput.value = today.toISOString().split('T')[0];
+    startDateInput.value = lastWeek.toISOString().split('T')[0];
+
+    // Set max date to today
+    endDateInput.setAttribute('max', today.toISOString().split('T')[0]);
+    startDateInput.setAttribute('max', today.toISOString().split('T')[0]);
+
+    // Open modal
+    customDateBtn.addEventListener('click', function() {
+        datePickerModal.classList.add('active');
+    });
+
+    // Close modal functions
+    function closeModal() {
+        datePickerModal.classList.remove('active');
+    }
+
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+
+    // Clear date range and return to default view
+    clearDateBtn.addEventListener('click', function() {
+        // Clear input values
+        startDateInput.value = '';
+        endDateInput.value = '';
+        
+        // Close modal
+        closeModal();
+        
+        // Redirect to default dashboard (removes custom date parameters)
+        window.location.href = '{{ url_for("dashboard") }}';
+    });
+
+    // Close modal when clicking outside
+    datePickerModal.addEventListener('click', function(e) {
+        if (e.target === datePickerModal) {
+            closeModal();
+        }
+    });
+
+    // Apply custom date range
+    applyDateBtn.addEventListener('click', function() {
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+
+        if (!startDate || !endDate) {
+            alert('Please select both start and end dates');
+            return;
+        }
+
+        if (new Date(startDate) > new Date(endDate)) {
+            alert('Start date must be before end date');
+            return;
+        }
+
+        // Redirect with custom date range parameters
+        const url = new URL(window.location.href);
+        url.searchParams.set('range', 'custom');
+        url.searchParams.set('start_date', startDate);
+        url.searchParams.set('end_date', endDate);
+        window.location.href = url.toString();
+    });
+
+    // Validate end date is not before start date
+    startDateInput.addEventListener('change', function() {
+        endDateInput.setAttribute('min', this.value);
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && datePickerModal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+});
 </script>
 {% endblock %}

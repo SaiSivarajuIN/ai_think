@@ -4,67 +4,458 @@
 
 {% block header_title %}{{ header_title }}{% endblock %}
 
+{% block head_extra %}
+    <style>
+        /* Modern Models Page Styling */
+        .models-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .model-card {
+            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #000000, #2d2d2d);
+        }
+
+        .model-card:hover {
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .card-header h2 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-header h2 .material-icons {
+            font-size: 1.5rem;
+            color: #000000;
+            background: rgba(0,0,0,0.1);
+            padding: 0.4rem;
+            border-radius: 0.5rem;
+        }
+
+        .card-description {
+            background: var(--background);
+            border-left: 4px solid #000000;
+            padding: 0.875rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.25rem;
+            line-height: 1.6;
+        }
+
+        .card-description a {
+            color: #000000;
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 2px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+
+        .card-description a:hover {
+            border-bottom-color: #000000;
+        }
+
+        /* Enhanced Input Group */
+        .enhanced-input-group {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+
+        .enhanced-input-group .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .enhanced-input-group label {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .enhanced-input-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            background: var(--background);
+            color: var(--text);
+        }
+
+        .enhanced-input-group input:focus {
+            outline: none;
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .pull-model-btn {
+            padding: 0.75rem 1.25rem;
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+
+        .pull-model-btn:hover {
+            background: linear-gradient(135deg, #1a1a1a 0%, #404040 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+
+        .pull-model-btn .material-icons {
+            font-size: 1.25rem;
+        }
+
+        /* Enhanced Progress Container */
+        .pull-status-container {
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-top: 1.25rem;
+        }
+
+        .pull-status-container pre {
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: var(--text);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 12px;
+            background: var(--card);
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #000000 0%, #2d2d2d 100%);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        /* Enhanced Status Indicator */
+        .status-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--background);
+            padding: 0.875rem 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.25rem;
+        }
+
+        .status-container span:first-child {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .status-indicator {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: rgba(34, 197, 94, 0.15);
+            color: #15803d;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-indicator.connected::before {
+            background: #22c55e;
+        }
+
+        .status-indicator.disconnected {
+            background: rgba(239, 68, 68, 0.15);
+            color: #991b1b;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status-indicator.disconnected::before {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Toggle Controls */
+        .toggle-controls {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1rem;
+            background: var(--background);
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.25rem;
+        }
+
+        .toggle-controls span {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        /* Enhanced Table */
+        .models-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--background);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .models-table thead {
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+        }
+
+        .models-table thead th {
+            padding: 1rem 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .models-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .models-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .models-table tbody tr:hover {
+            background: linear-gradient(90deg, rgba(0,0,0,0.03) 0%, transparent 100%);
+        }
+
+        .models-table tbody td {
+            padding: 1rem 1.25rem;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+
+        .models-table tbody td:first-child {
+            font-weight: 600;
+        }
+
+        /* Delete All Button */
+        .delete-all-btn {
+            padding: 0.625rem 1.25rem;
+            background: transparent;
+            color: var(--disconnected);
+            border: 2px solid var(--disconnected);
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .delete-all-btn:hover {
+            background: var(--disconnected);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        /* Loading State */
+        .loading-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--theme-toggle-text);
+        }
+
+        .loading-state .material-icons {
+            font-size: 3rem;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-buttons .icon-btn {
+            transition: all 0.2s ease;
+        }
+
+        .action-buttons .icon-btn:hover {
+            transform: scale(1.1);
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
-    <div class="card">
-        <h2>Pull New Model</h2>
-        <p> Enter a model name from the <a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., `mistral:latest`).<br>
-            Get Models from <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face</a> (e.g., `ollama pull hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M`).
-        </p>
-        <div class="form-group">
-            <label for="model-name-input">Model Name</label>
-            <div class="input-group">
-                <input type="text" id="model-name-input" class="input-group-input" placeholder="e.g., gemma:2b">
-                <button id="pull-model-btn" class="send-button" title="Pull Model">
+    <div class="models-container">
+        <!-- Pull New Model Card -->
+        <div class="model-card">
+            <div class="card-header">
+                <h2>
                     <span class="material-icons">cloud_download</span>
+                    Pull New Model
+                </h2>
+            </div>
+            <div class="card-description">
+                <p>
+                    Enter a model name from the <a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., <code>mistral:latest</code>)<br>
+                    Get Models from <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face</a> (e.g., <code>hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M</code>)
+                </p>
+            </div>
+            <div class="enhanced-input-group">
+                <div class="form-group">
+                    <label for="model-name-input">Model Name</label>
+                    <input type="text" id="model-name-input" placeholder="e.g., gemma:2b, mistral:latest">
+                </div>
+                <button id="pull-model-btn" class="pull-model-btn" title="Pull Model">
+                    <span class="material-icons">cloud_download</span>
+                    <span>Pull Model</span>
                 </button>
             </div>
-        </div>
-        <div id="pull-status-container" class="pull-status-container" style="display: none;">
-            <pre id="pull-status"></pre>
-            <div class="progress-bar-container">
-                <div id="progress-bar" class="progress-bar"></div>
+            
+            <div id="pull-status-container" class="pull-status-container" style="display: none;">
+                <pre id="pull-status"></pre>
+                <div class="progress-bar-container">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h2>Local Models</h2>
-            <button id="delete-all-models-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
-                <span class="material-icons">delete_sweep</span>
-                Delete All
-            </button>
+        <!-- Local Models Card -->
+        <div class="model-card">
+            <div class="card-header">
+                <h2>
+                    <span class="material-icons">storage</span>
+                    Local Models
+                </h2>
+                <button id="delete-all-models-btn" class="delete-all-btn" title="Delete All Models">
+                    <span class="material-icons">delete_sweep</span>
+                    Delete All
+                </button>
+            </div>
+            
+            <div class="status-container">
+                <span>Ollama Status:</span>
+                <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
+                    {{ ollama_status }}
+                </span>
+            </div>
+            
+            <div class="toggle-controls">
+                <span>De/Activate All Models</span>
+                <label class="switch" title="Toggle All Models Active/Inactive">
+                    <input type="checkbox" id="toggle-all-active">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            
+            <table id="local-models-table" class="models-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>Modified</th>
+                        <th>Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Models will be populated by JavaScript -->
+                </tbody>
+            </table>
+            
+            <div id="loading-models" class="loading-state">
+                <span class="material-icons">refresh</span>
+                <p>Loading models...</p>
+            </div>
         </div>
-        <p>
-            Ollama Status:
-            <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
-                {{ ollama_status }}
-            </span>
-        </p>
-        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-        <span style="font-weight: 500; font-size: 0.9rem;">De/Activate All Models</span>
-        <label class="switch" title="Toggle All Models Active/Inactive">
-            <input type="checkbox" id="toggle-all-active">
-            <span class="slider round"></span>
-        </label>
-    </div>
-        <table id="local-models-table" class="models-table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Size</th>
-                    <th>Modified</th>
-                    <th style="display: flex; align-items: center; justify-content: space-between;">
-                        <span>Active</span>
-                    </th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Models will be populated by JavaScript -->
-            </tbody>
-        </table>
-        <div id="loading-models" style="text-align: center; padding: 1rem;">Loading...</div>
     </div>
 {% endblock %}
 
