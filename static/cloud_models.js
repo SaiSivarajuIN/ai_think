@@ -13,6 +13,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const modelNamesContainer = document.getElementById('model-names-container');
     const addModelNameBtn = document.getElementById('add-model-name-btn');
 
+    const servicesListEl = document.getElementById('services-list');
+    const serviceDetailEl = document.getElementById('service-detail');
+    const serviceFilterEl = document.getElementById('service-filter');
+
+    let currentModels = [];
+    let selectedServiceKey = null;
+    // Restore previously selected service key on load (if available)
+    try { selectedServiceKey = localStorage.getItem('cloud_models.selected_service') || null; } catch (_) {}
+    const fullKeysCache = {};
+    
 
     // --- Modal Logic ---
     function openModalForCreate() {
@@ -128,7 +138,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 groupedModels[key].model_names.push(m.model_name);
             });
             models = Object.values(groupedModels);
+            currentModels = models;
             renderModels(models);
+            renderServicesList(models);
         } catch (error) {
             console.error('Error fetching models:', error);
             modelsTableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--disconnected);">Error loading models.</td></tr>`;
@@ -155,6 +167,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const modelId = modelIdInput.value;
         const url = modelId ? `/api/cloud_models/update/${modelId}` : '/api/cloud_models/create';
         const method = 'POST';
+
+        // Preserve selection using intended values after save
+        try {
+            const prospectiveKey = `${data.service}::${data.base_url}`;
+            if (prospectiveKey && typeof prospectiveKey === 'string') {
+                selectedServiceKey = prospectiveKey;
+                try { localStorage.setItem('cloud_models.selected_service', selectedServiceKey); } catch(_) {}
+            }
+        } catch(_) {}
 
         try {
             const response = await fetch(url, {
@@ -238,10 +259,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
                 throw new Error(result.error || 'Failed to toggle all models status');
             }
-            // Update all visible toggles
+            // Update all visible toggles (legacy table)
             document.querySelectorAll('#cloud-models-table .active-toggle').forEach(toggle => {
                 toggle.checked = isActive;
             });
+            // Update header toggle if present
+            const headerToggle = document.querySelector('.active-toggle-header');
+            if (headerToggle) headerToggle.checked = isActive;
+            // Update in-memory state so sidebar/detail reflect
+            currentModels = currentModels.map(m => ({ ...m, active: isActive }));
+            // Optionally refresh sidebar/detail selection
+            renderServicesList(currentModels);
         } catch (error) {
             console.error('Error toggling all models active state:', error);
             alert(`Failed to update all models status: ${error.message}`);
@@ -344,6 +372,350 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         updateMasterToggleState(); // Set initial state of master toggle after rendering
+    }
+
+    function renderServicesList(models) {
+        if (!servicesListEl) return;
+        const filter = (serviceFilterEl?.value || '').toLowerCase();
+        servicesListEl.innerHTML = '';
+        models
+            .filter(m => m.service.toLowerCase().includes(filter))
+            .sort((a,b) => (a.active === b.active) ? a.service.localeCompare(b.service) : (a.active ? -1 : 1))
+            .forEach((m, idx) => {
+                const li = document.createElement('li');
+                li.className = 'service-item';
+                const key = `${m.service}::${m.base_url}`;
+                li.dataset.key = key;
+                const statusClass = m.active ? 'status-active' : 'status-inactive';
+                const statusText = m.active ? 'Active' : 'Inactive';
+                li.innerHTML = `
+                    <span title="${m.base_url}">${m.service}</span>
+                    <span class="status-tag ${statusClass}">${statusText}</span>
+                `;
+                if (selectedServiceKey && selectedServiceKey === key) {
+                    li.classList.add('active');
+                }
+                li.addEventListener('click', (e) => {
+                    document.querySelectorAll('.service-item').forEach(el => el.classList.remove('active'));
+                    li.classList.add('active');
+                    selectedServiceKey = key;
+                    try { localStorage.setItem('cloud_models.selected_service', selectedServiceKey); } catch(_) {}
+                    renderServiceDetail(m);
+                });
+                servicesListEl.appendChild(li);
+            });
+
+        // Ensure a selection exists
+        let selectedModel = null;
+        if (selectedServiceKey) {
+            selectedModel = models.find(x => `${x.service}::${x.base_url}` === selectedServiceKey) || null;
+        }
+        if (!selectedModel) {
+            if (models.length > 0) {
+                selectedModel = models[0];
+                selectedServiceKey = `${selectedModel.service}::${selectedModel.base_url}`;
+                try { localStorage.setItem('cloud_models.selected_service', selectedServiceKey); } catch(_) {}
+            }
+        }
+        document.querySelectorAll('.service-item').forEach(el => el.classList.remove('active'));
+        if (selectedModel) {
+            const selEl = servicesListEl.querySelector(`.service-item[data-key="${selectedServiceKey}"]`);
+            if (selEl) selEl.classList.add('active');
+            renderServiceDetail(selectedModel);
+        } else {
+            serviceDetailEl.innerHTML = '<div class="card-simple"><div style="color: var(--muted-foreground);">No services to display.</div></div>';
+        }
+    }
+
+    serviceFilterEl?.addEventListener('input', () => renderServicesList(currentModels));
+
+    function renderServiceDetail(model) {
+        if (!serviceDetailEl) return;
+        const displayUrl = model.base_url;
+        const displayUrlTrunc = model.base_url.length > 26 ? model.base_url.substring(0,26) + '...' : model.base_url;
+        const statusClass = model.active ? 'status-active' : 'status-inactive';
+        const statusText = model.active ? 'Active' : 'Inactive';
+
+        const keyMasked = model.api_key_partial || 'Not set';
+        const modelKey = model.id;
+        const showFull = false;
+
+        serviceDetailEl.innerHTML = `
+            <div class="card-simple">
+                <div class="detail-header">
+                    <h3 style="margin:0;">${model.service} <span class="status-tag ${statusClass}" id="detail-status-tag">${statusText}</span></h3>
+                    <div class="icon-actions">
+                        <label class="switch" title="${model.active ? 'Deactivate' : 'Activate'} Model Group" style="margin-right:0.5rem;">
+                            <input type="checkbox" class="active-toggle-header" ${model.active ? 'checked' : ''}>
+                            <span class="slider round"></span>
+                        </label>
+                        <button class="icon-btn small" title="Edit" data-action="edit"><span class="material-icons">edit</span></button>
+                        <button class="icon-btn small" title="Delete" data-action="delete"><span class="material-icons">delete</span></button>
+                    </div>
+                </div>
+                <div class="detail-grid" style="margin-top: 1rem;">
+                    <div class="kv" id="kv-url"><span>Base URL</span><span class="mono" title="${displayUrl}" id="base-url-text">${displayUrlTrunc}</span></div>
+                    <div class="kv" id="kv-key"><span>API Key</span><span class="mono" id="api-key-text">${keyMasked}</span></div>
+                </div>
+            </div>
+            <div class="card-simple">
+                <div class="detail-header"><h4 style="margin:0;">Models</h4><button class="send-button" id="add-model-name-inline" style="height:auto; padding:0.25rem 0.75rem;">Add</button></div>
+                <div class="models-list" id="models-list"></div>
+            </div>
+        `;
+
+        serviceDetailEl.querySelector('[data-action="edit"]').addEventListener('click', () => openModalForEdit(model));
+        serviceDetailEl.querySelector('[data-action="delete"]').addEventListener('click', () => deleteModel(model.id));
+        const headerToggle = serviceDetailEl.querySelector('.active-toggle-header');
+        headerToggle.addEventListener('change', (e) => {
+            const on = e.target.checked;
+            toggleActive(model, on);
+            model.active = on;
+            currentModels = currentModels.map(m => m.id === model.id ? { ...m, active: on } : m);
+            const tableRowToggle = document.querySelector(`tr[data-id="${model.id}"] .active-toggle`);
+            if (tableRowToggle) tableRowToggle.checked = on;
+            const tag = document.getElementById('detail-status-tag');
+            if (tag) {
+                tag.textContent = on ? 'Active' : 'Inactive';
+                tag.classList.toggle('status-active', on);
+                tag.classList.toggle('status-inactive', !on);
+            }
+            renderServicesList(currentModels);
+            setTimeout(updateMasterToggleState, 100);
+        });
+
+        const kvUrl = serviceDetailEl.querySelector('#kv-url');
+        const copyBaseBtn = document.createElement('button');
+        copyBaseBtn.className = 'icon-btn small';
+        copyBaseBtn.title = 'Copy Base URL';
+        copyBaseBtn.innerHTML = '<span class="material-icons">content_copy</span>';
+        kvUrl.appendChild(copyBaseBtn);
+        copyBaseBtn.addEventListener('click', (e) => {
+            copyToClipboard(model.base_url, copyBaseBtn);
+        });
+
+        const kvKey = serviceDetailEl.querySelector('#kv-key');
+        const apiKeyTextEl = serviceDetailEl.querySelector('#api-key-text');
+        const copyKeyBtn = document.createElement('button');
+        copyKeyBtn.className = 'icon-btn small';
+        copyKeyBtn.title = 'Copy API Key';
+        copyKeyBtn.innerHTML = '<span class="material-icons">content_copy</span>';
+        kvKey.appendChild(copyKeyBtn);
+        copyKeyBtn.addEventListener('click', async () => {
+            try {
+                if (!fullKeysCache[modelKey]) {
+                    const resp = await fetch(`/api/cloud_models/${modelKey}`);
+                    if (!resp.ok) throw new Error('Failed to fetch key');
+                    const details = await resp.json();
+                    fullKeysCache[modelKey] = details.api_key || '';
+                }
+                const toCopy = fullKeysCache[modelKey] || '';
+                if (!toCopy) throw new Error('API key not set');
+                copyToClipboard(toCopy, copyKeyBtn);
+            } catch (e) {
+                alert('Could not retrieve the full API key.');
+            }
+        });
+
+        const listEl = serviceDetailEl.querySelector('#models-list');
+        function drawModels() {
+            listEl.innerHTML = '';
+            model.model_names.forEach(name => {
+                const row = document.createElement('div');
+                row.className = 'model-row';
+                row.innerHTML = `
+                    <span class="mono" title="${name}">${name}</span>
+                    <div class="icon-actions">
+                        <button class="icon-btn small" data-action="delete-model" data-name="${name}" title="${model.model_names.length <= 1 ? 'Cannot delete the only model' : 'Delete'}" ${model.model_names.length <= 1 ? 'disabled' : ''} style="${model.model_names.length <= 1 ? 'opacity:0.5; cursor:not-allowed;' : ''}"><span class="material-icons">delete</span></button>
+                    </div>
+                `;
+                listEl.appendChild(row);
+            });
+            listEl.querySelectorAll('[data-action="delete-model"]').forEach(el => {
+                el.addEventListener('click', async (e) => {
+                    if (model.model_names.length <= 1) {
+                        alert('At least one model is required for this service.');
+                        return;
+                    }
+                    const name = e.currentTarget.getAttribute('data-name');
+                    if (!confirm(`Remove model "${name}" from this service?`)) return;
+                    const remaining = model.model_names.filter(n => n !== name);
+                    try {
+                        const payload = { service: model.service, base_url: model.base_url, api_key: '', model_names: remaining };
+                        const resp = await fetch(`/api/cloud_models/update/${model.id}`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                        });
+                        const result = await resp.json();
+                        if (!resp.ok) throw new Error(result.error || 'Failed to update');
+                        model.model_names = remaining;
+                        drawModels();
+                        fetchModels();
+                    } catch (err) {
+                        alert(`Failed to delete model name: ${err.message}`);
+                    }
+                });
+            });
+        }
+        drawModels();
+
+        const addInlineBtn = serviceDetailEl.querySelector('#add-model-name-inline');
+        addInlineBtn.addEventListener('click', () => {
+            const existing = serviceDetailEl.querySelector('.inline-add-popup');
+            if (existing) existing.remove();
+            const existingBackdrop = serviceDetailEl.querySelector('.inline-add-backdrop');
+            if (existingBackdrop) existingBackdrop.remove();
+
+            const backdrop = document.createElement('div');
+            backdrop.className = 'inline-add-backdrop';
+            backdrop.style.position = 'fixed';
+            backdrop.style.top = '0';
+            backdrop.style.left = '0';
+            backdrop.style.width = '100vw';
+            backdrop.style.height = '100vh';
+            backdrop.style.background = 'rgba(0,0,0,0.35)';
+            backdrop.style.zIndex = '999';
+            serviceDetailEl.appendChild(backdrop);
+            const popup = document.createElement('div');
+            popup.className = 'inline-add-popup';
+            popup.style.position = 'fixed';
+            popup.style.background = 'var(--card)';
+            popup.style.border = '1px solid var(--border)';
+            popup.style.borderRadius = '8px';
+            popup.style.padding = '0.75rem';
+            popup.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
+            popup.style.zIndex = '1000';
+            popup.style.top = '50%';
+            popup.style.left = '50%';
+            popup.style.transform = 'translate(-50%, -50%)';
+            popup.style.width = 'min(92vw, 520px)';
+            popup.style.maxHeight = '80vh';
+            popup.style.overflow = 'auto';
+            popup.innerHTML = `
+                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span class="material-icons" style="font-size:20px; color: var(--muted-foreground);">playlist_add</span>
+                            <strong>Add Model Names</strong>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <button class="icon-btn small inline-cancel" title="Close"><span class="material-icons">close</span></button>
+                        </div>
+                    </div>
+                    <div style="height:1px; background: var(--border);"></div>
+                    <div>
+                        <div style="font-weight:600; font-size:0.9rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Existing Models</div>
+                        <div class="existing-models-chips" style="display:flex; flex-wrap:wrap; gap:0.4rem;">
+                            ${model.model_names.map(n => `
+                                <span class=\"chip\" data-name=\"${n}\" style=\"display:inline-flex; align-items:center; gap:0.35rem; padding:0.2rem 0.5rem; font-size:0.8rem; background: var(--muted); color: var(--foreground); border: 1px solid var(--border); border-radius: 999px;\">
+                                    <span>${n}</span>
+                                    <button class=\"icon-btn small chip-remove\" title=\"Remove\" data-name=\"${n}\" style=\"width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center;\"><span class=\"material-icons\" style=\"font-size:16px;\">close</span></button>
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="inline-models-container" style="display:flex; flex-direction:column; gap:0.5rem; background: var(--muted); padding:0.5rem; border-radius:8px;"></div>
+                    <button class="send-button inline-add-field" style="align-self: flex-start; padding: 0.5rem 1rem; font-size: 0.8rem; height: auto; width: auto; border-radius: var(--radius-md); margin-top: 0.5rem;">Add Another</button>
+                    <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                        <button class="send-button inline-save" style="height:auto; padding:0.35rem 0.9rem;">Save</button>
+                    </div>
+                </div>
+            `;
+            serviceDetailEl.appendChild(popup);
+            const list = popup.querySelector('.inline-models-container');
+            const addFieldBtn = popup.querySelector('.inline-add-field');
+            const saveBtn = popup.querySelector('.inline-save');
+            const cancelBtn = popup.querySelector('.inline-cancel');
+            const chipsEl = popup.querySelector('.existing-models-chips');
+            const removedExisting = new Set();
+            const cleanup = () => { popup.remove(); backdrop.remove(); };
+            backdrop.addEventListener('click', cleanup);
+            cancelBtn.addEventListener('click', cleanup);
+            popup.addEventListener('keydown', (e) => { if (e.key === 'Escape') cleanup(); });
+            const addField = (value = '') => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.gap = '0.5rem';
+                row.style.alignItems = 'center';
+                row.innerHTML = `
+                    <input type="text" placeholder="Model name" class="inline-model-input" value="${value}" style="flex:1; padding:0.5rem; border:1px solid var(--border); border-radius:6px; background: var(--card); color: var(--foreground);">
+                    <button class="icon-btn small remove-inline-model" title="Remove"><span class="material-icons">close</span></button>
+                `;
+                list.appendChild(row);
+                const removeBtn = row.querySelector('.remove-inline-model');
+                removeBtn.addEventListener('click', () => {
+                    if (list.children.length > 1) row.remove();
+                });
+                return row.querySelector('.inline-model-input');
+            };
+            // Initialize with one input
+            const firstInput = addField('');
+            addFieldBtn.addEventListener('click', () => {
+                const input = addField('');
+                setTimeout(() => input.focus(), 0);
+            });
+
+            // Handle existing chip remove toggles
+            chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const name = e.currentTarget.getAttribute('data-name');
+                    const chip = chipsEl.querySelector(`.chip[data-name="${name}"]`);
+                    // Calculate prospective kept + new additions to ensure at least one remains
+                    const prospectiveRemoved = new Set(removedExisting);
+                    if (!prospectiveRemoved.has(name)) prospectiveRemoved.add(name); else prospectiveRemoved.delete(name);
+                    const keptExisting = model.model_names.filter(n => !prospectiveRemoved.has(n));
+                    const inputs = [...popup.querySelectorAll('.inline-model-input')];
+                    let newNames = [...new Set(inputs.map(i => (i.value || '').trim()).filter(Boolean))];
+                    // Remove duplicates with existing kept
+                    newNames = newNames.filter(n => !keptExisting.includes(n));
+                    if ((keptExisting.length + newNames.length) <= 0) {
+                        alert('At least one model is required for this service.');
+                        return;
+                    }
+                    const isRemoving = !removedExisting.has(name);
+                    if (isRemoving) {
+                        removedExisting.add(name);
+                        chip.style.opacity = '0.5';
+                        chip.style.textDecoration = 'line-through';
+                    } else {
+                        removedExisting.delete(name);
+                        chip.style.opacity = '';
+                        chip.style.textDecoration = '';
+                    }
+                });
+            });
+            const doSave = async () => {
+                const inputs = [...popup.querySelectorAll('.inline-model-input')];
+                let names = inputs.map(i => (i.value || '').trim()).filter(Boolean);
+                // Remove duplicates within new entries
+                names = [...new Set(names)];
+                // Compute kept existing after removals
+                const keptExisting = model.model_names.filter(n => !removedExisting.has(n));
+                // Filter already existing names
+                const toAdd = names.filter(n => !keptExisting.includes(n));
+                if ((keptExisting.length + toAdd.length) <= 0) {
+                    alert('At least one model is required for this service.');
+                    return;
+                }
+                try {
+                    const updated = [...keptExisting, ...toAdd];
+                    const payload = { service: model.service, base_url: model.base_url, api_key: '', model_names: updated };
+                    const resp = await fetch(`/api/cloud_models/update/${model.id}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                    });
+                    const result = await resp.json();
+                    if (!resp.ok) throw new Error(result.error || 'Failed to update');
+                    model.model_names = updated;
+                    drawModels();
+                    fetchModels();
+                    cleanup();
+                } catch (err) {
+                    alert(`Failed to add model name: ${err.message}`);
+                }
+            };
+            saveBtn.addEventListener('click', doSave);
+            popup.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSave(); });
+            setTimeout(() => firstInput.focus(), 0);
+        });
     }
 
     // --- Event Listeners ---

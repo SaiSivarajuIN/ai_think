@@ -1917,6 +1917,13 @@ def dashboard():
 
 # --- Cloud Model Endpoints ---
 
+@app.route('/cloud')
+def cloud_page():
+    return cloud_models_page()  # ✅ Call the existing function
+
+
+
+
 @app.route('/cloud_models')
 def cloud_models_page():
     """Render the Cloud Models management page."""
