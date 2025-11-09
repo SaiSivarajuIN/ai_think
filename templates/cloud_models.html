@@ -57,17 +57,6 @@
             transition: opacity 0.12s linear;
             -webkit-overflow-scrolling: touch;
         }
-        .custom-select-dropdown.open { display: block; opacity: 1; }
-        .custom-select-dropdown .cs-item {
-            padding: 0.45rem 0.75rem;
-            cursor: pointer;
-            white-space: nowrap;
-            color: var(--text-color, #000);
-        }
-        .custom-select-dropdown .cs-item:hover { background: rgba(0,0,0,0.04); }
-        .custom-select-dropdown .cs-item.selected { font-weight: 600; }
-        .custom-select-dropdown .cs-item.disabled { color: #999; cursor: not-allowed; }
-
     </style>
 {% endblock %}
 
@@ -87,6 +76,17 @@
                 <input type="checkbox" id="toggle-all-active">
                 <span class="slider round"></span>
             </label>
+        </div>
+        <div id="services-layout" class="services-layout">
+            <aside class="services-sidebar">
+                <input id="service-filter" type="text" placeholder="Filter services" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--background);">
+                <ul id="services-list" class="services-list"></ul>
+            </aside>
+            <section id="service-detail" class="services-detail">
+                <div class="card-simple">
+                    <div style="color: var(--muted-foreground);">Select a service from the left to view details.</div>
+                </div>
+            </section>
         </div>
         <table id="cloud-models-table" class="models-table">
             <thead>
