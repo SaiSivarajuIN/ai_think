@@ -820,7 +820,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 userMessageDiv.querySelectorAll('.icon-btn').forEach(btn => btn.style.display = 'inline-flex'); // Restore buttons
 
                 const newMessageContent = contentWrapper.textContent.trim();
-
+                
+                // Security fix: Re-render the edited content as escaped text to prevent XSS
+                contentWrapper.innerHTML = formatMessage(escapeHtml(newMessageContent));
+                
                 // Find the following bot message to remove it
                 let botMessageDiv = userMessageDiv.nextElementSibling;
                 while (botMessageDiv && !botMessageDiv.classList.contains('bot-message')) {
