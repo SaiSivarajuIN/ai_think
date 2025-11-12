@@ -1,6 +1,9 @@
 import os
 import time
 import uuid
+import base64
+from PIL import Image
+import pytesseract
 import psutil
 import GPUtil
 import chromadb
@@ -21,6 +24,15 @@ from logging.handlers import TimedRotatingFileHandler
 from flask import Flask, jsonify, render_template, request, session, redirect, url_for, current_app
 from flask import Response, stream_with_context
 from werkzeug.exceptions import ClientDisconnected
+
+# Check if Tesseract is available
+try:
+    pytesseract.get_tesseract_version()
+    TESSERACT_AVAILABLE = True
+except pytesseract.TesseractNotFoundError:
+    TESSERACT_AVAILABLE = False
+    logging.warning("Tesseract is not installed or not in your PATH. OCR functionality will be disabled.")
+
 
 load_dotenv()
 
@@ -753,6 +765,11 @@ class ThreadManager:
 
 thread_manager = ThreadManager()
 
+@app.route('/chat')
+def index_page():
+    current_app.logger.info("Index page accessed")
+    return index() 
+
 @app.route('/')
 def index():
     ollama_status = "Connected" if check_ollama_connection() else "Disconnected"
@@ -778,11 +795,6 @@ def index():
         page_title="AI Think | AI Think Chat",
         page_id="chat",
         header_title="AI Think",
-        nav_links=[
-            {"href": "/history", "title": "Chat History", "icon": "history"},
-            {"href": "/cloud_models", "title": "Cloud Models", "icon": "cloud"},
-            {"href": "/models", "title": "Models Hub", "icon": "hub"},
-        ],
         model_id=OLLAMA_MODEL, 
         available_models=[m for m in available_models if m.get('active', True)],
         cloud_models=cloud_models,
@@ -805,41 +817,70 @@ def upload_file():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
 
+    filename = file.filename
     if file and file.filename.endswith('.txt'):
         try:
             content = file.read().decode('utf-8')
-            
-            # Store file content as a special message in the database
             message_to_save = f"File uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
-            
+
             if chroma_connected:
                 try:
                     chroma_collection.add(
                         documents=[message_to_save],
                         metadatas=[{
-                            "sender": "system", # Special sender type for file context
+                            "sender": "system",
                             "session_id": session_id,
                             "timestamp": datetime.now(ZoneInfo("UTC")).isoformat(),
-                            "is_file_context": True # Custom metadata flag
                         }],
                         ids=[str(uuid.uuid4())]
                     )
                 except Exception as e:
-                    current_app.logger.error(f"Failed to save file context to ChromaDB: {e}")
+                    current_app.logger.error(f"Failed to save .txt file context to ChromaDB: {e}")
             else:
                 db = get_db()
-                db.execute(
-                    'INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
-                    (session_id, 'system', message_to_save)
-                )
+                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
+                           (session_id, 'system', message_to_save))
                 db.commit()
 
             current_app.logger.info(f"Uploaded file '{file.filename}' and stored it in the database for session {session_id}.")
-            return jsonify({"success": True, "filename": file.filename, "message": f"File '{file.filename}' uploaded. You can now ask questions about it."})
+            return jsonify({"success": True, "filename": file.filename, "message": message_to_save})
         except Exception as e:
             current_app.logger.error(f"Error reading uploaded file: {e}")
             return jsonify({"error": "Failed to read file"}), 500
-    return jsonify({"error": "Invalid file type, please upload a .txt file"}), 400
+
+    elif file and filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+        try:
+            # Read image data and encode it in Base64
+            image_bytes = file.read()
+            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+            mime_type = file.mimetype
+
+            # Create a special message format for images
+            message_to_save = f"Image uploaded: {filename}\n\n--- IMAGE ---\n{mime_type};base64,{base64_image}"
+
+            # Save the image message to the database
+            if chroma_connected:
+                try:
+                    chroma_collection.add(
+                        documents=[message_to_save],
+                        metadatas=[{"sender": "system", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}],
+                        ids=[str(uuid.uuid4())]
+                    )
+                except Exception as e:
+                    current_app.logger.error(f"Failed to save image to ChromaDB: {e}")
+            else:
+                db = get_db()
+                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
+                           (session_id, 'system', message_to_save))
+                db.commit()
+
+            current_app.logger.info(f"Saved uploaded image '{filename}' for session {session_id}.")
+            return jsonify({"success": True, "filename": filename, "message": message_to_save})
+        except Exception as e:
+            current_app.logger.error(f"Error processing uploaded image '{filename}': {e}")
+            return jsonify({"error": "Failed to process image file"}), 500
+
+    return jsonify({"error": "Invalid file type. Please upload a .txt, .png, .jpg, or .jpeg file."}), 400
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -934,79 +975,63 @@ def generate():
     try:
         # This outer try-except block is to catch the client disconnecting.
         # If the user clicks "Stop" on the frontend, the request is aborted,
-        # and this exception is raised when Flask tries to send the response.
-        # By catching it, we can prevent the messages from being saved to the DB.
+        # and this exception is raised when Flask tries to send the response. By catching it, we can prevent the messages from being saved to the DB.
+
+        # --- Prepend Context if Necessary ---
+        # This logic now handles both text files and images.
+        if not conversation_history:  # If history is empty, this is the first user message
+            file_context_message = None
+            if chroma_connected:
+                try:
+                    results = chroma_collection.get(
+                        where={"$and": [{"session_id": session_id}, {"sender": "system"}]},
+                        include=["documents"]
+                    )
+                    if results['documents']:
+                        file_context_message = results['documents'][-1]
+                except Exception as e:
+                    current_app.logger.error(f"Error fetching file context from ChromaDB for session {session_id}: {e}")
+            else:
+                file_row = db.execute("SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1", (session_id,)).fetchone()
+                if file_row:
+                    file_context_message = file_row['content']
+
+            if file_context_message:
+                if "--- IMAGE ---" in file_context_message:
+                    # This is a multimodal request. The last message in `messages_for_model` is the user's text prompt.
+                    # We need to add the image part to it.
+                    parts = file_context_message.split('\n\n--- IMAGE ---\n')
+                    if len(parts) == 2:
+                        base64_data = parts[1]
+                        # The user's text is already the last message. We modify it to be a list of content parts.
+                        messages_for_model[-1]['content'] = [
+                            {"type": "text", "text": new_message_content},
+                            {"type": "image_url", "image_url": {"url": f"data:{base64_data}"}}
+                        ]
+                        user_message_to_save = new_message_content # Save only the text part for history display
+                        current_app.logger.info("Prepending image data to user prompt for multimodal generation.")
+                elif "--- CONTENT ---" in file_context_message:
+                    # This is a text file context.
+                    content_split = file_context_message.split('\n\n--- CONTENT ---\n')
+                    if len(content_split) == 2:
+                        header_line, file_content = content_split
+                        filename = header_line.replace('File uploaded: ', '')
+                        contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{new_message_content}"
+                        messages_for_model[-1]['content'] = contextual_prompt
+                        user_message_to_save = contextual_prompt
+                        current_app.logger.info(f"Re-running generation with context from '{filename}'")
 
         # --- Model Routing and Generation ---
-
         assistant_response_data = None
         if is_cloud_model:
-            # Fetch the specific cloud model's config
             db = get_db()
             model_config_row = db.execute('SELECT * FROM cloud_models WHERE id = ?', (int(model_id),)).fetchone()
             if not model_config_row:
                 return jsonify({"error": f"Cloud model with ID {model_id} not found."}), 404
-            
-            # For cloud models, add file context as a system message if it's the first user message
-            if not conversation_history: # If history is empty, this is the first user message
-                file_context_message = None
-                if chroma_connected:
-                    try:
-                        results = chroma_collection.get(
-                            where={"$and": [{"session_id": session_id}, {"sender": "system"}]},
-                            include=["documents"]
-                        )
-                        if results['documents']:
-                            file_context_message = results['documents'][-1]
-                    except Exception as e:
-                        current_app.logger.error(f"Error fetching file context from ChromaDB for session {session_id}: {e}")
-                else:
-                    file_row = db.execute(
-                        "SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1",
-                        (session_id,)
-                    ).fetchone()
-                    if file_row:
-                        file_context_message = file_row['content']
-                
-                if file_context_message and '\n\n--- CONTENT ---\n' in file_context_message:
-                    filename_line, file_content = file_context_message.split('\n\n--- CONTENT ---\n', 1)
-                    filename = filename_line.replace('File uploaded: ', '')
-                    # Create a system message with the file content
-                    system_context_prompt = f"You are an expert assistant. The user has provided a document named '{filename}'. Use its content to answer the user's question. The document content is as follows:\n\n---\n{file_content}\n---"
-                    # Insert the system message at the beginning of the conversation
-                    messages_for_model.insert(0, {"role": "system", "content": system_context_prompt})
-
             model_config = dict(model_config_row)
             current_app.logger.info(f"Routing to cloud model: {model_config['service']} - {model_config['model_name']}")
             assistant_response_data = cloud_model_chat(messages_for_model, model_config, session_id, is_incognito=is_incognito)
         else:
-            # It's an Ollama model
-            # For local models, prepend context to the user message
-            if not conversation_history:  # If history is empty, this is the first user message
-                file_context_message = None
-                if chroma_connected:
-                    try:
-                        results = chroma_collection.get(
-                            where={"$and": [{"session_id": session_id}, {"sender": "system"}]},
-                            include=["documents"]
-                        )
-                        if results['documents']:
-                            file_context_message = results['documents'][-1]
-                    except Exception as e:
-                        current_app.logger.error(f"Error fetching file context from ChromaDB for session {session_id}: {e}")
-                else:
-                    file_row = db.execute("SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1", (session_id,)).fetchone()
-                    if file_row:
-                        file_context_message = file_row['content']
-
-                if file_context_message and '\n\n--- CONTENT ---\n' in file_context_message:
-                    filename_line, file_content = file_context_message.split('\n\n--- CONTENT ---\n', 1)
-                    filename = filename_line.replace('File uploaded: ', '')
-                    contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{new_message_content}"
-                    # Replace the last message's content (the user's question)
-                    messages_for_model[-1]['content'] = contextual_prompt
-                    user_message_to_save = contextual_prompt  # Update the content to be saved
-
             current_app.logger.info(f"Routing to Ollama model: {model}")
             assistant_response_data = ollama_chat(messages_for_model, model, session_id, is_incognito=is_incognito)
 
@@ -1564,7 +1589,6 @@ def models_hub():
         page_title="Models Hub | AI Think Chat",
         page_id="models",
         header_title="Models Hub",
-        nav_links=[{"href": "/cloud_models", "title": "Cloud Models", "icon": "cloud"}],
         ollama_status=ollama_status
     )
 
@@ -1972,9 +1996,8 @@ def dashboard():
 
 @app.route('/cloud')
 def cloud_page():
-    return cloud_models_page()  # ✅ Call the existing function
-
-
+    current_app.logger.info("Cloud page accessed")
+    return cloud_models_page()
 
 
 @app.route('/cloud_models')

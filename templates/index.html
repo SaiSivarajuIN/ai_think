@@ -2,7 +2,7 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
-{% block header_title %}{{ header_title }}{% endblock %}
+{% block header_title %} {{ header_title }} {% endblock %}
 
 {% block head_extra %}
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -502,9 +502,7 @@
 {% endblock %}
 
 {% block content %}
-    <div class="chat-area-container">
-        <div id="chatbox" class="page-content" style="padding: 0;"></div>
-    </div>
+    <div id="chatbox" class="chat-area-container"></div>
 {% endblock %}
 
 
@@ -515,8 +513,8 @@
             <button id="search-button" class="nav-link" title="{% if searxng_enabled %}Web Search (type /search){% else %}Web Search disabled (Enable in Settings){% endif %}" {% if not searxng_enabled %}disabled{% endif %}>
                 <span class="material-icons">language</span>
             </button>
-            <input type="file" id="fileUpload" accept=".txt" title="Upload TXT File" style="display: none;" />
-            <button id="uploadButton" class="nav-link" title="Upload TXT File"><span class="material-icons">attach_file</span></button>
+            <input type="file" id="fileUpload" accept=".txt,.png,.jpg,.jpeg" title="Upload File" style="display: none;" />
+            <button id="uploadButton" class="nav-link" title="Upload File (.txt, .png, .jpg)"><span class="material-icons">attach_file</span></button>
             <div id="userMessageContainer" class="user-message-container">
                 <div id="userMessage" contenteditable="true" data-placeholder="Type your message..."></div>
             </div>
