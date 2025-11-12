@@ -143,7 +143,7 @@ Provides observability for chat interactions:[^1_1]
 
 **`POST /upload`**: File upload for context
 
-- Accepts: `.txt`, `.png`, `.jpg`, `.jpeg` files
+- Accepts: `.txt`, `.png`, `.jpg` files
 - Stores text content or Base64-encoded image data as a 'system' message
 - Returns: Success confirmation with filename[^1_2]
 
