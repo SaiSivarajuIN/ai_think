@@ -4,34 +4,291 @@
 
 {% block header_title %}{{ header_title }}{% endblock %}
 
-{% block content %}
-    <div class="status-badge {{ status }}">
-        System Status: {{ status.title() }}
-    </div>
+{% block head_extra %}
+    <style>
+        /* Modern Health Page Styling */
+        .health-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
 
-    <div class="dashboard">
+        /* Enhanced Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: fadeIn 0.5s ease;
+        }
+
+        .status-badge::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-badge.healthy {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
+            color: #15803d;
+            border: 2px solid rgba(34, 197, 94, 0.4);
+        }
+
+        .status-badge.healthy::before {
+            background: #22c55e;
+        }
+
+        .status-badge.degraded {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(251, 191, 36, 0.1) 100%);
+            color: #92400e;
+            border: 2px solid rgba(251, 191, 36, 0.4);
+        }
+
+        .status-badge.degraded::before {
+            background: #fbbf24;
+        }
+
+        .status-badge.unhealthy {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
+            color: #991b1b;
+            border: 2px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .status-badge.unhealthy::before {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Enhanced Dashboard Grid */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* Enhanced Card Styling */
+        .dashboard .card {
+            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #000000, #2d2d2d);
+        }
+
+        .dashboard .card:hover {
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            transform: translateY(-4px);
+        }
+
+        .dashboard .card h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Material Icons for card types */
+        .stat-icon {
+            font-size: 1.75rem;
+            color: #000000;
+            background: rgba(0,0,0,0.1);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dashboard .card p {
+            margin: 0.75rem 0;
+            color: var(--text);
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dashboard .card p strong {
+            color: var(--theme-toggle-text);
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .dashboard .card small {
+            display: block;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+            color: var(--theme-toggle-text);
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        /* Enhanced Status Indicators */
+        .status-indicator {
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: rgba(34, 197, 94, 0.15);
+            color: #15803d;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-indicator.connected::before {
+            background: #22c55e;
+        }
+
+        .status-indicator.disconnected {
+            background: rgba(239, 68, 68, 0.15);
+            color: #991b1b;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status-indicator.disconnected::before {
+            background: #ef4444;
+        }
+
+        /* GPU Item Styling */
+        .gpu-item {
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 0.75rem 0;
+        }
+
+        .gpu-item:first-child {
+            margin-top: 0;
+        }
+
+        .gpu-item p {
+            margin: 0.5rem 0;
+        }
+
+        /* Metric Values */
+        .metric-value {
+            font-weight: 700;
+            color: var(--text);
+            font-size: 1.05rem;
+        }
+
+        /* Percentage indicators */
+        .percentage-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--card);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+            position: relative;
+        }
+
+        .percentage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #000000 0%, #2d2d2d 100%);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .percentage-fill.warning {
+            background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
+        }
+
+        .percentage-fill.danger {
+            background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="health-container">
+        <div class="status-badge {{ status }}">
+            System Status: {{ status.title() }}
+        </div>
+
+        <div class="dashboard">
         <div class="card">
-            <h2>CPU</h2>
+            <h2><span class="stat-icon material-icons">memory</span>CPU</h2>
             <p><strong>Cores:</strong> {{ cpu.count }}</p>
             <p><strong>Usage:</strong> {{ cpu.percent }}%</p>
         </div>
 
         <div class="card">
-            <h2>Memory</h2>
+            <h2><span class="stat-icon material-icons">storage</span>Memory</h2>
             <p><strong>Total:</strong> {{ memory.total }}</p>
             <p><strong>Available:</strong> {{ memory.available }}</p>
             <p><strong>Used:</strong> {{ memory.used }} ({{ memory.percent }}%)</p>
         </div>
 
         <div class="card">
-            <h2>Disk</h2>
+            <h2><span class="stat-icon material-icons">save</span>Disk</h2>
             <p><strong>Total:</strong> {{ disk.total }}</p>
             <p><strong>Available:</strong> {{ disk.free }}</p>
             <p><strong>Used:</strong> {{ disk.used }} ({{ disk.percent }}%)</p>
         </div>
 
         <div class="card">
-            <h2>GPU</h2>
+            <h2><span class="stat-icon material-icons">videogame_asset</span>GPU</h2>
             {% if gpu_info is string %}
                 <p>{{ gpu_info }}</p>
             {% elif gpu_info %}
@@ -50,7 +307,7 @@
         </div>
 
         <div class="card">
-            <h2>Ollama Service</h2>
+            <h2><span class="stat-icon material-icons">smart_toy</span>Ollama Service</h2>
             <p><strong>Status:</strong>
                 <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
                     {{ ollama_status }}
@@ -60,7 +317,7 @@
             <small>This reflects the model selected on the main chat page. The default is shown if no selection has been made.</small>
         </div>
         <div class="card">
-            <h2>Langfuse Tracing</h2>
+            <h2><span class="stat-icon material-icons">analytics</span>Langfuse Tracing</h2>
             <p><strong>Status:</strong>
                 <span class="status-indicator {{ 'connected' if langfuse_enabled else 'disconnected' }}">
                     {{ 'Enabled' if langfuse_enabled else 'Disabled' }}
@@ -77,13 +334,14 @@
             <small>If connected, chat history is stored in ChromaDB. Otherwise, it falls back to the local SQLite database.</small>
         </div>
         <div class="card">
-            <h2>SearXNG</h2>
+            <h2><span class="stat-icon material-icons">search</span>SearXNG</h2>
             <p><strong>Status:</strong>
                 <span class="status-indicator {{ 'connected' if searxng_status == 'Connected' else 'disconnected' }}">
                     {{ searxng_status }}
                 </span>
             </p>
         </div>
+    </div>
     </div>
 {% endblock %}
 

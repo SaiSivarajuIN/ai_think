@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-    <!-- Add styles for LaTeX rendering -->
+    <!-- Add styles for LaTeX rendering and History Page UI -->
     <style>
         .mjx-chtml {
             display: inline-block;
@@ -69,35 +69,559 @@
         .bot-message .mjx-chtml {
             font-size: 110%;
         }
+
+        /* Modern History Page Styling */
+        .filter-controls {
+            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-item label {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .filter-input {
+            padding: 0.625rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-family: var(--font-family);
+            background: var(--background);
+            color: var(--text);
+            transition: all 0.3s ease;
+            min-width: 200px;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .filter-input[type="date"] {
+            min-width: 160px;
+        }
+
+        .stats-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.625rem 1rem;
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            color: white;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .clear-filter-btn {
+            display: none;
+            padding: 0.625rem 1rem;
+            background: transparent;
+            color: var(--disconnected);
+            border: 2px solid var(--disconnected);
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .clear-filter-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .delete-all-btn {
+            padding: 0.625rem 1.25rem;
+            background: transparent;
+            color: var(--disconnected);
+            border: 2px solid var(--disconnected);
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .delete-all-btn:hover {
+            background: var(--disconnected);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        /* Enhanced Thread Styling */
+        .thread {
+            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 0;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .thread:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            border-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .thread summary {
+            padding: 1.25rem 1.5rem;
+            cursor: pointer;
+            user-select: none;
+            background: transparent;
+            transition: background 0.2s ease;
+        }
+
+        .thread summary:hover {
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .thread[open] summary {
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .summary-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .summary-main > div:first-child {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .summary-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.8rem;
+            color: var(--theme-toggle-text);
+        }
+
+        .session-id-display {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+        }
+
+        .summary-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .message-count {
+            font-size: 0.85rem;
+            color: var(--theme-toggle-text);
+            background: rgba(0, 0, 0, 0.05);
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+
+        /* Enhanced Download Button */
+        .download-doc-btn {
+            color: var(--primary);
+            transition: all 0.2s ease;
+        }
+
+        .download-doc-btn:hover {
+            color: white;
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            transform: scale(1.1);
+        }
+
+        /* Thread Messages Container */
+        .thread-messages {
+            padding: 1.5rem;
+            background: var(--background);
+        }
+
+        .message-container {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .message-container:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            border-color: rgba(0, 0, 0, 0.15);
+        }
+
+        .system-message-container {
+            border-left: 3px solid var(--theme-toggle-text);
+        }
+
+        .history-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .history-sender {
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .user-sender {
+            color: var(--primary);
+        }
+
+        .assistant-sender {
+            color: #4caf50;
+        }
+
+        .history-content {
+            line-height: 1.7;
+            color: var(--text);
+        }
+
+        .history-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .history-time {
+            font-size: 0.8rem;
+            color: var(--theme-toggle-text);
+            font-weight: 500;
+        }
+
+        /* Enhanced Group Headers */
+        .history-group-header {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 2.5rem 0 1.5rem 0;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid #000000;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .history-group-header::before {
+            content: '';
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            position: absolute;
+            left: -1rem;
+            top: 0;
+        }
+
+        /* Empty State */
+        .empty-state-card {
+            text-align: center;
+            padding: 3rem 2rem;
+            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+            border: 2px dashed var(--border);
+            border-radius: 1rem;
+        }
+
+        .empty-state-card p {
+            font-size: 1.1rem;
+            color: var(--theme-toggle-text);
+            margin: 0;
+        }
+
+        /* Custom Date Range Picker Modal */
+        .custom-date-btn {
+            padding: 0.625rem 1rem;
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .custom-date-btn:hover {
+            background: linear-gradient(135deg, #1a1a1a 0%, #404040 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .date-picker-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .date-picker-modal.active {
+            display: flex;
+        }
+
+        .date-picker-content {
+            background: var(--background);
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .date-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .date-picker-header h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: var(--text);
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--theme-toggle-text);
+            transition: color 0.2s ease;
+            padding: 0.25rem;
+        }
+
+        .close-modal:hover {
+            color: var(--text);
+        }
+
+        .date-inputs-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .date-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .date-input-group label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .date-input-group input[type="date"] {
+            padding: 0.75rem;
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            width: 100%;
+            font-family: var(--font-family);
+            background: var(--background);
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .date-input-group input[type="date"]:focus {
+            outline: none;
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-actions-right {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .modal-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn-clear {
+            background: transparent;
+            color: var(--disconnected);
+            border: 1px solid var(--disconnected);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .modal-btn-clear:hover {
+            background: rgba(239, 68, 68, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .modal-btn-cancel {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .modal-btn-cancel:hover {
+            background: var(--background-secondary);
+        }
+
+        .modal-btn-apply {
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            color: white;
+        }
+
+        .modal-btn-apply:hover {
+            background: linear-gradient(135deg, #1a1a1a 0%, #404040 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
     </style>
 {% endblock %}
 
 
 {% block content %}
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
-        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <label for="search-summary-filter" style="font-weight: 600; white-space: nowrap;">Search:</label>
-                <input type="search" id="search-summary-filter" class="model-selector" placeholder="Filter by summary..." style="padding: 0.6rem;">
+    <div class="filter-controls">
+        <div class="filter-group">
+            <div class="filter-item">
+                <label for="search-summary-filter">
+                    <span class="material-icons" style="font-size: 1rem; vertical-align: middle;">search</span>
+                    Search:
+                </label>
+                <input type="search" id="search-summary-filter" class="filter-input" placeholder="Filter by summary...">
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <label for="start-date-filter" style="font-weight: 600; white-space: nowrap;">From:</label>
-                <input type="date" id="start-date-filter" class="model-selector" style="padding: 0.5rem;">
-                <label for="end-date-filter" style="font-weight: 600; white-space: nowrap;">To:</label>
-                <input type="date" id="end-date-filter" class="model-selector" style="padding: 0.5rem;">
-            </div>
-            <button id="clear-filter-btn" class="icon-btn" title="Clear Filter" style="display: none;">
-                <span class="material-icons">clear</span>
+            <button id="custom-date-btn" class="custom-date-btn" title="Select Custom Date Range">
+                <span class="material-icons" style="font-size: 1rem;">date_range</span>
+                Custom Dates
+            </button>
+            <button id="clear-filter-btn" class="clear-filter-btn" title="Clear Filter">
+                <span class="material-icons" style="font-size: 1rem;">clear</span>
+                Clear
             </button>
         </div>
-        <div style="display: flex; align-items: center; gap: 1rem;">
-            <span id="total-sessions-display" style="font-size: 0.9rem; color: var(--theme-toggle-text);">Total Sessions: {{ total_sessions }}</span>
-            <button id="delete-all-threads-btn" class="icon-btn" title="Delete All Models" style="color: var(--disconnected); background: rgba(239, 68, 68, 0.1);">
-                <span class="material-icons">delete_sweep</span>
+        <div class="filter-group">
+            <div class="stats-badge" id="total-sessions-display">
+                <span class="material-icons" style="font-size: 1.2rem;">forum</span>
+                <span>{{ total_sessions }} Sessions</span>
+            </div>
+            <button id="delete-all-threads-btn" class="delete-all-btn" title="Delete All Sessions">
+                <span class="material-icons" style="font-size: 1rem;">delete_sweep</span>
                 Delete All
             </button>
         </div>
     </div>
+
+    <!-- Hidden date inputs for filter functionality -->
+    <input type="date" id="start-date-filter" style="display: none;">
+    <input type="date" id="end-date-filter" style="display: none;">
+
+    <!-- Custom Date Picker Modal -->
+    <div class="date-picker-modal" id="datePickerModal">
+        <div class="date-picker-content">
+            <div class="date-picker-header">
+                <h3>Select Date Range for Filtering</h3>
+                <button class="close-modal" id="closeModalBtn">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            
+            <div class="date-inputs-wrapper">
+                <div class="date-input-group">
+                    <label for="modalStartDate">Start Date</label>
+                    <input type="date" id="modalStartDate" name="modalStartDate">
+                </div>
+                
+                <div class="date-input-group">
+                    <label for="modalEndDate">End Date</label>
+                    <input type="date" id="modalEndDate" name="modalEndDate">
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-clear" id="clearDateBtn">
+                    <span class="material-icons" style="font-size: 1rem;">clear</span>
+                    Clear
+                </button>
+                <div class="modal-actions-right">
+                    <button class="modal-btn modal-btn-cancel" id="cancelBtn">Cancel</button>
+                    <button class="modal-btn modal-btn-apply" id="applyDateBtn">Apply Filter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% if grouped_threads %}
         {% for group_name, threads in grouped_threads %}
             <h3 class="history-group-header">{{ group_name }}</h3>
@@ -176,7 +700,8 @@
             {% endfor %}
         {% endfor %}
     {% else %}
-        <div class="card">
+        <div class="empty-state-card">
+            <span class="material-icons" style="font-size: 4rem; color: var(--theme-toggle-text); margin-bottom: 1rem; display: block;">history</span>
             <p>No chat history found. Start a conversation to see your chat threads here.</p>
         </div>
     {% endif %}
@@ -218,7 +743,7 @@ function initializeHistoryPage() {
         const paginationContainer = document.querySelector('.pagination-container');
         
         const isFiltering = searchTerm || startDate || endDate;
-        document.getElementById('clear-filter-btn').style.display = isFiltering ? 'inline-flex' : 'none';
+        document.getElementById('clear-filter-btn').style.display = isFiltering ? 'flex' : 'none';
         if (paginationContainer) paginationContainer.style.display = isFiltering ? 'none' : 'block';
         
         threads.forEach(thread => {
@@ -268,6 +793,99 @@ function initializeHistoryPage() {
             clearFilter();
         });
     }
+
+    // Custom Date Picker Modal Logic
+    const customDateBtn = document.getElementById('custom-date-btn');
+    const datePickerModal = document.getElementById('datePickerModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const clearDateBtn = document.getElementById('clearDateBtn');
+    const applyDateBtn = document.getElementById('applyDateBtn');
+    const modalStartDate = document.getElementById('modalStartDate');
+    const modalEndDate = document.getElementById('modalEndDate');
+
+    // Set max date to today
+    const today = new Date().toISOString().split('T')[0];
+    modalStartDate.setAttribute('max', today);
+    modalEndDate.setAttribute('max', today);
+
+    // Open modal
+    if (customDateBtn) {
+        customDateBtn.addEventListener('click', function() {
+            // Pre-fill with current filter values if they exist
+            modalStartDate.value = startDateFilter.value;
+            modalEndDate.value = endDateFilter.value;
+            datePickerModal.classList.add('active');
+        });
+    }
+
+    // Close modal functions
+    function closeModal() {
+        datePickerModal.classList.remove('active');
+    }
+
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeModal);
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeModal);
+    }
+
+    // Close modal when clicking outside
+    if (datePickerModal) {
+        datePickerModal.addEventListener('click', function(e) {
+            if (e.target === datePickerModal) {
+                closeModal();
+            }
+        });
+    }
+
+    // Clear dates in modal
+    if (clearDateBtn) {
+        clearDateBtn.addEventListener('click', function() {
+            modalStartDate.value = '';
+            modalEndDate.value = '';
+            startDateFilter.value = '';
+            endDateFilter.value = '';
+            closeModal();
+            applyFilters();
+        });
+    }
+
+    // Apply date range
+    if (applyDateBtn) {
+        applyDateBtn.addEventListener('click', function() {
+            const startDate = modalStartDate.value;
+            const endDate = modalEndDate.value;
+
+            if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+                alert('Start date must be before end date');
+                return;
+            }
+
+            // Set the hidden filter inputs
+            startDateFilter.value = startDate;
+            endDateFilter.value = endDate;
+
+            closeModal();
+            applyFilters();
+        });
+    }
+
+    // Validate end date is not before start date
+    if (modalStartDate) {
+        modalStartDate.addEventListener('change', function() {
+            modalEndDate.setAttribute('min', this.value);
+        });
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && datePickerModal && datePickerModal.classList.contains('active')) {
+            closeModal();
+        }
+    });
 
     // Helper function to preserve LaTeX during markdown conversion
     function formatWithLatex(text) {
@@ -509,8 +1127,8 @@ function initializeHistoryPage() {
                     if (pageContent) {
                         pageContent.innerHTML = '';
                         const card = document.createElement('div');
-                        card.className = 'card';
-                        card.innerHTML = '<p>No chat history found. Start a conversation to see your chat threads here.</p>';
+                        card.className = 'empty-state-card';
+                        card.innerHTML = '<span class="material-icons" style="font-size: 4rem; color: var(--theme-toggle-text); margin-bottom: 1rem; display: block;">history</span><p>No chat history found. Start a conversation to see your chat threads here.</p>';
                         pageContent.appendChild(card);
                     }
                 } else {

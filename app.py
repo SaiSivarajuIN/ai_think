@@ -1803,8 +1803,34 @@ def dashboard():
         '90d': '90d',
     }
 
-    delta = time_deltas.get(time_range, timedelta(days=1))
-    start_time = datetime.utcnow() - delta
+    # Handle custom date range
+    end_time = None  # Default is None (no upper limit)
+    if time_range == 'custom':
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        
+        if start_date_str and end_date_str:
+            try:
+                # Parse dates and set time to start/end of day
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+                end_date = end_date.replace(hour=23, minute=59, second=59)
+                
+                start_time = start_date
+                end_time = end_date
+                # Update header title for custom range
+                time_range = f"{start_date_str} to {end_date_str}"
+            except ValueError:
+                # If parsing fails, fallback to default
+                delta = timedelta(days=1)
+                start_time = datetime.utcnow() - delta
+        else:
+            # If dates not provided, fallback to default
+            delta = timedelta(days=1)
+            start_time = datetime.utcnow() - delta
+    else:
+        delta = time_deltas.get(time_range, timedelta(days=1))
+        start_time = datetime.utcnow() - delta
 
     stats = {
         'total_sessions': 0,
@@ -1872,36 +1898,63 @@ def dashboard():
         stats['model_usage'] = [{'name': name, 'count': 'N/A'} for name in model_usage_list]
 
         # Fetch API Usage Statistics
-        api_usage_rows = db.execute(
-            '''SELECT model, category, session_id, input_tokens_per_message, output_tokens_per_message
-               FROM api_usage_metrics
-               WHERE timestamp >= ?
-               ORDER BY timestamp DESC
-               LIMIT 100''', (start_time,)
-        ).fetchall()
+        if end_time:
+            api_usage_rows = db.execute(
+                '''SELECT model, category, session_id, input_tokens_per_message, output_tokens_per_message
+                   FROM api_usage_metrics
+                   WHERE timestamp >= ? AND timestamp <= ?
+                   ORDER BY timestamp DESC
+                   LIMIT 100''', (start_time, end_time)
+            ).fetchall()
+        else:
+            api_usage_rows = db.execute(
+                '''SELECT model, category, session_id, input_tokens_per_message, output_tokens_per_message
+                   FROM api_usage_metrics
+                   WHERE timestamp >= ?
+                   ORDER BY timestamp DESC
+                   LIMIT 100''', (start_time,)
+            ).fetchall()
         stats['api_usage'] = [dict(row) for row in api_usage_rows]
 
         # Calculate total tokens for the selected time range
-        token_sums = db.execute(
-            '''SELECT
-                   SUM(input_tokens_per_message) as total_input,
-                   SUM(output_tokens_per_message) as total_output
-               FROM api_usage_metrics
-               WHERE timestamp >= ?''', (start_time,)
-        ).fetchone()
+        if end_time:
+            token_sums = db.execute(
+                '''SELECT
+                       SUM(input_tokens_per_message) as total_input,
+                       SUM(output_tokens_per_message) as total_output
+                   FROM api_usage_metrics
+                   WHERE timestamp >= ? AND timestamp <= ?''', (start_time, end_time)
+            ).fetchone()
+        else:
+            token_sums = db.execute(
+                '''SELECT
+                       SUM(input_tokens_per_message) as total_input,
+                       SUM(output_tokens_per_message) as total_output
+                   FROM api_usage_metrics
+                   WHERE timestamp >= ?''', (start_time,)
+            ).fetchone()
 
         stats['total_input_tokens'] = token_sums['total_input'] or 0
         stats['total_output_tokens'] = token_sums['total_output'] or 0
         stats['total_tokens'] = stats['total_input_tokens'] + stats['total_output_tokens']
 
         # Fetch API Calls per model
-        model_call_counts_rows = db.execute(
-            '''SELECT model, COUNT(id) as call_count
-               FROM api_usage_metrics
-               WHERE timestamp >= ?
-               GROUP BY model
-               ORDER BY call_count DESC''', (start_time,)
-        ).fetchall()
+        if end_time:
+            model_call_counts_rows = db.execute(
+                '''SELECT model, COUNT(id) as call_count
+                   FROM api_usage_metrics
+                   WHERE timestamp >= ? AND timestamp <= ?
+                   GROUP BY model
+                   ORDER BY call_count DESC''', (start_time, end_time)
+            ).fetchall()
+        else:
+            model_call_counts_rows = db.execute(
+                '''SELECT model, COUNT(id) as call_count
+                   FROM api_usage_metrics
+                   WHERE timestamp >= ?
+                   GROUP BY model
+                   ORDER BY call_count DESC''', (start_time,)
+            ).fetchall()
         stats['model_call_counts'] = [dict(row) for row in model_call_counts_rows]
 
     except Exception as e:
@@ -2194,7 +2247,7 @@ def flush_langfuse(error):
             current_app.logger.warning(f"Error flushing Langfuse: {e}")
 
 
-"""@app.route('/about')
+@app.route('/about')
 def about():
     return render_template(
-        'about.html')"""
+        'about.html')
