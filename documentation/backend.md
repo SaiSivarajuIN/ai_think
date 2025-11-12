@@ -143,8 +143,8 @@ Provides observability for chat interactions:[^1_1]
 
 **`POST /upload`**: File upload for context
 
-- Accepts: `.txt` files
-- Stores content as 'system' message
+- Accepts: `.txt`, `.png`, `.jpg`, `.jpeg` files
+- Stores text content or Base64-encoded image data as a 'system' message
 - Returns: Success confirmation with filename[^1_2]
 
 **`POST /reset_thread`**: Start new conversation
@@ -487,12 +487,13 @@ User-controlled generation stopping:[^1_1]
 
 ### File Upload Context
 
-Document-based conversations:[^1_1]
+Document and image-based conversations:[^1_1]
 
-- **Format**: `.txt` files
+- **Formats**: `.txt`, `.png`, `.jpg`, `.jpeg`
 - **Storage**: As 'system' message in database
 - **Usage**: Automatically prepended to first user message
 - **Support**: Both local and cloud models
+- Send images as if they were text messages and receive the OCR‑extracted text in the same conversation.
 
 
 ### Web Search Integration

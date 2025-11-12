@@ -143,12 +143,10 @@ body.fixed-layout {
     z-index: 50;  /* Ensure it stays above content but below modals */
 }
 
-/* The main chat area now has a container */
 .chat-area-container {
-    flex-grow: 1;
-    display: flex;
-    position: relative; /* For positioning the thread marker bar */
-    flex-direction: column;
+    max-width: 900px; /* Center the chat content */
+    margin: 0 auto;
+    width: 100%;
 }
 
 .header {
@@ -1662,5 +1660,3 @@ thead th {
 
 /* Hide old table */
 #cloud-models-table, #loading-models { display: none; }
-
-

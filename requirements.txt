@@ -9,3 +9,5 @@ setuptools
 tzdata
 tensorboard
 protobuf
+pytesseract
+PIL

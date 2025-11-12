@@ -41,7 +41,7 @@
             </div>
             <!--dashboard-->
             <a href="/dashboard" class="nav-link" title="Dashboard"><span>Dashboard</span></a>
-            <a href="/" onclick="resetThread()" class="nav-link chat-nav-link" title="New Chat">
+            <a href="/chat" onclick="event.preventDefault(); resetThread();" class="nav-link chat-nav-link" title="New Chat">
                 <span>Chat</span>
                 {% if page_id == 'chat' %}
                     <button id="incognito-toggle-btn" class="nav-link" title="Enable Incognito Mode">

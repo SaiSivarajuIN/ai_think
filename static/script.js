@@ -277,21 +277,70 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const summary = document.createElement('summary');
             summary.innerHTML = `
-                <div class="history-meta" style="cursor: pointer;">
-                    <span class="history-sender system-sender">
-                        <span class="material-icons">description</span> File Uploaded
-                    </span>
+                <div class="history-meta" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <span class="history-sender system-sender" style="display: flex; align-items: center; gap: 0.5rem;"></span>
+                    <button class="download-file-btn icon-btn" title="Download File">
+                        <span class="material-icons">download</span>
+                    </button>
                 </div>
             `;
             messageContainer.appendChild(summary);
 
+            // Prevent details toggling when clicking the download button
+            summary.querySelector('.download-file-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            const senderSpan = summary.querySelector('.history-sender');
+            if (content.includes("--- IMAGE ---")) {
+                senderSpan.innerHTML = `<span class="material-icons">image</span> Image Uploaded`;
+            } else {
+                senderSpan.innerHTML = `<span class="material-icons">description</span> File Uploaded`;
+            }
+
             const contentDiv = document.createElement('div');
-            contentDiv.className = 'history-content file-context-content';
-            const parts = content.split('\n\n--- CONTENT ---\n');
-            if (parts.length === 2) {
+            contentDiv.className = 'history-content file-context-content'; // Keep class for styling
+            
+            const downloadBtn = summary.querySelector('.download-file-btn');
+
+            if (content.includes("--- IMAGE ---")) {
+                const parts = content.split('\n\n--- IMAGE ---\n');
                 const filenameLine = parts[0];
-                const fileContent = parts[1];
-                contentDiv.innerHTML = `<strong>${filenameLine.replace('File uploaded: ', '')}</strong><pre><code>${escapeHtml(fileContent)}</code></pre>`;
+                const filename = filenameLine.replace('Image uploaded: ', '');
+                const base64Data = parts[1];
+                const dataUrl = `data:${base64Data}`;
+                contentDiv.innerHTML = `<strong>${filename}</strong><br><img src="${dataUrl}" style="max-width: 100%; border-radius: 8px; margin-top: 8px;">`;
+                
+                downloadBtn.addEventListener('click', () => {
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                });
+            } else if (content.includes("--- CONTENT ---")) {
+                const parts = content.split('\n\n--- CONTENT ---\n');
+                if (parts.length === 2) {
+                    const filenameLine = parts[0];
+                    const filename = filenameLine.replace('File uploaded: ', '');
+                    const fileContent = parts[1];
+                    contentDiv.innerHTML = `<strong>${filename}</strong><pre><code>${escapeHtml(fileContent)}</code></pre>`;
+
+                    downloadBtn.addEventListener('click', () => {
+                        const blob = new Blob([fileContent], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    });
+                } else {
+                    contentDiv.innerHTML = `<pre><code>${escapeHtml(content)}</code></pre>`;
+                }
             } else {
                 contentDiv.innerHTML = `<pre><code>${escapeHtml(content)}</code></pre>`;
             }
@@ -1180,18 +1229,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 uploadingMsg.remove();
 
                 if (response.ok && data.success) {
-                    if (file.type.startsWith('image/')) {
-                        // For images, show the OCR popup
-                        const popup = document.getElementById('ocrPopup');
-                        if (popup) {
-                            document.getElementById('ocrText').textContent = data.ocr_text || '';
-                            document.getElementById('ocrPreview').src = data.image_preview || '';
-                            popup.style.display = 'flex';
-                        }
-                    } else {
-                        // For text files, just reload the page to show the system message
-                        window.location.reload();
-                    }
+                    // For any successful upload (.txt or image), display the success message from the server.
+                    // The backend now returns the full content to be displayed.
+                    addMessage(data.message, 'system');
                 } else {
                     throw new Error(data.error || 'File upload failed.');
                 }

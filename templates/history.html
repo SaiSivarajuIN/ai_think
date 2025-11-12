@@ -651,12 +651,18 @@
                             {% if msg.sender == 'system' %}
                                 <details class="message-container system-message-container" data-message-id="{{ msg.id }}">
                                     <summary>
-                                        <div class="history-meta" style="cursor: pointer;">
+                                        <div class="history-meta" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; width: 100%;">
                                             <span class="history-sender system-sender">
                                                 <span class="material-icons">description</span> File Uploaded
                                             </span>
                                             <div class="history-actions">
                                                 <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
+                                                <button class="download-file-btn icon-btn" title="Download File">
+                                                    <span class="material-icons">download</span>
+                                                </button>
+                                                <button class="delete-btn icon-btn" title="Delete Message">
+                                                    <span class="material-icons">delete</span>
+                                                </button>
                                             </div>
                                         </div>
                                     </summary>
@@ -969,18 +975,56 @@ function initializeHistoryPage() {
         const contentDiv = container.querySelector('.history-content');
         if (!contentDiv) return;
 
+        const downloadBtn = container.querySelector('.download-file-btn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', (e) => e.stopPropagation());
+        }
+
         const rawContent = contentDiv.dataset.rawContent || contentDiv.textContent;
         let newHtml = '';
 
         if (container.classList.contains('system-message-container')) {
             // This is a file upload message
-            const parts = rawContent.split('\n\n--- CONTENT ---\n');
-            if (parts.length === 2) {
-                const filenameLine = parts[0];
-                const fileContent = parts[1];
-                newHtml =
-                    `<strong>${filenameLine.replace('File uploaded: ', '')}</strong>` +
-                    `<pre><code>${escapeHtml(fileContent)}</code></pre>`;
+            if (rawContent.includes("--- IMAGE ---")) {
+                const parts = rawContent.split('\n\n--- IMAGE ---\n');
+                if (parts.length === 2) {
+                    const filename = parts[0].replace('Image uploaded: ', '');
+                    const base64Data = parts[1];
+                    const dataUrl = `data:${base64Data}`;
+                    newHtml = `<strong>${filename}</strong><br><img src="${dataUrl}" style="max-width: 100%; border-radius: 8px; margin-top: 8px;">`;
+                    if (downloadBtn) {
+                        downloadBtn.addEventListener('click', () => {
+                            const a = document.createElement('a');
+                            a.href = dataUrl;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        });
+                    }
+                } else {
+                     newHtml = `<pre><code>${escapeHtml(rawContent)}</code></pre>`;
+                }
+            } else if (rawContent.includes("--- CONTENT ---")) {
+                const parts = rawContent.split('\n\n--- CONTENT ---\n');
+                if (parts.length === 2) {
+                    const filename = parts[0].replace('File uploaded: ', '');
+                    const fileContent = parts[1];
+                    newHtml = `<strong>${filename}</strong><pre><code>${escapeHtml(fileContent)}</code></pre>`;
+                    if (downloadBtn) {
+                        downloadBtn.addEventListener('click', () => {
+                            const blob = new Blob([fileContent], { type: 'text/plain' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        });
+                    }
+                }
             } else {
                 newHtml = `<pre><code>${escapeHtml(rawContent)}</code></pre>`;
             }
@@ -1090,7 +1134,7 @@ function initializeHistoryPage() {
     document.querySelectorAll('.delete-btn').forEach(button => {
         button.addEventListener('click', function() {
             const messageId = this.closest('.message-container').getAttribute('data-message-id');
-            if (messageId && !this.closest('.system-message-container')) { // Prevent deleting system messages
+            if (messageId) {
                 deleteMessage(messageId);
             }
         });

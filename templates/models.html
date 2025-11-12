@@ -421,9 +421,9 @@
                 </button>
             </div>
             
-            <div class="status-container">
-                <span>Ollama Status:</span>
-                <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
+            <div class="status-container" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; margin-bottom: 1rem;">
+                <span style="font-size: 0.85rem;">Ollama Status:</span>
+                <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
                     {{ ollama_status }}
                 </span>
             </div>
