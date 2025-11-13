@@ -2,7 +2,31 @@
 
 ## Overview
 
-AI Think Chat is a Flask-based web application that provides an intelligent chat interface with support for both local Ollama models and cloud-based AI services. The application features conversation management, file uploads, web search integration, and comprehensive monitoring capabilities.[^1_1]
+AI Think Chat is a Flask-based web application that provides an intelligent chat interface with support for both local Ollama models and cloud-based AI services. The application features conversation management, file uploads (text and image), web search integration, and comprehensive monitoring capabilities.
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Installation and Setup](#installation-and-setup)
+- [Architecture](#architecture)
+- [Logging System](#logging-system)
+- [ChromaDB Integration](#chromadb-integration)
+- [Langfuse Tracing](#langfuse-tracing)
+- [API Endpoints](#api-endpoints)
+- [Core Functions](#core-functions)
+- [File Upload Pipeline](#file-upload-pipeline)
+- [/generate Endpoint (Core Chat Logic)](#generate-endpoint-core-chat-logic)
+- [Chat Session System](#chat-session-system)
+- [Prompts System](#prompts-system)
+- [Cloud Model Management](#cloud-model-management)
+- [Local Model (Ollama) Management](#local-model-ollama-management)
+- [System Health Dashboard](#system-health-dashboard)
+- [Search Integration](#search-integration)
+- [Settings System](#settings-system)
+- [History Page (`/history`)](#history-page-history)
+- Error Handling & Safeguards
+- Developer Notes & Recommendations
+- API Reference --- Complete List of All API Endpoints
 
 ## Prerequisites
 
@@ -10,38 +34,34 @@ AI Think Chat is a Flask-based web application that provides an intelligent chat
 - Virtual environment (recommended)
 - Ollama installed and running locally
 - SQLite (comes bundled with Python)
+- SQLite (for development) or PostgreSQL (for production)
 - Optional: ChromaDB Cloud account for distributed storage
 - Optional: Langfuse account for tracing
 - Optional: SearXNG instance for web search
 
-
 ## Installation and Setup
 
-For Quick Installation and Setup docs: [README.md](../README.md)
-
+For quick installation and setup, please refer to the main [README.md](../README.md) file.
 
 ### Step 1: Database Initialization
 
-The database initializes automatically on first run. The `init_db()` function creates all necessary tables and performs automatic migrations.[^1_2]
+The database initializes automatically on first run. The `init_db()` function creates all necessary tables and performs automatic migrations.
 
 ### Step 2: Running the Application
 
 Execute the Flask application:
 
-```bash
-python app.py
-```
+    python app.py
 
-The application will start on `http://localhost:5000`.[^1_1]
+The application will start on `http://localhost:1111`.
 
 ## Architecture
 
 ### Database Schema
 
-The application uses SQLite with the following core tables:[^1_2]
+The application uses SQLite with the following core tables:
 
 **messages**: Stores chat conversation history
-
 - `id`: Primary key
 - `session_id`: Groups messages by conversation
 - `sender`: Either 'user', 'assistant', or 'system'
@@ -52,26 +72,22 @@ The application uses SQLite with the following core tables:[^1_2]
 - `tokens_per_second`: Performance metric
 
 **session_summaries**: Custom session titles
-
 - `session_id`: Primary key
 - `summary`: Custom name for the session
 - `timestamp`: Creation time
 
 **settings**: Application configuration
-
 - Model parameters (temperature, top_p, top_k, num_predict)
 - Integration credentials (Langfuse, ChromaDB, SearXNG)
 - Feature toggles
 
 **prompts**: Reusable prompt templates
-
 - `id`: Primary key
 - `title`: Prompt name
 - `type`: Category (e.g., Code, Research)
 - `content`: Prompt text
 
 **cloud_models**: External AI service configurations
-
 - `service`: Provider name
 - `base_url`: API endpoint
 - `api_key`: Authentication key
@@ -79,213 +95,176 @@ The application uses SQLite with the following core tables:[^1_2]
 - `active`: Visibility toggle
 
 **local_models**: Ollama model registry
-
 - `name`: Model identifier
 - `active`: Visibility toggle
 
 **api_usage_metrics**: Token consumption tracking
-
 - `model`: Model used
 - `session_id`: Associated conversation
 - `input_tokens_per_message`: Prompt tokens
 - `output_tokens_per_message`: Completion tokens
 - `timestamp`: Usage time
 
-
 ### Logging System
 
-The application implements rotating file logs stored in the `logger/` directory:[^1_1]
+The application implements rotating file logs stored in the `logger/` directory:
 
 - **Rotation Schedule**: Daily at midnight
 - **Retention**: 30 days
 - **Format**: `app.log.YYYY-MM-DD.txt`
 - **Content**: Request logs, application events, error stack traces
-- **Implementation**: Uses `TimedRotatingFileHandler`[^1_2]
-
+- **Implementation**: Uses `TimedRotatingFileHandler`
 
 ### ChromaDB Integration
 
-ChromaDB serves as an optional distributed storage backend:[^1_1]
+ChromaDB serves as an optional distributed storage backend:
 
 - **Fallback Mechanism**: Automatically falls back to SQLite if unavailable
 - **Collection**: `chat_history`
 - **Configuration**: Requires API key, tenant, and database name
 - **Status Check**: Available on `/health` endpoint
 
-
 ### Langfuse Tracing
 
-Provides observability for chat interactions:[^1_1]
+Provides observability for chat interactions:
 
 - **Initialization**: Dynamic credential validation via `initialize_langfuse()`
-- **Trace Structure**: Parent span for chat generation, nested generation for API call
+- **Trace Structure**: Parent span for chat generation, nested span for API call
 - **Logged Data**: Input prompts, responses, model parameters, token usage
 - **Authentication**: Verified with `auth_check()` before enabling
 - **Incognito Support**: Tracing disabled in incognito mode
-
 
 ## API Endpoints
 
 ### Chat Operations
 
-**`GET /`**: Main chat interface
-
+`GET /`: Main chat interface
 - Returns the chat page with available models
 - Parameters: Optional `session_id` in URL
-- Template: `index.html`[^1_1]
+- Template: `index.html`
 
-**`POST /generate`**: Generate AI responses
-
+`POST /generate`: Generate AI responses
 - Request body: `messages`, `newMessage`, `model`, `incognito`, `is_regeneration`
 - Returns: Assistant response, usage statistics, session ID
 - Features: Retry logic with exponential backoff, web search support
-- Error handling: Catches `ClientDisconnected` for stop functionality[^1_2]
+- Error handling: Catches `ClientDisconnected` for stop functionality
 
-**`POST /upload`**: File upload for context
-
+`POST /upload`: File upload for context
 - Accepts: `.txt`, `.png`, `.jpg` files
 - Stores text content or Base64-encoded image data as a 'system' message
-- Returns: Success confirmation with filename[^1_2]
+- Returns: Success confirmation with filename
 
-**`POST /reset_thread`**: Start new conversation
-
+`POST /reset_thread`: Start new conversation
 - Clears current session ID
-- Returns: Status confirmation[^1_2]
-
+- Returns: Status confirmation
 
 ### Session Management
 
-**`GET /api/sessions`**: List all chat sessions
-
+`GET /api/sessions`: List all chat sessions
 - Returns: Sessions grouped by date (Today, Yesterday, etc.)
 - Includes custom summaries if available
-- Sorted by most recent message[^1_2]
+- Sorted by most recent message
 
-**`GET /api/session/<session_id>`**: Fetch specific conversation
-
+`GET /api/session/<session_id>`: Fetch specific conversation
 - Returns: Full message history for the session
 - Includes metadata (generation time, model used, tokens/second)
-- Ordered by timestamp[^1_2]
+- Ordered by timestamp
 
-**`DELETE /delete_message/<id>`**: Remove individual message
+`DELETE /delete_message/<id>`: Remove individual message
+- Deletes from active database (ChromaDB or SQLite)
 
-- Deletes from active database (ChromaDB or SQLite)[^1_1]
-
-**`DELETE /delete_all_threads`**: Clear all conversations
-
-- Removes all sessions from database[^1_1]
-
+`DELETE /delete_all_threads`: Clear all conversations
+- Removes all sessions from database
 
 ### Model Management
 
-**`GET /api/models`**: List local Ollama models
-
+`GET /api/models`: List local Ollama models
 - Syncs with Ollama API
 - Includes active status from database
-- Sorted alphabetically[^1_2]
+- Sorted alphabetically
 
-**`POST /api/models/pull`**: Download new model
-
+`POST /api/models/pull`: Download new model
 - Streams progress from Ollama
-- Request body: `model` name[^1_1]
+- Request body: `model` name
 
-**`POST /api/models/delete`**: Remove local model
-
+`POST /api/models/delete`: Remove local model
 - Handles empty responses correctly
-- Request body: `model` name[^1_1]
+- Request body: `model` name
 
-**`POST /api/models/delete/all`**: Remove all local models[^1_1]
+`POST /api/models/delete/all`: Remove all local models
 
-**`POST /api/local_models/toggle_active`**: Toggle model visibility
+`POST /api/local_models/toggle_active`: Toggle model visibility
+- Request body: `name`, `active` (boolean)
 
-- Request body: `name`, `active` (boolean)[^1_2]
-
-**`POST /api/local_models/toggle_all_active`**: Toggle all local models
-
-- Request body: `active` (boolean)[^1_2]
-
+`POST /api/local_models/toggle_all_active`: Toggle all local models
+- Request body: `active` (boolean)
 
 ### Cloud Models
 
-**`GET /api/cloud_models`**: List configured cloud models
-
+`GET /api/cloud_models`: List configured cloud models
 - Returns all cloud service configurations
-- Includes active status[^1_2]
+- Includes active status
 
-**`POST /api/cloud_models/create`**: Add new cloud model
-
+`POST /api/cloud_models/create`: Add new cloud model
 - Request body: `service`, `base_url`, `api_key`, `model_names` (array)
-- Supports multiple models per service[^1_1]
+- Supports multiple models per service
 
-**`POST /api/cloud_models/update/<id>`**: Modify configuration
-
+`POST /api/cloud_models/update/<id>`: Modify configuration
 - Request body: Same as create
-- Handles model list changes (add/remove)[^1_2]
+- Handles model list changes (add/remove)
 
-**`DELETE /api/cloud_models/delete/<id>`**: Remove configuration[^1_2]
+`DELETE /api/cloud_models/delete/<id>`: Remove configuration
 
-**`POST /api/cloud_models/toggle_active/<id>`**: Toggle service group
-
+`POST /api/cloud_models/toggle_active/<id>`: Toggle service group
 - Affects all models in the same service/base_url group
-- Request body: `active` (boolean)[^1_2]
+- Request body: `active` (boolean)
 
-**`POST /api/cloud_models/toggle_all_active`**: Toggle all cloud models
-
-- Request body: `active` (boolean)[^1_2]
-
+`POST /api/cloud_models/toggle_all_active`: Toggle all cloud models
+- Request body: `active` (boolean)
 
 ### Prompt Management
 
-**`GET /api/prompts`**: List all saved prompts
+`GET /api/prompts`: List all saved prompts
+- Ordered by title
 
-- Ordered by title[^1_2]
+`POST /api/prompts/create`: Create new prompt
+- Request body: `title`, `type`, `content`
 
-**`POST /api/prompts/create`**: Create new prompt
+`POST /api/prompts/update/<id>`: Update existing prompt
+- Request body: `title`, `type`, `content`
 
-- Request body: `title`, `type`, `content`[^1_1]
+`DELETE /api/prompts/delete/<id>`: Remove prompt
 
-**`POST /api/prompts/update/<id>`**: Update existing prompt
+### Settings & Monitoring
 
-- Request body: `title`, `type`, `content`[^1_1]
+`GET /settings`: Settings page
+- Displays current configuration
 
-**`DELETE /api/prompts/delete/<id>`**: Remove prompt[^1_1]
-
-### Settings \& Monitoring
-
-**`GET /settings`**: Settings page
-
-- Displays current configuration[^1_1]
-
-**`POST /settings`**: Update configuration
-
+`POST /settings`: Update configuration
 - Updates database and reinitializes integrations
-- Returns to settings page[^1_1]
+- Returns to settings page
 
-**`GET /health`**: System health dashboard
-
+`GET /health`: System health dashboard
 - CPU, memory, disk, GPU metrics
 - Service status (Ollama, Langfuse, SearXNG, ChromaDB)
-- Active model display[^1_1]
+- Active model display
 
-**`GET /history`**: Full conversation history
-
+`GET /history`: Full conversation history
 - Groups sessions by date
 - Collapsible session view
-- Supports session renaming[^1_1]
+- Supports session renaming
 
-**`GET /dashboard`**: API usage statistics
-
+`GET /dashboard`: API usage statistics
 - Time range filtering (1h, 1d, 7d, 28d, 90d)
 - Token consumption metrics
 - Per-model usage breakdown
-- Session linking[^1_1]
-
+- Session linking
 
 ## Core Functions
 
 ### `ollama_chat(messages, model, session_id, max_retries, is_incognito)`
 
-Handles local Ollama model interactions:[^1_2]
+Handles local Ollama model interactions:
 
 - **Retry Logic**: Up to 3 attempts with exponential backoff (1s, 2s, 4s)
 - **Timeout**: 300 seconds (5 minutes)
@@ -293,508 +272,441 @@ Handles local Ollama model interactions:[^1_2]
 - **Incognito Support**: Skips tracing when enabled
 - **Returns**: Dictionary with `content` and `usage` keys
 
-
 ### `cloud_model_chat(messages, model_config, session_id, max_retries, is_incognito)`
 
-Manages cloud API requests:[^1_2]
-
+Manages cloud API requests:
 - **Endpoint Construction**: Appends `/chat/completions` to base URL
 - **Authentication**: Bearer token from configuration
 - **Format**: OpenAI-compatible request/response
 - **Langfuse Integration**: Same structure as Ollama
 - **Returns**: Dictionary with `content` and `usage` keys
 
-
 ### `search_searxng(query)`
 
-Performs web searches using SearXNG:[^1_2]
-
+Performs web searches using SearXNG:
 - **Configuration Check**: Verifies SearXNG is enabled
 - **Results**: Returns top 5 formatted results
 - **Format**: Title, URL, snippet for each result
 - **Error Handling**: Returns descriptive error messages
 
-
 ### `get_settings()`
 
-Fetches configuration from database:[^1_2]
-
+Fetches configuration from database:
 - **Fallback**: Returns hardcoded defaults if database fails
 - **Source**: SQLite settings table
 
-
 ### `save_settings(settings_dict)`
 
-Persists configuration changes:[^1_2]
-
+Persists configuration changes:
 - **Type Conversion**: Ensures correct data types
 - **Primary Storage**: Always saves to SQLite
 
-
 ### `initialize_langfuse()`
 
-Sets up Langfuse tracing client:[^1_2]
-
+Sets up Langfuse tracing client:
 - **Reset Mechanism**: Shuts down and resets singleton before reinit
 - **Authentication**: Validates credentials with `auth_check()`
 - **Global State**: Updates `langfuse_enabled` flag
 
-
 ### `initialize_chroma()`
 
-Establishes ChromaDB connection:[^1_2]
-
+Establishes ChromaDB connection:
 - **Configuration**: Uses credentials from settings
 - **Heartbeat Check**: Verifies connection health
 - **Collection**: Creates or retrieves `chat_history`
 - **Fallback**: Disables on connection failure
 
-
 ### `check_ollama_connection()`
 
-Tests Ollama availability:[^1_2]
-
+Tests Ollama availability:
 - **Endpoint**: `GET /api/tags`
 - **Timeout**: 5 seconds
 - **Returns**: Boolean status
 
-
 ### `check_searxng_connection()`
 
-Validates SearXNG access:[^1_2]
-
+Validates SearXNG access:
 - **Configuration Check**: Returns False if disabled
 - **Endpoint**: Base URL
 - **Timeout**: 3 seconds
 - **Returns**: Boolean status
 
+## File Upload Pipeline
 
-## Frontend Architecture
+Route: `/upload`
 
-### Templates
+| Type   | Handling |
+|--------|----------|
+| `.txt` | Stored directly as text into SQLite/Chroma |
+| Images | Converted to Base64, stored as special multimodal content |
 
-**`base.html`**: Master template with common layout[^1_1]
+File context is automatically prepended on the next `/generate` call.
 
-- Sidebar navigation
-- Header structure
-- CSS and JavaScript includes
+Multimodal support:
 
-**`index.html`**: Main chat interface[^1_1]
-
-- Chatbox display area
-- Message input
-- Model selector dropdown
-- Prompt selector dropdown
-- File upload button
-- Web search button
-- Incognito toggle
-- History sidebar with rename/delete options
-
-**`history.html`**: Conversation archive[^1_1]
-
-- Date-grouped sessions
-- Collapsible session details
-- Delete all functionality
-
-**`health.html`**: System monitoring dashboard[^1_1]
-
-- Real-time metrics
-- Service status indicators
-
-**`settings.html`**: Configuration form[^1_1]
-
-- Model parameter controls
-- Integration credentials
-- Feature toggles
-
-**`models.html`**: Local model management[^1_1]
-
-- Model list with sizes
-- Pull interface with progress
-- Delete operations
-
-**`cloud_models.html`**: External service configuration[^1_1]
-
-- Service list
-- Add/edit modal
-- Multiple models per service
-
-**`prompts.html`**: Prompt library[^1_1]
-
-- Prompt list
-- Create/edit modal
-
-
-### JavaScript Modules
-
-**`script.js`**: Core chat functionality[^1_1]
-
-- Message sending (`sendMessage`)
-- Response handling (`handleBotResponse`)
-- Markdown/LaTeX rendering (`formatMessage`)
-- History sidebar management (`fetchHistorySidebar`)
-- Session initialization from URL (`initializeChat`)
-- Stop generation functionality
-- File upload handling
-- Incognito mode management
-
-**`models.js`**: Local model operations[^1_1]
-
-- Model list fetching
-- Pull with streaming progress
-- Delete operations
-
-**`cloud_models.js`**: Cloud service CRUD[^1_1]
-
-- Configuration management via modals
-- Multiple model support
-
-**`prompts.js`**: Prompt management[^1_1]
-
-- CRUD operations via modals
-
-
-### Styling
-
-**`style.css`**: Application styles[^1_1]
-
-- **Layout**: Flexbox and Grid
-- **Theming**: Light/dark mode with CSS variables
-- **Components**: Buttons, forms, cards, modals
-- **Responsiveness**: Media queries for mobile
-- **Icons**: Material Icons
-
-
-## Key Features
-
-### Incognito Mode
-
-Private, ephemeral chat sessions:[^1_1]
-
-- **Activation**: Toggle button in header
-- **Behavior**: No database persistence, no tracing, no URL updates
-- **Implementation**: `isIncognito` flag passed to `/generate` endpoint
-
-
-### Response Interruption
-
-User-controlled generation stopping:[^1_1]
-
-- **UI**: Send button transforms to Stop button during generation
-- **Backend**: Catches `ClientDisconnected` exception
-- **Cleanup**: Removes optimistic messages from UI
-
-
-### File Upload Context
-
-Document and image-based conversations:[^1_1]
-
-- **Formats**: `.txt`, `.png`, `.jpg`, `.jpeg`
-- **Storage**: As 'system' message in database
-- **Usage**: Automatically prepended to first user message
-- **Support**: Both local and cloud models
-- Send images as if they were text messages and receive the OCR‑extracted text in the same conversation.
-
-
-### Web Search Integration
-
-SearXNG-powered context augmentation:[^1_1]
-
-- **Activation**: `/search` command or button
-- **Processing**: Fetches top 5 results, formats as context
-- **Model Input**: Prepended to user query
-- **UI**: Button disabled when SearXNG disabled
-
-
-### Session Management
-
-URL-based conversation loading:[^1_1]
-
-- **URL Format**: `?session_id=<uuid>`
-- **Backend**: `/generate` returns session_id
-- **Frontend**: Updates browser URL
-- **Loading**: `initializeChat()` fetches history
-
-
-### Session Renaming
-
-Custom conversation titles:[^1_1]
-
-- **Storage**: `session_summaries` table
-- **Access**: History sidebar and main history page
-- **Fallback**: First user message (truncated)
-
-
-### Model Synchronization
-
-Automatic Ollama model registry:[^1_2]
-
-- **Detection**: Compares API list with database
-- **Add**: New models inserted with active=True
-- **Remove**: Deleted models removed from database
-- **Display**: Sorted alphabetically
-
-
-### API Usage Tracking
-
-Token consumption monitoring:[^1_1]
-
-- **Capture**: Input and output tokens per message
-- **Storage**: `api_usage_metrics` table
-- **Dashboard**: Time-filtered statistics
-- **Granularity**: Per-model breakdown
-
-
-## Error Handling
-
-### Retry Mechanism
-
-Exponential backoff for API failures:[^1_1]
-
-- **Attempts**: 3 retries maximum
-- **Wait Times**: 1s, 2s, 4s
-- **Triggers**: Timeout, connection errors
-- **Logging**: Warns on each retry
-
-
-### Database Fallback
-
-ChromaDB to SQLite failover:[^1_1]
-
-- **Detection**: Connection errors during initialization
-- **Action**: Sets `chroma_connected = False`
-- **Operations**: All DB operations check connection status
-- **Transparency**: Status visible on health page
-
-
-### Migration Handling
-
-Automatic schema updates:[^1_1]
-
-- **Detection**: `PRAGMA table_info()` checks for columns
-- **Action**: `ALTER TABLE` statements for missing columns
-- **Tables**: Settings, messages, cloud_models, local_models
-- **Safety**: Graceful handling of existing data
-
-
-### Client Disconnection
-
-Stop button implementation:[^1_2]
-
-- **Exception**: `ClientDisconnected` from Werkzeug
-- **Prevention**: Blocks message saving to database
-- **Response**: Returns 204 with cancellation status
-- **Logging**: Info-level log entry
-
-
-## Advanced Configuration
-
-### Langfuse Setup
-
-Enable detailed tracing:[^1_1]
-
-1. Navigate to `/settings`
-2. Enter public key, secret key, and host URL
-3. Toggle "Enable Langfuse"
-4. Save settings
-5. Verify on `/health` page
-
-### ChromaDB Setup
-
-Configure distributed storage:[^1_1]
-
-1. Obtain ChromaDB Cloud credentials
-2. Navigate to `/settings`
-3. Enter API key, tenant, and database name
-4. Toggle "Enable ChromaDB"
-5. Save settings
-6. Verify on `/health` page
-
-### SearXNG Setup
-
-Enable web search:[^1_1]
-
-1. Deploy SearXNG (docker recommended)
-2. Navigate to `/settings`
-3. Enter SearXNG URL (e.g., `http://localhost:8080`)
-4. Toggle "Enable SearXNG"
-5. Save settings
-6. Use `/search` or search button in chat
-
-### Cloud Model Setup
-
-Add external AI services:[^1_1]
-
-1. Navigate to `/cloud_models`
-2. Click "Add Model"
-3. Select service (OpenAI, Perplexity, DeepSeek, Google Gemini) or use custom
-4. Enter base URL (e.g., `https://api.openai.com/v1`)
-5. Enter API key
-6. Add model names (e.g., `gpt-4`, `gpt-3.5-turbo`)
-7. Save configuration
-8. Models appear in main chat selector
-
-## Development Best Practices
-
-### Adding New API Endpoints
-
-1. Define route with appropriate HTTP method decorator[^1_2]
-2. Add request validation (check required fields)
-3. Implement database operations with try-except blocks
-4. Log operations with `current_app.logger`
-5. Return JSON responses with appropriate status codes
-6. Update this documentation
-
-### Database Schema Changes
-
-1. Add column check in `init_db()` using `PRAGMA table_info()`[^1_2]
-2. Use `ALTER TABLE` for existing installations
-3. Update `get_settings()` and `save_settings()` if modifying settings table
-4. Test migration on existing database
-5. Document changes
-
-### Frontend Component Addition
-
-1. Create HTML template or extend existing[^1_1]
-2. Add JavaScript module in `static/` directory
-3. Register route in `app.py`
-4. Add navigation link in `base.html` if needed
-5. Update `style.css` for component styling
-
-### Integration Testing
-
-1. Start Ollama service
-2. Configure `.env` file
-3. Run `python app.py`
-4. Test endpoints with curl or Postman
-5. Verify logs in `logger/app.log`
-6. Check database with SQLite browser
-
-## Performance Optimization
-
-### Database Indexing
-
-Add indexes for frequently queried fields:
-
-```sql
-CREATE INDEX idx_session_id ON messages(session_id);
-CREATE INDEX idx_timestamp ON messages(timestamp);
 ```
 
+[
+{"type": "text", "text": "..."},
 
-### Caching Strategy
-
-Implement model list caching to reduce Ollama API calls:
-
-```python
-from functools import lru_cache
-from datetime import datetime, timedelta
-
-@lru_cache(maxsize=1)
-def cached_get_ollama_models(cache_key):
-    return get_ollama_models()
-
-def get_models_with_cache():
-    cache_key = datetime.now() // timedelta(minutes=5)
-    return cached_get_ollama_models(cache_key)
+```
+{"type": "image_url", "image_url": {"url": "data:<mime>;base64,<data>"}}
 ```
 
+]
 
-### Streaming Responses
-
-For real-time response display, modify `/generate` to support streaming:
-
-```python
-@app.route('/generate', methods=['POST'])
-def generate():
-    # ... existing code ...
-    payload['stream'] = True
-    
-    def generate_stream():
-        response = requests.post(url, json=payload, stream=True)
-        for line in response.iter_lines():
-            if line:
-                yield f"data: {line.decode()}\n\n"
-    
-    return Response(stream_with_context(generate_stream()), 
-                    mimetype='text/event-stream')
 ```
 
+## /generate Endpoint (Core Chat Logic)
 
-## Security Considerations
+The **heart of the entire backend**.
 
-### API Key Storage
+Workflow:
 
-Credentials are stored in the database. For production:
+### 7.1 Input Extraction
 
-1. Encrypt API keys before storage
-2. Use environment variables for sensitive defaults
-3. Implement key rotation policies
-4. Restrict settings page access with authentication
+- `messages` (existing conversation)
+- `newMessage`
+- `model` (local or cloud)
+- `incognito`
+- `is_regeneration`
 
-### Input Validation
+### 7.2 Regeneration
 
-Sanitize user inputs to prevent injection attacks:
+Deletes the last user/assistant message pair (SQLite only).
 
-```python
-from markupsafe import escape
+### 7.3 File Context Injection
 
-content = escape(request.form['content'])
-```
+If first user message:
+
+- Load recent file context from SQLite/Chroma
+- For TXT → prepend document content
+- For Image → add to multimodal payload
+
+### 7.4 Search Command
+
+If user enters:
+
+    /search <text>
+
+Results from SearXNG are injected into the prompt.
+
+### 7.5 Model Execution
+
+Routes either to:
+
+    cloud_model_chat()
+    ollama_chat()
+
+### 7.6 Save Results
+
+If not incognito:
+
+- Save to SQLite or Chroma
+- Save timing
+- Save token metrics
+
+### 7.7 Response
+
+Returns:
+
+- Assistant message
+- Modified user message
+- Token usage
+- Timing
+- Model used
+- Session ID
+- Tokens per second
+
+## Chat Session System
+
+### ThreadManager
+
+Generates `session_id` for conversations.
+
+### `/api/session/<id>`
+
+Return full ordered message list.
+
+### `/api/sessions`
+
+Returns grouped sessions:
+
+- Today
+- Yesterday
+- Previous 7 days
+- Previous 30 days
+
+### Custom Summaries
+
+Stored in `session_summaries`.
+
+### Reset Thread
+
+Route: `/reset_thread`
+Clears session ID.
+
+## Prompts System
+
+CRUD for prompts:
+
+- `/api/prompts`
+- `/api/prompts/create`
+- `/api/prompts/update/<id>`
+- `/api/prompts/delete/<id>`
+
+Stored in SQLite.
+
+## Cloud Model Management
+
+### Endpoints:
+
+- `/api/cloud_models`
+- `/api/cloud_models/create`
+- `/api/cloud_models/update/<id>`
+- `/api/cloud_models/<id>`...
+
+Fields stored:
+
+- service
+- base_url
+- api_key
+- model_name
+- active
 
 
-### Rate Limiting
+## Local Model (Ollama) Management
 
-Implement request throttling for API endpoints:
+Routes:
 
-```python
-from flask_limiter import Limiter
+- `/api/models` → list
+- `/api/models/pull` → pull with streaming
+- `/api/models/delete`
+- `/api/models/delete/all`
 
-limiter = Limiter(app, key_func=lambda: request.remote_addr)
+Also maintains:
 
-@app.route('/generate', methods=['POST'])
-@limiter.limit("10 per minute")
-def generate():
-    # ... existing code ...
-```
+    local_models table
 
 
-## Troubleshooting
+## System Health Dashboard
 
-### "Ollama is not available" error
+Route: `/health`
 
-- Verify Ollama is running: `ollama list`
-- Check `OLLAMA_BASE_URL` in `.env`
-- Test connection: `curl http://localhost:11434/api/tags`
+Uses:
+
+- `psutil`
+- `GPUtil`
+- Checks for:
+    - CPU
+    - RAM
+    - Disk
+    - GPU
+    - Ollama
+    - SearXNG
+
+Classifies statuses as:
+
+- stable
+- warning
+- critical
+
+## Search Integration
+
+Function: `search_searxng()`
+
+Triggered on:
+
+    /search query
+
+Returns:
+
+- Top 5 results
+- Title
+- URL
+- Snippet
+
+Injected into LLM prompt automatically.
+
+## Settings System
+
+Global settings stored in:
+
+    settings table
+
+Fields include:
+
+- num_predict
+- temperature
+- top_p
+- top_k
+- langfuse keys
+- chroma keys
+- searxng settings
+- toggles for each subsystem
+
+Reinitialization triggers:
+
+- `initialize_langfuse()`
+- `initialize_chroma()`
+
+## History Page (`/history`)
+
+Provides full UI rendering of:
+
+- sessions
+- messages
+- timestamps
+- grouping
+- custom summaries
+
+Used by the frontend to populate the chat history sidebar.
 
 
-### "Failed to save messages to ChromaDB" error
+## Error Handling & Safeguards
 
-- Check ChromaDB credentials in settings
-- Verify network connectivity to ChromaDB Cloud
-- Review logs in `logger/app.log`
-- Confirm fallback to SQLite is working
+### Built-In Protection:
+
+- Exponential backoff for models
+- Graceful fallback to SQLite
+- Chroma failures don't crash the app
+- Incognito mode (no DB writes, no Langfuse)
+- ClientDisconnected handling
+- Logging with rotation
+- Schema migration safety
+
+## Developer Notes & Recommendations
+
+### Suggested Modular Refactor 
+
+This file is monolithic; recommended modules:
+
+    /services
+     - ollama_service.py
+     - cloud_service.py
+     - chroma_service.py
+     - settings_service.py
+     - prompts_service.py
+     - models_service.py
+
+    /routes
+     - chat_routes.py
+     - model_routes.py
+     - history_routes.py
+     - settings_routes.py
+     - health_routes.py
+
+### Testing
+
+- Unit tests for model routing and database
+- Integration tests for `/generate`
+- Mock SearXNG and Langfuse in CI
+
+### Security
+
+- Mask API keys in logs
+- Use HTTPS in production
+- Limit file upload size
 
 
-### "Langfuse authentication failed" error
+## API Reference --- Complete List of All API Endpoints
 
-- Verify credentials in settings
-- Check `LANGFUSE_HOST` URL format
-- Test credentials manually with Langfuse SDK
-- Confirm internet connectivity
+This table includes:
 
+* Method
+* Route
+* Purpose
+* Request Body (if applicable)
+* Response Summary
 
-### Model not appearing in dropdown
+---
 
-- Check model is pulled in Ollama: `ollama list`
-- Verify active status in database: `SELECT * FROM local_models`
-- Sync models by accessing `/models` page
-- Check browser console for JavaScript errors
+## **1. Chat & Session APIs**
 
+| Method     | Route                         | Purpose                                   | Request Body                                                      | Response                             |
+| ---------- | ----------------------------- | ----------------------------------------- | ----------------------------------------------------------------- | ------------------------------------ |
+| **POST**   | `/generate`                   | Main chat generation with local/cloud LLM | `messages`, `newMessage`, `model`, `incognito`, `is_regeneration` | Assistant message, usage, TPS, model |
+| **POST**   | `/new-thread`                 | Create a new chat session/thread          | *none*                                                            | `{session_id}`                       |
+| **DELETE** | `/delete_message/<id>`        | Delete a single message                   | *none*                                                            | Status JSON                          |
+| **DELETE** | `/delete_thread/<session_id>` | Delete entire session                     | *none*                                                            | Status JSON                          |
+| **GET**    | `/history`                    | Returns grouped chat history              | *none*                                                            | HTML page                            |
+| **GET**    | `/api/session/<id>`           | Get message list for a session            | *none*                                                            | `{messages: [...]}`                  |
+| **POST**   | `/reset_thread`               | Reset current session ID                  | *none*                                                            | Redirect                             |
 
-### Session history not loading
+---
 
-- Verify `session_id` format (valid UUID)
-- Check database for session existence
-- Review browser console for API errors
-- Confirm `/api/session/<session_id>` returns 200
+## **2. File & Image Upload APIs**
+
+| Method   | Route     | Purpose              | Request Body | Response                   |
+| -------- | --------- | -------------------- | ------------ | -------------------------- |
+| **POST** | `/upload` | Upload text or image | `file`       | Stored message, session ID |
+
+---
+
+## **3. LLM Model Management — Local (Ollama)**
+
+| Method   | Route                    | Purpose                      | Request Body  | Response             |
+| -------- | ------------------------ | ---------------------------- | ------------- | -------------------- |
+| **GET**  | `/api/models`            | List installed Ollama models | *none*        | `{models: [...]}`    |
+| **POST** | `/api/models/pull`       | Pull new Ollama model        | `{modelName}` | Streamed pull output |
+| **POST** | `/api/models/delete`     | Delete one local model       | `{modelName}` | Status               |
+| **POST** | `/api/models/delete/all` | Delete all local models      | *none*        | Status               |
+
+---
+
+## **4. LLM Model Management — Cloud Models**
+
+| Method   | Route                           | Purpose                                     | Request Body                                       | Response          |
+| -------- | ------------------------------- | ------------------------------------------- | -------------------------------------------------- | ----------------- |
+| **GET**  | `/api/cloud_models`             | List all configured cloud LLMs              | *none*                                             | `{models: [...]}` |
+| **POST** | `/api/cloud_models/create`      | Add new cloud model                         | `{service, base_url, api_key, model_name, active}` | Status            |
+| **POST** | `/api/cloud_models/update/<id>` | Update config (all models in service group) | `{service, base_url, api_key}`                     | Status            |
+| **GET**  | `/api/cloud_models/<id>`        | Get single cloud model including full key   | *none*                                             | `{model: {...}}`  |
+
+---
+
+## **5. Prompt Hub APIs**
+
+| Method     | Route                      | Purpose                | Request Body       | Response           |
+| ---------- | -------------------------- | ---------------------- | ------------------ | ------------------ |
+| **GET**    | `/api/prompts`             | List all prompts       | *none*             | `{prompts: [...]}` |
+| **POST**   | `/api/prompts/create`      | Create prompt          | `{title, content}` | Status             |
+| **POST**   | `/api/prompts/update/<id>` | Update existing prompt | `{title, content}` | Status             |
+| **DELETE** | `/api/prompts/delete/<id>` | Delete prompt          | *none*             | Status             |
+
+---
+
+## **6. Settings APIs**
+
+| Method   | Route       | Purpose           | Request Body                                          | Response  |
+| -------- | ----------- | ----------------- | ----------------------------------------------------- | --------- |
+| **GET**  | `/settings` | View app settings | *none*                                                | HTML page |
+| **POST** | `/settings` | Update settings   | `{temperature, top_p, model defaults, keys, toggles}` | Status    |
+
+---
+
+## **7. Dashboard APIs**
+
+| Method   | Route             | Purpose            | Request Body                   | Response                            |
+| -------- | ----------------- | ------------------ | ------------------------------ | ----------------------------------- |
+| **GET**  | `/dashboard`      | Load dashboard UI  | *none*                         | HTML                                |
+| **POST** | `/dashboard/data` | Get analytics data | `{time_range}`, optional dates | Usage JSON (tokens, models, counts) |
+
+---
+
+## **8. Search & Utilities**
+
+| Method  | Route                      | Purpose                                | Request Body | Response                        |
+| ------- | -------------------------- | -------------------------------------- | ------------ | ------------------------------- |
+| **GET** | `/api/search` *(internal)* | SearXNG query (used by `/generate`)    | `q`          | Search results JSON             |
+| **GET** | `/health`                  | System health (CPU/GPU/RAM/app status) | *none*       | `{status, metrics, components}` |
+
+---
+
+## **9. Frontend Routes (Pages)**
+
+| Method  | Route      | Purpose           |
+| ------- | ---------- | ----------------- |
+| **GET** | `/`        | Main chat UI      |
+| **GET** | `/about`   | About page        |
+| **GET** | `/history` | History list view |

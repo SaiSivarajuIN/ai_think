@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const serviceDetailEl = document.getElementById('service-detail');
     const serviceFilterEl = document.getElementById('service-filter');
 
+    let serviceLogoMap = {};
     let currentModels = [];
     let selectedServiceKey = null;
     // Restore previously selected service key on load (if available)
@@ -24,6 +25,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const fullKeysCache = {};
     
 
+    // --- Onload data fetching ---
+    // Populate logo map from data attributes on the select options
+    const serviceOptions = serviceSelect.querySelectorAll('option[data-logo]');
+    serviceOptions.forEach(opt => {
+        if (opt.value && opt.dataset.logo) {
+            serviceLogoMap[opt.value] = opt.dataset.logo;
+        }
+    });
     // --- Modal Logic ---
     function openModalForCreate() {
         modal.style.display = 'block';
@@ -387,9 +396,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const key = `${m.service}::${m.base_url}`;
                 li.dataset.key = key;
                 const statusClass = m.active ? 'status-active' : 'status-inactive';
-                const statusText = m.active ? 'Active' : 'Inactive';
+                const statusText = m.active ? 'Active' : 'Inactive';                
+                const logo = serviceLogoMap[m.service] || '';
+
                 li.innerHTML = `
-                    <span title="${m.base_url}">${m.service}</span>
+                    <span title="${m.base_url}" style="display:flex; align-items:center; gap:0.5rem;">${logo} ${m.service}</span>
                     <span class="status-tag ${statusClass}">${statusText}</span>
                 `;
                 if (selectedServiceKey && selectedServiceKey === key) {
@@ -436,6 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const statusClass = model.active ? 'status-active' : 'status-inactive';
         const statusText = model.active ? 'Active' : 'Inactive';
 
+        const logo = serviceLogoMap[model.service] || '';
         const keyMasked = model.api_key_partial || 'Not set';
         const modelKey = model.id;
         const showFull = false;
@@ -443,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
         serviceDetailEl.innerHTML = `
             <div class="card-simple">
                 <div class="detail-header">
-                    <h3 style="margin:0;">${model.service} <span class="status-tag ${statusClass}" id="detail-status-tag">${statusText}</span></h3>
+                    <h3 style="margin:0; display:flex; align-items:center; gap:0.5rem;">${logo} ${model.service} <span class="status-tag ${statusClass}" id="detail-status-tag">${statusText}</span></h3>
                     <div class="icon-actions">
                         <label class="switch" title="${model.active ? 'Deactivate' : 'Activate'} Model Group" style="margin-right:0.5rem;">
                             <input type="checkbox" class="active-toggle-header" ${model.active ? 'checked' : ''}>

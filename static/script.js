@@ -477,14 +477,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (modelUsed) {
             // Add a separator if other info is present
-            if (footerHTML) footerHTML += `<span style="margin: 0 0.1rem;">|</span>`;
-            // Format the model name for display
-            const formattedModelName = modelUsed
-                .replace(/[]/g, ' ') // Replace hyphens/underscores with spaces
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter of each word
-                .join(' ');
-            footerHTML += `<span class="model-used" title="Model used for this response">📦 ${formattedModelName}</span>`;
+            if (footerHTML) footerHTML += `<span style="margin: 0 0.2rem;">|</span>`;
+
+            let logoHtml = '';
+            let formattedModelName = modelUsed;
+
+            if (modelUsed.startsWith('(')) { // Cloud model: (Service) Model Name
+                const serviceMatch = modelUsed.match(/\((.*?)\)/);
+                if (serviceMatch) {
+                    const service = serviceMatch[1];
+                    const logoFilename = service.toLowerCase().replace(/ /g, '').replace('ai', '') + '.png';
+                    logoHtml = `<img src="/static/logos/${logoFilename}" alt="${service}" style="height:14px; vertical-align:middle; margin-right:4px;">`;
+                }
+            } else if (modelUsed.startsWith('hf.co')) { // Hugging Face local model
+                logoHtml = `<img src="/static/logos/ollama.png" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">`;
+                const parts = modelUsed.split('/');
+                if (parts.length > 2) formattedModelName = `${parts[2]} (${parts[1]})`;
+            } else { // Ollama local model
+                logoHtml = `<img src="/static/logos/ollama.png" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">`;
+            }
+
+            footerHTML += `<span class="model-used" title="Model used for this response">${logoHtml} ${formattedModelName}</span>`;
         }
 
         footerHTML += `<button class="copy-btn icon-btn" title="Copy message"><span class="material-icons">content_copy</span></button>

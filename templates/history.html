@@ -676,7 +676,21 @@
                                 <div class="message-container" data-message-id="{{ msg.id }}">
                                     <div class="history-meta">
                                         <span class="history-sender {{ 'user-sender' if msg.sender == 'user' else 'assistant-sender' }}">
-                                            {{ '👤 You' if msg.sender == 'user' else '🤖 Bot' }}
+                                            {% if msg.sender == 'user' %}
+                                                👤 You
+                                            {% else %}
+                                                {% if msg.model_used and msg.model_used.startswith('(') %}
+                                                    {% set service_match = msg.model_used | regex_search('\\((.*?)\\)') %}
+                                                    {% if service_match %}
+                                                        {% set service = service_match.group(1) %}
+                                                        {% set logo_filename = service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
+                                                        <img src="{{ url_for('static', filename='logos/' + logo_filename) }}" alt="{{ service }}" style="height:16px; vertical-align:middle; margin-right:8px;">
+                                                    {% endif %}
+                                                {% else %}
+                                                    <img src="{{ url_for('static', filename='logos/ollama.png') }}" alt="Ollama" style="height:16px; vertical-align:middle; margin-right:4px;">
+                                                {% endif %}
+                                                Bot
+                                            {% endif %}
                                         </span>
                                         <div class="history-actions">
                                             <span class="history-time" data-timestamp="{{ msg.timestamp.isoformat() }}"></span>
@@ -697,7 +711,21 @@
                                                 {% endif %}
                                                 {% if msg.model_used %}
                                                     <span style="margin: 0 0.25rem;">|</span>
-                                                    <span class="model-used" title="Model used for this response">📦 {{ msg.model_used | format_model_name }}</span>
+                                                    <span class="model-used" title="Model used for this response">
+                                                        {% if msg.model_used.startswith('(') %}
+                                                            {# Cloud model: (Service) Model Name #}
+                                                            {% set service_match = msg.model_used | regex_search('\\((.*?)\\)') %}
+                                                            {% if service_match %}
+                                                                {% set service = service_match.group(1) %}
+                                                                {% set logo_filename = service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
+                                                                <img src="{{ url_for('static', filename='logos/' + logo_filename) }}" alt="{{ service }}" style="height:14px; vertical-align:middle; margin-right:4px;">
+                                                            {% endif %}
+                                                        {% elif msg.model_used.startswith('hf.co') %}
+                                                            <img src="{{ url_for('static', filename='logos/huggingface.png') }}" alt="Hugging Face" style="height:14px; vertical-align:middle; margin-right:4px;">
+                                                        {% else %}
+                                                            <img src="{{ url_for('static', filename='logos/ollama.png') }}" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">
+                                                        {% endif %}
+                                                        {{ msg.model_used | format_model_name }}</span>
                                                 {% endif %}
                                             </div>
                                         {% endif %}
