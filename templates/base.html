@@ -13,7 +13,7 @@
     </style>
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -41,7 +41,7 @@
             </div>
             <!--dashboard-->
             <a href="/dashboard" class="nav-link" title="Dashboard"><span>Dashboard</span></a>
-            <a href="/chat" onclick="event.preventDefault(); resetThread();" class="nav-link chat-nav-link" title="New Chat">
+            <a href="/" onclick="event.resetThread();" class="nav-link chat-nav-link" title="New Chat">
                 <span>Chat</span>
                 {% if page_id == 'chat' %}
                     <button id="incognito-toggle-btn" class="nav-link" title="Enable Incognito Mode">
