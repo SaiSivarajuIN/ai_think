@@ -16,7 +16,7 @@ import csv
 from uuid import uuid4
 from langfuse import Langfuse
 from datetime import datetime
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from collections import defaultdict
@@ -24,7 +24,7 @@ from logging.handlers import TimedRotatingFileHandler
 from flask import Flask, jsonify, render_template, request, session, redirect, url_for, current_app
 from flask import Response, stream_with_context
 from werkzeug.exceptions import ClientDisconnected
-
+from flask import g
 # Check if Tesseract is available
 try:
     pytesseract.get_tesseract_version()
@@ -126,9 +126,14 @@ chroma_connected = False
 DATABASE = 'chat.db'
 
 def get_db():
-    db = sqlite3.connect(DATABASE)
-    db.row_factory = sqlite3.Row
-    return db
+    """Get a database connection for the current request."""
+    if 'db' not in g:
+        # Increase timeout to reduce "database is locked" errors
+        g.db = sqlite3.connect(DATABASE, timeout=10)
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+
 
 def init_db():
     with app.app_context():
@@ -290,7 +295,8 @@ def get_settings():
     if settings_row:
         return dict(settings_row)
     
-    # This should ideally not be reached if init_db works, but as a safeguard:
+    # This should ideally not be reached if init_db works, but as a safeguard.
+    # It's important to have this for the very first run before settings are in the DB.
     app.logger.warning("Settings not found in SQLite, returning hardcoded defaults.")
     return {
         'num_predict': int(DEFAULT_SETTINGS['num_predict']),
@@ -765,10 +771,6 @@ class ThreadManager:
 
 thread_manager = ThreadManager()
 
-@app.route('/chat')
-def index_page():
-    current_app.logger.info("Index page accessed")
-    return index() 
 
 @app.route('/')
 def index():
@@ -2260,9 +2262,14 @@ def api_toggle_local_model_active():
     current_app.logger.info(f"Toggled active state for local model {name} to {is_active}")
     return jsonify({'success': True})
 
-# Langfuse flush on app shutdown
+# DB & Langfuse flush on app shutdown
 @app.teardown_appcontext
-def flush_langfuse(error):
+def close_db(e=None):
+    """Close the database connection at the end of the request."""
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+    # Also flush Langfuse here, as it's a good teardown spot
     if langfuse_enabled:
         try:
             langfuse.flush()

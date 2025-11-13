@@ -799,71 +799,107 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- New: Event listener for Edit button ---
     chatbox.addEventListener('click', async function(e) {
-        const editBtn = e.target.closest('.edit-btn');
-        if (editBtn) {
-            const userMessageDiv = editBtn.closest('.user-message');
-            if (!userMessageDiv) return;
+    const editBtn = e.target.closest('.edit-btn');
+    if (!editBtn) return;
 
-            const contentWrapper = userMessageDiv.querySelector('.message-content-wrapper');
-            if (!contentWrapper) return;
+    const userMessageDiv = editBtn.closest('.user-message');
+    if (!userMessageDiv) return;
 
-            // Make content editable and set focus
-            contentWrapper.contentEditable = true;
-            contentWrapper.focus();
-            document.execCommand('selectAll', false, null); // Select all text
+    const originalContent = userMessageDiv.dataset.rawContent || '';
 
-            // Temporarily disable other buttons
-            userMessageDiv.querySelectorAll('.icon-btn').forEach(btn => btn.style.display = 'none');
+    // Create Modal Elements
+    const modalBackdrop = document.createElement('div');
+    modalBackdrop.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;';
 
-            const handleEditFinish = async () => {
-                contentWrapper.contentEditable = false;
-                userMessageDiv.querySelectorAll('.icon-btn').forEach(btn => btn.style.display = 'inline-flex'); // Restore buttons
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = 'background: var(--background); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: min(90vw, 600px); display: flex; flex-direction: column; gap: 1rem;';
 
-                const newMessageContent = contentWrapper.textContent.trim();
+    const textarea = document.createElement('textarea');
+    textarea.value = originalContent;
+    textarea.style.cssText = 'width: 100%; min-height: 120px; resize: vertical; padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--background-secondary); color: var(--text); font-family: inherit; font-size: 1rem;';
 
-                // Find the following bot message to remove it
-                let botMessageDiv = userMessageDiv.nextElementSibling;
-                while (botMessageDiv && !botMessageDiv.classList.contains('bot-message')) {
-                    botMessageDiv = botMessageDiv.nextElementSibling;
-                }
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = 'display: flex; justify-content: flex-end; gap: 0.75rem;';
 
-                if (!botMessageDiv) {
-                    alert("Could not find the bot message to regenerate from. Cannot proceed with edit.");
-                    return;
-                }
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'send-button'; // Reusing some styles
+    cancelBtn.style.background = 'var(--background-secondary)';
+    cancelBtn.style.color = 'var(--text)';
+    cancelBtn.style.width = 'auto';
+    cancelBtn.style.height = 'auto';
+    cancelBtn.style.padding = '0.5rem 1rem';
+    cancelBtn.style.borderRadius = 'var(--radius-md)';
 
-                // Add the edited user message back to the UI before sending
-                addMessage(newMessageContent, 'user');
+    const sendBtn = document.createElement('button');
+    sendBtn.textContent = 'Send';
+    sendBtn.className = 'send-button';
+    sendBtn.style.width = 'auto';
+    sendBtn.style.height = 'auto';
+    sendBtn.style.padding = '0.5rem 1rem';
+    sendBtn.style.borderRadius = 'var(--radius-md)';
 
-                // Remove the old user and bot messages from the UI
-                userMessageDiv.remove();
-                botMessageDiv.remove();
+    buttonContainer.append(cancelBtn, sendBtn);
+    modalContent.append(textarea, buttonContainer);
+    modalBackdrop.appendChild(modalContent);
+    document.body.appendChild(modalBackdrop);
 
-                // Remove the last two messages (user and bot) from the conversation history array
-                if (conversationHistory.length >= 2) {
-                    conversationHistory.splice(-2, 2);
-                }
+    textarea.focus();
+    textarea.select();
 
-                // Trigger regeneration
-                await sendMessage(newMessageContent, true);
-            };
+    const closeModal = () => {
+        modalBackdrop.remove();
+    };
 
-            contentWrapper.addEventListener('keydown', function onKeydown(event) {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    contentWrapper.removeEventListener('keydown', onKeydown);
-                    handleEditFinish();
-                } else if (event.key === 'Escape') {
-                    event.preventDefault();
-                    contentWrapper.removeEventListener('keydown', onKeydown);
-                    // Cancel the edit: restore original content and UI state
-                    contentWrapper.innerHTML = formatMessage(escapeHtml(userMessageDiv.dataset.rawContent));
-                    contentWrapper.contentEditable = false;
-                    userMessageDiv.querySelectorAll('.icon-btn').forEach(btn => btn.style.display = 'inline-flex');
-                    contentWrapper.blur(); // Remove focus
-                }
-            });
+    const handleEditFinish = async () => {
+        const newMessageContent = textarea.value.trim();
+        closeModal();
+
+        if (!newMessageContent || newMessageContent === originalContent) {
+            return; // No changes, do nothing.
         }
+
+        // Find the following bot message to remove it
+        let botMessageDiv = userMessageDiv.nextElementSibling;
+        while (botMessageDiv && !botMessageDiv.classList.contains('bot-message')) {
+            botMessageDiv = botMessageDiv.nextElementSibling;
+        }
+
+        if (!botMessageDiv) {
+            alert("Could not find the bot message to regenerate from. Cannot proceed with edit.");
+            return;
+        }
+
+        // Add the edited user message back to the UI before sending
+        addMessage(newMessageContent, 'user');
+
+        // Remove the old user and bot messages from the UI
+        userMessageDiv.remove();
+        botMessageDiv.remove();
+
+        // Remove the last two messages (user and bot) from the conversation history array
+        if (conversationHistory.length >= 2) {
+            conversationHistory.splice(-2, 2);
+        }
+
+        // Trigger regeneration
+        await sendMessage(newMessageContent, true);
+    };
+
+    // Event Listeners for Modal
+    cancelBtn.addEventListener('click', closeModal);
+    modalBackdrop.addEventListener('click', (e) => {
+        if (e.target === modalBackdrop) closeModal();
+    });
+    sendBtn.addEventListener('click', handleEditFinish);
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleEditFinish();
+        } else if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
     });
 
     // --- New: Event listener for Regenerate button ---
