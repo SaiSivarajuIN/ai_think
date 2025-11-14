@@ -1,4 +1,4 @@
-# frontend.md
+# frontend documentation
 
 ### Comprehensive Frontend Development Notes
 
