@@ -1618,8 +1618,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const contentDiv = msgContainer.querySelector('.history-content');
             const senderClass = sender === 'You' ? 'user-msg' : 'bot-msg';
 
+            let modelInfo = '';
+            if (sender === 'Bot') {
+                const modelUsedEl = msgContainer.querySelector('.model-used');
+                if (modelUsedEl) {
+                    // Add a styled paragraph for the model info
+                    modelInfo = `<p style="font-size: 8pt; color: #555; margin-top: 2pt;">Model used for response: ${escapeHTML(modelUsedEl.textContent.trim())}</p>`;
+                }
+            }
+
             // Start the message block
-            content += `<div class="message-block"><p class="${senderClass}">${sender}:</p>`;
+            content += `<div class="message-block"><p class="${senderClass}">${sender}:</p>${modelInfo}`;
 
             // Use innerHTML to preserve formatting from showdown.js
             const renderedContent = contentDiv.innerHTML;
@@ -1648,7 +1657,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 content += tempDiv.innerHTML.replace(/<\/table>/g, '</table><p>&nbsp;</p>');
             } else {
                 // Regular message
-                content += `<p>${contentDiv.innerText}</p>`;
+                content += contentDiv.innerHTML;
             }
 
             content += `</div>`; // Close message-block
