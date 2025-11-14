@@ -1,4 +1,4 @@
-# AI Think Chat - Developer Documentation
+# backend documentation
 
 ## Overview
 
@@ -25,7 +25,7 @@ AI Think Chat is a Flask-based web application that provides an intelligent chat
 - [Settings System](#settings-system)
 - [History Page (`/history`)](#history-page-history)
 - Error Handling & Safeguards
-- Developer Notes & Recommendations
+- Notes & Recommendations
 - API Reference --- Complete List of All API Endpoints
 
 ## Prerequisites
@@ -575,7 +575,7 @@ Used by the frontend to populate the chat history sidebar.
 - Logging with rotation
 - Schema migration safety
 
-## Developer Notes & Recommendations
+## Notes & Recommendations
 
 ### Suggested Modular Refactor 
 
