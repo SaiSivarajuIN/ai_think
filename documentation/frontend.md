@@ -1,7 +1,5 @@
 # frontend documentation
 
-### Comprehensive Frontend Development Notes
-
 ### (JavaScript + CSS Internals)
 
 ---
