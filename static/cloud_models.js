@@ -395,13 +395,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 li.className = 'service-item';
                 const key = `${m.service}::${m.base_url}`;
                 li.dataset.key = key;
-                const statusClass = m.active ? 'status-active' : 'status-inactive';
-                const statusText = m.active ? 'Active' : 'Inactive';                
+                const statusClass = m.active ? 'active' : 'inactive';
                 const logo = serviceLogoMap[m.service] || '';
 
                 li.innerHTML = `
-                    <span title="${m.base_url}" style="display:flex; align-items:center; gap:0.5rem;">${logo} ${m.service}</span>
-                    <span class="status-tag ${statusClass}">${statusText}</span>
+                    <span title="${m.base_url}" style="display:flex; align-items:center; gap:0.5rem; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${logo} ${m.service}</span>
+                    <span class="status-dot ${statusClass}" title="${m.active ? 'Active' : 'Inactive'}"></span>
                 `;
                 if (selectedServiceKey && selectedServiceKey === key) {
                     li.classList.add('active');

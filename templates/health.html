@@ -268,20 +268,20 @@
 
         <div class="dashboard">
         <div class="card">
-            <h2>memory</span>CPU</h2>
+            <h2>CPU</h2>
             <p><strong>Cores:</strong> {{ cpu.count }}</p>
             <p><strong>Usage:</strong> {{ cpu.percent }}%</p>
         </div>
 
         <div class="card">
-            <h2>storage</span>Memory</h2>
+            <h2>Memory</h2>
             <p><strong>Total:</strong> {{ memory.total }}</p>
             <p><strong>Available:</strong> {{ memory.available }}</p>
             <p><strong>Used:</strong> {{ memory.used }} ({{ memory.percent }}%)</p>
         </div>
 
         <div class="card">
-            <h2>save</span>Disk</h2>
+            <h2>Disk</h2>
             <p><strong>Total:</strong> {{ disk.total }}</p>
             <p><strong>Available:</strong> {{ disk.free }}</p>
             <p><strong>Used:</strong> {{ disk.used }} ({{ disk.percent }}%)</p>
@@ -307,24 +307,6 @@
         </div>
 
         <div class="card">
-            <h2>smart_toy</span>Ollama Service</h2>
-            <p><strong>Status:</strong>
-                <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
-                    {{ ollama_status }}
-                </span>
-            </p>
-            <p><strong>Active Model:</strong> <span id="active-model-display">{{ ollama_model }}</span></p>
-            <small>This reflects the model selected on the main chat page. The default is shown if no selection has been made.</small>
-        </div>
-        <div class="card">
-            <h2>analytics</span>Langfuse Tracing</h2>
-            <p><strong>Status:</strong>
-                <span class="status-indicator {{ 'connected' if langfuse_enabled else 'disconnected' }}">
-                    {{ 'Enabled' if langfuse_enabled else 'Disabled' }}
-                </span>
-            </p>
-        </div>
-        <div class="card">
             <h2>ChromaDB</h2>
             <p><strong>Status:</strong>
                 <span class="status-indicator {{ 'connected' if chroma_connected else 'disconnected' }}">
@@ -333,8 +315,28 @@
             </p>
             <small>If connected, chat history is stored in ChromaDB. Otherwise, it falls back to the local SQLite database.</small>
         </div>
+
         <div class="card">
-            <h2>search</span>SearXNG</h2>
+            <h2>Ollama Service</h2>
+            <p>
+                <strong>Status:</strong>
+                <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}">
+                    {{ ollama_status }}
+                </span>
+            </p>
+            <p><strong>Active Model:</strong> <span id="active-model-display">{{ ollama_model }}</span></p>
+            <small>This reflects the model selected on the main chat page. The default is shown if no selection has been made.</small>
+        </div>
+        <div class="card">
+            <h2>Langfuse Tracing</h2>
+            <p><strong>Status:</strong>
+                <span class="status-indicator {{ 'connected' if langfuse_enabled else 'disconnected' }}">
+                    {{ 'Enabled' if langfuse_enabled else 'Disabled' }}
+                </span>
+            </p>
+        </div>
+        <div class="card">
+            <h2>SearXNG</h2>
             <p><strong>Status:</strong>
                 <span class="status-indicator {{ 'connected' if searxng_status == 'Connected' else 'disconnected' }}">
                     {{ searxng_status }}
