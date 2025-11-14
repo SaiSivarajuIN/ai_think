@@ -103,6 +103,41 @@
             color: var(--text);
         }
 
+        .service-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-dot.active {
+            background-color: #22c55e; /* green */
+            animation: pulse-green 2s infinite;
+        }
+
+        .status-dot.inactive {
+            background-color: #ef4444; /* red */
+            box-shadow: 0 0 5px rgba(239, 68, 68, 0.7);
+        }
+
+        @keyframes pulse-green {
+            0% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            }
+        }
+
         /* Services Layout */
         .services-layout {
             display: grid;
@@ -538,17 +573,19 @@
                     <label for="model-service">Service Name</label>
                     <select id="model-service" name="service" class="model-selector" style="width: 100%;">
                         <option>Select Service</option>
-                        <option value="Cerebras">Cerebras</option>
-                        <option value="Cohere">Cohere</option>
-                        <option value="DeepSeek">DeepSeek</option>
-                        <option value="Google Gemini">Google Gemini</option>
-                        <option value="Groq">Groq</option>
-                        <option value="LongCat">LongCat</option>
-                        <option value="Mistral AI">Mistral AI</option>
-                        <option value="Nvidia AI">Nvidia AI</option>
-                        <option value="OpenAI">OpenAI</option>
-                        <option value="Open router">Open router</option>
-                        <option value="Perplexity">Perplexity</option>
+                        <option value="Anthropic" data-logo="<img src='{{ url_for('static', filename='./logos/anthropic.png') }}' alt='Anthropic' style='height:26px; vertical-align:middle; margin-right:16px;'>">Anthropic</option>
+                        <option value="Cerebras" data-logo="<img src='{{ url_for('static', filename='./logos/cerebras.png') }}' alt='Cerebras' style='height:26px; vertical-align:middle; margin-right:16px;'>">Cerebras</option>
+                        <option value="Cohere" data-logo="<img src='{{ url_for('static', filename='/logos/cohere.png') }}' alt='Cohere' style='height:22px; vertical-align:middle; margin-right:14px;'>">Cohere</option>
+                        <option value="DeepSeek" data-logo="<img src='{{ url_for('static', filename='/logos/deepseek.png') }}' alt='DeepSeek' style='height:22px; vertical-align:middle; margin-right:14px;'>">DeepSeek</option>
+                        <option value="Gemini" data-logo="<img src='{{ url_for('static', filename='/logos/gemini.png') }}' alt='Gemini' style='height:22px; vertical-align:middle; margin-right:14px;'>">Gemini</option>
+                        <option value="Groq" data-logo="<img src='{{ url_for('static', filename='/logos/groq.png') }}' alt='Groq' style='height:22px; vertical-align:middle; margin-right:14px;'>">Groq</option>
+                        <option value="Huggingface" data-logo="<img src='{{ url_for('static', filename='/logos/huggingface.png') }}' alt='Huggingface' style='height:22px; vertical-align:middle; margin-right:14px;'>">Huggingface</option>
+                        <option value="LongCat" data-logo="<img src='{{ url_for('static', filename='/logos/longcat.png') }}' alt='Longcat' style='height:22px; vertical-align:middle; margin-right:14px;'>">LongCat</option>
+                        <option value="Mistral AI" data-logo="<img src='{{ url_for('static', filename='/logos/mistral.png') }}' alt='Mistral' style='height:22px; vertical-align:middle; margin-right:14px;'>">Mistral AI</option>
+                        <option value="Nvidia AI" data-logo="<img src='{{ url_for('static', filename='/logos/nvidia.png') }}' alt='Nvidia' style='height:22px; vertical-align:middle; margin-right:14px;'>">Nvidia AI</option>
+                        <option value="OpenAI" data-logo="<img src='{{ url_for('static', filename='/logos/openai.png') }}' alt='Open Ai' style='height:22px; vertical-align:middle; margin-right:14px;'>">OpenAI</option>
+                        <option value="Open router" data-logo="<img src='{{ url_for('static', filename='/logos/openrouter.png') }}' alt='Open router' style='height:22px; vertical-align:middle; margin-right:14px;'>">Open router</option>
+                        <option value="Perplexity" data-logo="<img src='{{ url_for('static', filename='/logos/perplexity.png') }}' alt='Perplexity' style='height:22px; vertical-align:middle; margin-right:14px;'>">Perplexity</option>
                     </select>
                 </div>
                 <div class="form-group" id="other-service-group" style="display: none;">
@@ -653,7 +690,13 @@
             function appendOption(opt) {
                 const item = document.createElement('div');
                 item.className = 'cs-item';
-                item.textContent = opt.textContent;
+                const logoHtml = opt.dataset.logo || '';
+                // Use innerHTML to render the logo
+                if (logoHtml) {
+                    item.innerHTML = logoHtml + opt.textContent;
+                } else {
+                    item.textContent = opt.textContent;
+                }
                 item.dataset.value = opt.value;
                 if (opt.disabled) item.classList.add('disabled');
                 if (opt.value === sel.value) item.classList.add('selected');

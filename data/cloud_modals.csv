@@ -1,8 +1,10 @@
+Anthropic, https://api.anthropic.com
 Cerebras, https://api.cerebras.ai/v1
 Cohere, https://api.cohere.ai/compatibility/v1
 DeepSeek, https://api.deepseek.com
-Google Gemini, https://generativelanguage.googleapis.com/v1beta/openai
+Gemini, https://generativelanguage.googleapis.com/v1beta/openai
 Groq, https://api.groq.com/openai/v1
+Huggingface, https://router.huggingface.co/v1
 LongCat, https://api.longcat.chat/openai
 Mistral AI, https://api.mistral.ai
 Nvidia AI, https://integrate.api.nvidia.com/v1/chat/completions

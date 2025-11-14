@@ -463,11 +463,11 @@
                     {# Hugging Face model: hf.co/user/model -> model (user) #}
                     {% set source = parts[1] %}
                     {% set model_name = parts[2] %}
-                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>
+                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/ollama.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
                         <small>({{ source }})</small> {{ model_name }}
                     </option>
                 {% else %}
-                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %}>
+                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/ollama.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
                         {{ model.name }}
                     </option>
                 {% endif %}
@@ -479,7 +479,9 @@
         {% if cloud_models %}
             <optgroup label="Cloud Models">
             {% for model in cloud_models if model.active %}
-                <option value="cloud::{{ model.id }}"><small>({{ model.service }})</small> {{ model.model_name }}</option>
+                {% set logo_filename = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
+                <option value="cloud::{{ model.id }}" data-logo="<img src='{{ url_for('static', filename='logos/' + logo_filename) }}' alt='{{ model.service }}' style='height:16px; vertical-align:middle; margin-right:6px;'>">
+                    <small>({{ model.service }})</small> {{ model.model_name }}</option>
             {% endfor %}
             </optgroup>
         {% endif %}
@@ -594,7 +596,13 @@
                 function appendOptionItem(container, opt) {
                     const item = document.createElement('div');
                     item.className = 'cs-item';
-                    item.textContent = opt.textContent;
+                    const logoHtml = opt.dataset.logo || '';
+                    // Use innerHTML to render the logo
+                    if (logoHtml) {
+                        item.innerHTML = logoHtml + opt.textContent;
+                    } else {
+                        item.textContent = opt.textContent;
+                    }
                     item.dataset.value = opt.value;
                     if (opt.disabled) item.classList.add('disabled');
                     if (opt.value === sel.value) item.classList.add('selected');

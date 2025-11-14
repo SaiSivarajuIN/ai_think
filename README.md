@@ -138,6 +138,40 @@ Then open: [http://localhost:1111](http://localhost:1111)
 
 ---
 
+## Project Structure
+
+The project is organized as follows:
+
+```
+/
+├── app.py                  # Main Flask application
+├── requirements.txt        # Python dependencies
+├── .env                    # Environment variables (user-created)
+├── README.md               # This file
+├── ollamaSetup.sh          # Ollama setup script for macOS/Linux
+├── ollamaSetup.bat         # Ollama setup script for Windows
+│
+├── static/                 # Static assets (CSS, JS, images)
+│   ├── script.js           # Main chat interface logic
+│   ├── models.js           # Logic for the local models hub
+│   ├── cloud_models.js     # Logic for the cloud models page
+│   └── logos/              # Service provider logos
+│
+├── templates/              # Flask HTML templates
+│   ├── base.html           # Base layout for all pages
+│   ├── index.html          # Main chat page
+│   ├── history.html        # Chat history page
+│   ├── models.html         # Local models management
+│   ├── cloud_models.html   # Cloud models management
+│   └── ...                 # Other application pages
+│
+├── documentation/          # Project documentation
+│   └── backend.md          # Detailed backend documentation
+│
+└── logger/                 # Log files (created at runtime)
+    └── app.log             # Main application log
+```
+
 ## Usage
 
 * **Chat:** Open `/` to start chatting and switch models from the dropdown

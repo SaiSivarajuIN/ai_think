@@ -1,5 +1,6 @@
 import os
 import time
+import re
 import uuid
 import base64
 from PIL import Image
@@ -90,6 +91,12 @@ app.secret_key = secrets.token_hex(32)
 
 # Register the custom filter
 app.jinja_env.filters['format_model_name'] = format_model_name
+
+def regex_search(s, pattern):
+    """A Jinja filter to perform a regex search."""
+    if s is None: return None
+    return re.search(pattern, s)
+app.jinja_env.filters['regex_search'] = regex_search
 
 @app.before_request
 def log_request_info():

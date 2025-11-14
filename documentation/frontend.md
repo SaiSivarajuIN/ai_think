@@ -1,362 +1,493 @@
-# AI Think –  Frontend Developer Documentation
+# frontend.md
+
+### Comprehensive Frontend Development Notes
+
+### (JavaScript + CSS Internals)
 
 ---
 
-## Overview
+# 1. Overview
 
-AI Think is a modular web-based interface for managing and interacting with local and cloud-based AI models. The system is built with Flask on the backend, Jinja2 for templating, and modular JavaScript for dynamic interactivity. It uses a consistent HTML structure defined in `base.html` and shares global styling from `style.css`.
+The frontend uses vanilla HTML, CSS, and JavaScript with minimal external libraries (Showdown, Highlight.js, MathJax).
+Each page loads its own `*.js` file and extends a shared `base.html`.
+All JavaScript is written in modular, page-specific patterns wrapped in `DOMContentLoaded`.
 
----
-
-## HTML Templates
-
-### base.html
-
-Master layout defining:
-
-* Sidebar navigation and header
-* CSS and JS imports
-* Theming via `dark-theme` class
-* Template blocks for content and scripts:
-
-  * `title`, `head_extra`, `content`, `after_content`, `page_scripts`
+This documentation covers all JS logic and the entire CSS system.
 
 ---
 
-### index.html
-
-Primary chat interface.
-
-**Features**
-
-* Chat conversation area
-* Markdown + LaTeX rendering
-* File upload support
-* Image upload with client-side display and download
-* Model selector
-* Prompt selector
-* Search and incognito mode toggles
-
-**Scripts**
-
-* Uses `script.js` for rendering messages, streaming replies, and managing chat context.
+# 2. JavaScript Modules (Detailed)
 
 ---
 
-### dashboard.html
+## 2.1 script.js (Chat Page Logic)
 
-Displays usage statistics and performance metrics.
+This is the largest and most complex script. It implements the entire chat experience.
 
-**Features**
+### Major Responsibilities
 
-* API usage and model performance table
-* Filters for daily, weekly, monthly usage
-* Uses `usage.js` for dynamic charting and data refresh
+* Rendering user, system, and assistant messages.
+* Markdown transformation using Showdown.
+* LaTeX processing using MathJax.
+* Syntax highlighting using Highlight.js.
+* File uploads (text + image), preview, and download.
+* Conversation history state.
+* Streaming assistant responses using fetch reader.
+* Thread markers (right-side vertical bar).
+* Search mode toggle + state stored in localStorage.
+* Incognito mode toggle + state saved.
+* Model and prompt selector behavior.
+* Scroll management for long chats.
+* Inline message editing (for user messages).
+* Adding copy buttons to code blocks.
 
----
+### Key Sections
 
-### models.html
+#### A. Markdown + LaTeX Formatting
 
-Local model management.
+`formatMessage(text)`:
 
-**Features**
+* Protects LaTeX blocks by temporarily replacing them with tokens.
+* Converts Markdown via Showdown.
+* Restores LaTeX.
+* Supports:
 
-* Fetch local models
-* Pull new models from Ollama
-* Delete and toggle active models
-* Show progress during downloads
+  * Inline LaTeX: `$...$`, `\(...\)`
+  * Display LaTeX: `$$...$$`, `\[...\]`
+  * Matrix environments.
 
-**Scripts**
+#### B. Rendering Messages
 
-* `models.js` handles CRUD operations and UI updates.
+`addMessage(content, sender, id)`:
 
----
+* Creates user, bot, or system message containers.
+* Renders file uploads using `<details>`.
+* Renders Markdown and LaTeX.
+* Adds footer (copy, edit, regenerate).
+* Stores raw full content in dataset for history + regenerate functionality.
+* Auto-scrolls to bottom.
+* Syntax-highlights code blocks and inserts copy buttons.
 
-### cloud_models.html
+#### C. Thinking Placeholder
 
-Cloud model configuration.
+During streaming:
 
-**Features**
+* A temporary message is added with CSS animation.
+* Replaced with final assistant reply via `handleBotResponse()`.
 
-* Add/edit cloud model configurations (OpenAI, Groq, Anthropic, etc.)
-* Add multiple models per provider
-* Toggle activation
-* Copy and delete configurations
+#### D. Conversation History
 
-**Scripts**
+* Stored in memory (`conversationHistory`) while user is active.
+* Saved to backend unless Incognito mode is active.
+* User queries that used "Search Mode" have a hidden metadata block.
 
-* `cloud_models.js` manages API interactions and UI modals.
+#### E. Search Mode
 
----
+* Toggled via button.
+* Stored in `localStorage.isSearchModeActive`.
+* Changes the UI of the send button.
+* Ensures user input is cleared when turning on or off.
 
-### prompts.html
+#### F. Incognito Mode
 
-Prompt management hub.
+* Toggles with icon and title update.
+* Saved in localStorage as `isIncognito`.
+* On enable: clears thread ID, history won't be saved.
 
-**Features**
+#### G. Code Block Copy Buttons
 
-* Add, edit, delete prompts
-* Categorized by type (Text, Code, Creative, Research)
-* Uses a modal for editing
-* Dynamically updated without page reload
+`addCopyButtonsToCodeBlocks(container)`:
 
-**Scripts**
+* Inserts copy button into each `<pre><code>`.
+* Prevents duplicates.
+* Provides feedback (icons switch to "done").
 
-* `prompts.js` controls modal logic, CRUD operations, and card rendering.
+#### H. File Upload Rendering
 
----
+Supports:
 
-### history.html
+* Images (base64 preview)
+* Text and other files (content displayed in `<pre><code>`)
 
-Displays chat history and session management.
+System messages for file uploads expand/collapse via `<details>`.
 
-**Features**
+#### I. Thread Marker Bar
 
-* View and expand past conversations
-* Search and filter by date or keyword
-* Supports Markdown and LaTeX rendering
+Adds vertical markers on the right side of viewport, tied to each message’s scroll position:
 
----
-
-### settings.html
-
-User settings and integrations.
-
-**Features**
-
-* Adjust model parameters (`temperature`, `top_p`, etc.)
-* Configure API integrations
-* Uses tabbed interface for better UX
-
----
-
-### health.html
-
-System and backend monitoring dashboard.
-
-**Features**
-
-* Displays system resource usage (CPU, RAM, GPU)
-* Monitors backend service status (Ollama, Langfuse, ChromaDB)
-* Uses dynamic color indicators for connected/disconnected states
-
----
-
-### about.html
-
-Informational page outlining:
-
-* Project overview
-* Key features
-* License and credits
+* Created in JS.
+* Click scrolls to the message.
+* Shows snippet on hover.
 
 ---
 
-## JavaScript Files
+## 2.2 cloud_models.js (Cloud Model Configuration Manager)
 
-### script.js
+Controls cloud model CRUD operations, grouping, display, and activation states.
 
-Central logic for the chat interface.
+### Responsibilities
 
-**Core Functions**
+* Load models via `/api/cloud_models`.
+* Group models by `service + base_url`.
+* Render models table.
+* Render services sidebar list.
+* Modal for:
 
-* Message handling (add, render, and format messages)
-* Markdown and LaTeX rendering via Showdown and MathJax
-* Code highlighting and copy functionality via Highlight.js
-* Manages incognito mode, search mode, and thread resets
-* Manages fetch requests and handles streaming model responses
-* Handles image and text file uploads, displaying them in a collapsible summary
+  * Creating models
+  * Editing existing models
+* Dynamic input fields for multiple model names.
+* Copy buttons for API key and base URL.
+* Toggle activation:
 
-**Utilities**
+  * Single model
+  * All models
+* Persist selected service in localStorage (`cloud_models.selected_service`).
 
-* `escapeHTML()`: Safely escapes user input
-* `formatMessage()`: Handles Markdown + MathJax rendering
-* `addMessage()`: Adds user and bot messages to the chat
-* `sendMessage()`: Sends prompts to the backend
-* `handleBotResponse()`: Updates UI with model replies
-* `resetThread()`: Resets current conversation context
+### Modal Logic
 
----
+* On create: reset all fields, show single empty model name input.
+* On edit: populate values, create input fields for all names.
+* Custom service field appears when service === "Other".
 
-### models.js
+### Rendering
 
-Local model management logic.
+`renderModels()` creates table rows:
 
-**Features**
+* Service name
+* List of model names
+* Base URL + copy
+* Partial API key + copy
+* Activation toggle
+* Edit/delete buttons
 
-* Fetch and list available models
-* Pull new models with streaming progress updates
-* Delete models
-* Toggle active state for local models
+### API Communication
 
-**Key Functions**
-
-* `fetchModels()`: Retrieves and renders models
-* `pullModel()`: Streams model download progress
-* `deleteModel()`: Removes local models
-* `toggleActive()`: Enables/disables a specific model
-* `toggleAllActive()`: Applies active state to all models
-
----
-
-### cloud_models.js
-
-Cloud model configuration manager.
-
-**Features**
-
-* Modal-based form for adding or editing providers
-* Dynamic input for model names and API keys
-* Activation toggles per model
-* Delete, copy, and fetch model configurations
-
-**Key Functions**
-
-* `openModalForCreate()`, `openModalForEdit()`: Manage modal state
-* `fetchModels()`: Fetches cloud models from API
-* `saveModel()`: Submits configuration to backend
-* `deleteModel()`: Deletes configuration
-* `toggleActive()`, `toggleAllActive()`: Enable or disable services
-* `copyKey()`: Securely copies stored API keys
+* Create → `/api/cloud_models/create`
+* Update → `/api/cloud_models/update/:id`
+* Delete → `/api/cloud_models/delete/:id`
+* Toggle active → `/api/cloud_models/toggle_active/:id`
+* Toggle all → `/api/cloud_models/toggle_all_active`
 
 ---
 
-### prompts.js
+## 2.3 models.js (Local/Ollama Models Manager)
 
-Prompt management interface logic.
+Controls installed local models via backend API.
 
-**Features**
+### Responsibilities
 
-* Load, create, and edit prompt templates
-* Uses modal for CRUD operations
-* Renders prompt cards dynamically
+* Fetch all local models via `/api/models`.
+* Render model list with:
 
-**Key Functions**
+  * Name
+  * Size (GB)
+  * Modified date (timeAgo)
+  * Activation switch
+  * Delete button
+* Pull models using `/api/models/pull` with streaming JSON.
+* Delete model via `/api/models/delete`.
+* Toggle model active/inactive.
+* Toggle all models active/inactive.
 
-* `fetchPrompts()`: Loads prompts from API
-* `savePrompt()`: Saves new or updated prompt
-* `deletePrompt()`: Removes prompt
-* `renderPrompts()`: Renders UI grid for prompts
+### Pull Progress Streaming
 
----
+Ollama returns streamed JSON lines:
 
-### usage.js
+```
+{ status, completed, total }
+```
 
-Dashboard usage analytics.
+Frontend:
 
-**Features**
-
-* Fetches and displays API usage over time
-* Allows switching between daily, weekly, and monthly ranges
-* Displays models, token usage, and timestamps
-
-**Key Functions**
-
-* `fetchUsageData(range)`: Retrieves usage records
-* `renderUsageData()`: Renders data in table format
-* `timeAgo()`: Converts timestamps to human-readable format
+* Updates progress bar width.
+* Updates status messages.
+* Automatically hides progress area shortly after completion.
 
 ---
 
-## CSS (style.css)
+## 2.4 prompts.js (Prompt Hub)
 
-### Theming and Variables
+Manages CRUD operations for user-created prompts.
 
-Defines color and layout variables for light and dark themes:
+### Responsibilities
+
+* Load all prompts.
+* Grid layout with prompt cards.
+* Modal for:
+
+  * Creating prompts
+  * Editing prompts
+* Delete prompts.
+* Icons per prompt type.
+
+### Rendering
+
+`renderPrompts(prompts)`:
+
+* Creates `.prompt-card`
+* Inserts title, icon, content preview.
+* Adds Edit/Delete buttons.
+
+### API
+
+* GET `/api/prompts`
+* POST `/api/prompts/create`
+* POST `/api/prompts/update/:id`
+* DELETE `/api/prompts/delete/:id`
+
+---
+
+## 2.5 usage.js (Usage Dashboard Logic)
+
+Displays API usage per selected timeframe.
+
+### Responsibilities
+
+* Fetch usage data via `/api/usage?range=X`.
+* Ranges: 1d, 7d, 30d, 90d, all.
+* Render table rows with:
+
+  * model_name
+  * category badge
+  * truncated session ID
+  * input tokens
+  * output tokens
+  * time ago
+
+### Utility
+
+`timeAgo(date)` used for timestamps.
+
+---
+
+# 3. CSS Architecture (style.css in detail)
+
+The CSS system is theme-based, responsive, and modern.
+All design tokens are defined in `:root`, with dark mode overrides.
+
+---
+
+## 3.1 Theme Variables
+
+### Light Theme
 
 ```css
 :root {
-    --primary: #323138;
-    --text: #111827;
-    --background: #ffffff;
-    --card: #f9fafb;
-    --border: #e5e7eb;
-    --connected: #22c55e;
-    --disconnected: #ef4444;
-    --radius-md: 0.75rem;
-}
-body.dark-theme {
-    --background: #1a1b1e;
-    --text: #f3f4f6;
+  --primary: #000;
+  --text: #111827;
+  --background: #fff;
+  --card: #f9fafb;
+  --border: #e5e7eb;
+  --radius-sm: .375rem;
+  --radius-md: .75rem;
+  --radius-lg: 1rem;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 12px 24px rgba(0,0,0,0.12);
 }
 ```
 
-### Layout
+### Dark Theme
 
-* `.page-container`: main structure for sidebar + content
-* `.sidebar`: collapsible left navigation
-* `.main-content-wrapper`: holds header and page content
-* `.header`: top navigation and title area
-* `.page-content`: scrollable main body
+Activated by:
 
-### Chat Styling
-
-* `.message`, `.user-message`, `.bot-message`: message bubbles
-* `.thinking`: animation for “model thinking”
-* `.message-footer`: holds copy/regenerate buttons and stats
-* `.input-area`: user input container with send button
-
-### Forms and Buttons
-
-* `.settings-form`: standardized form layout
-* `.toggle-group`: for switch toggles
-* `.save-btn`: unified action button style
-* `.switch`: custom toggle switch implementation
-
-### Cards and Dashboard
-
-* `.card`: content boxes for stats and info
-* `.dashboard`: responsive grid for metrics
-* `.status-indicator`: connected/disconnected indicators
-* `.status-badge`: visual health states (stable, warning, critical)
-
-### Responsive Design
-
-* Uses `grid-template-columns` and `auto-fit` to adapt layout
-* Sidebar collapses on small screens
-* Typography scales with viewport width
-
----
-
-## Common Design Patterns
-
-**Templating**
-All pages inherit from `base.html` using Jinja2:
-
-```jinja2
-{% extends "base.html" %}
-{% block content %}
-    <div>Page content here</div>
-{% endblock %}
+```html
+<body class="dark-theme">
 ```
 
-**Dynamic Data Binding**
-All dynamic data (models, prompts, usage) is fetched from Flask REST APIs and rendered via JavaScript.
+---
 
-**Styling Consistency**
-Theme colors, spacing, and shadows defined via CSS variables ensure visual consistency across all pages.
+## 3.2 Layout
 
-**Modular JS**
-Each HTML page uses its own JS module to encapsulate functionality and reduce global scope pollution.
+### Page Container
 
-**Image Handling**
-Images are uploaded to the backend, which returns a Base64 representation. The frontend then displays the image directly in a collapsible system message, complete with a download button. For multimodal models, the Base64 data is sent along with the next user prompt.
+```css
+.page-container {
+  display: flex;
+  height: 100vh;
+}
+```
+
+### Sidebar
+
+* Fixed width
+* Uses `<details>` accordion for sections
+* Collapsible using class applied from JS (via localStorage)
+
+### Main Content Wrapper
+
+Contains:
+
+* Header
+* Page content (scrollable)
+* Chat input (fixed bottom)
 
 ---
 
-## Adding a New Page
+## 3.3 Messaging System Styles
 
-1. Create a new HTML file extending `base.html`
-2. Add page-specific content in `{% block content %}`
-3. Add a JS file for dynamic logic (if needed)
-4. Add a route in Flask:
+### Message Bubbles
 
-   ```python
-   @app.route("/newpage")
-   def newpage():
-       return render_template("newpage.html", page_title="New Page")
-   ```
+```css
+.message {
+  padding: .75rem 1.25rem;
+  border-radius: var(--radius-lg);
+  max-width: 80%;
+}
+.user-message { background: black; color: white; }
+.bot-message  { background: var(--message-assistant); }
+```
+
+### System Messages
+
+Using `<details>` collapse styling.
+
+### Code Blocks
+
+`pre code` styled + copy button added by JS.
+
+### Copy Code Button
+
+Absolute positioned inside `<pre>`.
 
 ---
 
-Would you like this documentation formatted as a **Markdown file (README.md)** for repository inclusion? I can produce a properly sectioned version with headings, code fences, and links.
+## 3.4 Input Area
+
+### Wrapper
+
+```css
+.input-area {
+  display: flex;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+```
+
+### Textarea (contenteditable)
+
+* Multi-line
+* Auto scroll
+* Placeholder using `:empty:before`
+
+### Send button
+
+Circular:
+
+```css
+.send-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+```
+
+Stop button is red variant.
+
+---
+
+## 3.5 Thread Marker Bar
+
+Right side vertical bar with clickable markers.
+
+```css
+#thread-marker-bar {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+}
+```
+
+JS populates the markers.
+
+---
+
+## 3.6 Cards (Dashboard / Settings)
+
+Reusable layout:
+
+```css
+.card {
+  background: linear-gradient(135deg, var(--card), var(--background));
+  border-radius: 1rem;
+  box-shadow: var(--shadow-md);
+}
+```
+
+Used across Dashboard, Settings, About, Health, Prompts.
+
+---
+
+## 3.7 Tables
+
+Scrollable container with sticky headers.
+
+Used in:
+
+* Models
+* Cloud Models
+* Usage
+* Dashboard statistics
+
+---
+
+## 3.8 Forms & Modals
+
+### Modals
+
+`position: fixed; background rgba(0,0,0,0.5);`
+
+### Form Groups
+
+```css
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+```
+
+### Toggles
+
+Custom switch:
+
+```css
+.switch { position: relative; width: 50px; height: 28px; }
+.slider.round { border-radius: 34px; }
+```
+
+---
+
+# 4. External Libraries Used
+
+### Showdown.js
+
+Markdown → HTML
+
+### MathJax
+
+LaTeX rendering
+
+### Highlight.js
+
+Code syntax highlighting
+
+### Google Fonts: Inter
+
+Base typography
+
+### Material Icons
+
+UI icons for buttons
+
+No frontend frameworks (React/Vue/Angular) are used.
+
+---
+
+# 5. Summary
+
+This frontend is built using clean and maintainable vanilla JavaScript with a highly structured CSS theme system.
+Pages are isolated by script files, and all dynamic UI elements follow clear rendering patterns.
+The chat page contains the most advanced logic with Markdown, LaTeX, streaming, and file embedding.
