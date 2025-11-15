@@ -31,6 +31,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <style>
+        .model-selector-wrapper {
+            position: relative;
+        }
+
+        .model-selector {
+            min-width: 280px; /* Set a minimum width */
+            max-width: 400px; /* Allow it to grow, but not excessively */
+            white-space: nowrap;
+            cursor: pointer;
+            padding: 0.5rem 2.5rem 0.5rem 0.75rem; /* Add padding-right for arrow */
+            position: relative;
+        }
+
+        .model-selector::after {
+            content: 'expand_more';
+            font-family: 'Material Icons';
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none; /* Let clicks pass through to the div */
+        }
+
         /* Enhanced Modern Chat UI Styles */
         .system-message-container {
             background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
@@ -332,6 +355,16 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
+
+        /* New styles for the custom select display */
+        .custom-select-display {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         
         .custom-select-dropdown .cs-group-label:first-child {
             border-top: none;
@@ -556,9 +589,15 @@
                 const optionCount = sel.querySelectorAll('option').length;
                 if (optionCount <= 1) return;
 
+                // Create a custom display element to replace the select visually
+                const display = document.createElement('div');
+                display.className = sel.className; // Copy classes
+                sel.parentNode.insertBefore(display, sel);
+                sel.style.display = 'none'; // Hide the original select
+
                 let dropdown = null;
 
-                sel.addEventListener('mousedown', function (e) {
+                display.addEventListener('mousedown', function (e) {
                     // Prevent native OS dropdown from opening; we'll show our custom one
                     e.preventDefault();
                 });
@@ -589,6 +628,7 @@
                         if (item.classList.contains('disabled')) return;
                         sel.value = item.dataset.value;
                         sel.dispatchEvent(new Event('change', { bubbles: true }));
+                        updateDisplay();
                         closeDropdown();
                     });
                 }
@@ -611,8 +651,8 @@
 
                 function positionDropdown() {
                     if (!dropdown) return;
-                    const rect = sel.getBoundingClientRect();
-                    const left = rect.left + window.scrollX;
+                    const rect = display.getBoundingClientRect(); // Use the visible display element for positioning
+                    const left = rect.left + window.scrollX; // Use the visible display element
                     const top = rect.bottom + window.scrollY;
                     dropdown.style.minWidth = rect.width + 'px';
                     dropdown.style.left = left + 'px';
@@ -623,6 +663,15 @@
                     const viewportHeight = window.innerHeight;
                     if (ddRect.bottom > viewportHeight && rect.top > ddRect.height) {
                         dropdown.style.top = (rect.top + window.scrollY - ddRect.height) + 'px';
+                    }
+                }
+
+                function updateDisplay() {
+                    const selectedOption = sel.options[sel.selectedIndex];
+                    if (selectedOption) {
+                        const logoHtml = selectedOption.dataset.logo || '';
+                        const text = selectedOption.textContent.trim();
+                        display.innerHTML = `<div class="custom-select-display">${logoHtml}${text}</div>`;
                     }
                 }
 
@@ -646,7 +695,7 @@
                     setTimeout(() => { if (dropdown) dropdown.style.display = 'none'; }, 120);
                 }
 
-                sel.addEventListener('click', function (e) {
+                display.addEventListener('click', function (e) {
                     e.stopPropagation();
                     if (dropdown && dropdown.style.display === 'block') {
                         closeDropdown();
@@ -656,8 +705,8 @@
                 });
 
                 // Close on outside click for this select
-                document.addEventListener('click', function (e) {
-                    if (!e.target.closest('.custom-select-dropdown') && e.target !== sel) {
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.custom-select-dropdown') && e.target !== display) {
                         closeDropdown();
                     }
                 });
@@ -673,11 +722,14 @@
 
                 // Keep selection in sync if changed programmatically
                 sel.addEventListener('change', function () {
-                    if (!dropdown) return;
-                    Array.from(dropdown.querySelectorAll('.cs-item')).forEach(it => {
-                        it.classList.toggle('selected', it.dataset.value === sel.value);
-                    });
+                    updateDisplay();
                 });
+
+                // Initial display update
+                // Use a small timeout to ensure the browser has restored the select's state on page load
+                setTimeout(() => {
+                    updateDisplay();
+                }, 10);
             }
 
             // Apply enhancer to both selectors
