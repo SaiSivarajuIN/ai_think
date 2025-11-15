@@ -1,47 +1,47 @@
-# README
+[![CI/CD Pipeline](https://github.com/SaiSivarajuIN/ai_think/actions/workflows/main.yml/badge.svg)](https://github.com/SaiSivarajuIN/ai_think/actions/workflows/main.yml)
 
-## **AI Think — Local & Cloud LLM Chat**
+# **AI Think — Local & Cloud LLM Chat**
 
-Lightweight, self-hosted web chat for local **Ollama** models with optional cloud integrations (**OpenAI**, **Perplexity**, **ChromaDB**, **Langfuse**, **SearXNG**).
+Lightweight, self-hosted web chat for local **Ollama** models & cloud models like (**OpenAI**, **Perplexity**, and **more**) with optional cloud integrations (**ChromaDB**, **Langfuse**, **SearXNG**).
 
-***
+---
 
-### 📚 Table of Contents
+## Table of Contents
 
-* [Quick Start](./#quick-start)
-  * [Prerequisites](./#prerequisites)
-  * [Install Ollama](./#install-ollama)
-  * [Environment & Dependencies](./#environment--dependencies)
-  * [Configuration](./#configuration)
-  * [Run](./#run)
-* [Features](./#features)
-* [Usage](./#-usage)
-* [Optional SearXNG WebSearch](./#-optional---searxng-websearch)
-* [Keyboard Shortcuts](./#-keyboard-shortcuts)
-* [Configuration Notes](./#-configuration-notes)
-* [Documentation & Feedback](./#-documentation--feedback)
+* [Quick Start](#quick-start)
 
-***
+  * [Prerequisites](#prerequisites)
+  * [Install Ollama](#install-ollama)
+  * [Environment & Dependencies](#environment--dependencies)
+  * [Configuration](#configuration)
+  * [Run](#run)
+* [Features](#features)
+* [Usage](#-usage)
+* [Optional SearXNG WebSearch](#-optional---searxng-websearch) 
+* [Keyboard Shortcuts](#-keyboard-shortcuts)
+* [Configuration Notes](#-configuration-notes)
+* [Documentation & Feedback](#-documentation--feedback)
 
-### Quick Start
+---
 
-#### Prerequisites
+## Quick Start
+
+### Prerequisites
 
 * Python **3.10+**
-* [Ollama installed and running locally](./#install-ollama)
+* [Ollama installed and running locally](#install-ollama)
 
 **Clone the Repository:**
+  ```bash
+    git clone https://github.com/SaiSivarajuIN/ai_think.git
+    cd ai_think
+  ```
 
-```bash
-  git clone https://github.com/SaiSivarajuIN/ai_think.git
-  cd ai_think
-```
+---
 
-***
+### Install Ollama
 
-#### Install Ollama
-
-**Automated (Recommended)**
+#### Automated (Recommended)
 
 Use the bundled setup script to install and pull a model.
 
@@ -57,13 +57,13 @@ chmod +x ./ollamaSetup.sh && ./ollamaSetup.sh
 ./ollamaSetup.bat
 ```
 
-**Manual**
+#### Manual
 
 Download from [https://ollama.com/download](https://ollama.com/download)
 
-***
+---
 
-#### Environment & Dependencies
+### Environment & Dependencies
 
 **Create and activate a virtual environment:**
 
@@ -87,9 +87,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-***
+---
 
-#### Configuration
+### Configuration
 
 Create a `.env` file in the project root with at least:
 
@@ -107,9 +107,9 @@ TOP_K=40
 
 > Additional credentials (Langfuse, ChromaDB, etc.) can be configured via the web UI under **Settings**.
 
-***
+---
 
-#### Run
+### Run
 
 Start the Flask server:
 
@@ -119,9 +119,9 @@ python main.py
 
 Then open: [http://localhost:1111](http://localhost:1111)
 
-***
+---
 
-### Features
+## Features
 
 * Clean chat UI with **model selector** and **history sidebar**
 * **Local Models Hub**: pull / delete models from Ollama
@@ -135,9 +135,9 @@ Then open: [http://localhost:1111](http://localhost:1111)
 * **Interrupt responses** from the UI
 * **Markdown rendering** with syntax highlighting
 
-***
+---
 
-### Project Structure
+## Project Structure
 
 The project is organized as follows:
 
@@ -171,7 +171,7 @@ The project is organized as follows:
     └── app.log             # Main application log
 ```
 
-### Usage
+## Usage
 
 * **Chat:** Open `/` to start chatting and switch models from the dropdown
 * **New Chat:** Click “New Chat” in the header
@@ -188,13 +188,13 @@ The project is organized as follows:
 ollama pull hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M
 ```
 
-***
+---
 
-### Optional - SearXNG WebSearch
+## Optional - SearXNG WebSearch
 
 Run a local **SearXNG** instance and enable it in Settings to allow `/search` commands in chat.
 
-#### Setup (Docker)
+### Setup (Docker)
 
 From the [SearXNG Docker repository](https://github.com/searxng/searxng-docker#how-to-use-it):
 
@@ -214,7 +214,8 @@ search:
 docker compose up -d
 ```
 
-Your instance will be available at: 👉 `http://localhost:8080`
+Your instance will be available at:
+👉 `http://localhost:8080`
 
 Ensure port **8080** is open.
 
@@ -223,9 +224,9 @@ Ensure port **8080** is open.
 * Click the 🌐 icon, or
 * Type `/search latest AI news`
 
-***
+---
 
-### ⌨️ Keyboard Shortcuts
+## ⌨️ Keyboard Shortcuts
 
 | Shortcut  | Action                      |
 | --------- | --------------------------- |
@@ -233,17 +234,22 @@ Ensure port **8080** is open.
 | `Alt + H` | Toggle chat history sidebar |
 | `Alt + N` | Incognito mode              |
 
-***
+---
 
-### Configuration Notes
+
+## Configuration Notes
 
 * **Settings** are saved to SQLite (or ChromaDB if configured)
 * **Langfuse** credentials apply immediately after update
 * **ChromaDB** automatically switches to Cloud if `CHROMA_API_KEY` is set
 
-***
+---
 
-### Documentation & Feedback
+## Documentation & Feedback
 
-* Developer [Documentation](documentation/backend.md)
-* Feedback [Google Form](https://forms.gle/5LeiKT1tRoNWmVst5) '
+* Developer  [Documentation](documentation/backend.md)
+* Feedback [Google Form](https://forms.gle/5LeiKT1tRoNWmVst5)
+
+---
+
+**Powered by Ollama AI, created with Gemini AI.**
