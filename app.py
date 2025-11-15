@@ -1922,13 +1922,17 @@ def dashboard():
         # A more advanced implementation would be needed.
         # Let's count which models are configured.
         local_models = db.execute("SELECT name from local_models WHERE active = 1").fetchall()
-        cloud_models = db.execute("SELECT service, model_name from cloud_models WHERE active = 1").fetchall()
+        cloud_models_cursor = db.execute("SELECT service, model_name from cloud_models WHERE active = 1").fetchall()
         
-        model_usage_list = [m['name'] for m in local_models]
-        model_usage_list.extend([f"{m['service']} / {m['model_name']}" for m in cloud_models])
-        
-        # This is a simplified view of "usage" - just listing active models.
-        stats['model_usage'] = [{'name': name, 'count': 'N/A'} for name in model_usage_list]
+        model_usage_list = []
+        for m in local_models:
+            model_usage_list.append({'name': m['name'], 'service': 'Ollama'})
+
+        for m in cloud_models_cursor:
+            model_usage_list.append({'name': m['model_name'], 'service': m['service']})
+
+        # This is a simplified view of "usage" - just listing active models with their service.
+        stats['model_usage'] = model_usage_list
 
         # Fetch API Usage Statistics
         if end_time:

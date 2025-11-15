@@ -66,11 +66,14 @@
             border-radius: 0.5rem;
         }
 
-        .card-description {
+        .card-description, .card-model-pull {
             background: var(--background);
             border-left: 4px solid #000000;
             padding: 0.875rem 1rem;
             border-radius: 0.5rem;
+        }
+
+        .card-description {
             margin-bottom: 1.25rem;
             line-height: 1.6;
         }
@@ -89,14 +92,12 @@
 
         /* Enhanced Input Group */
         .enhanced-input-group {
-            display: flex;
-            gap: 1rem;
-            align-items: flex-end;
-        }
-
-        .enhanced-input-group .form-group {
             flex: 1;
             margin-bottom: 0;
+        }
+
+        .card-model-pull .form-group {
+            flex-grow: 1;
         }
 
         .enhanced-input-group label {
@@ -250,19 +251,6 @@
             50% { opacity: 0.5; }
         }
 
-        /* Toggle Controls */
-        .toggle-controls {
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.875rem 1rem;
-            background: var(--background);
-            border-radius: 0.75rem;
-            border: 1px solid var(--border);
-            margin-bottom: 1.25rem;
-        }
-
         .toggle-controls span {
             font-weight: 600;
             font-size: 0.95rem;
@@ -377,27 +365,27 @@
     <div class="models-container">
         <!-- Pull New Model Card -->
         <div class="model-card">
-            <div class="card-header">
-                <h2>
-                    <span class="material-icons">cloud_download</span>
-                    Pull New Model
-                </h2>
-            </div>
-            <div class="card-description">
-                <p>
-                    Enter a model name from the <a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., <code>mistral:latest</code>)<br>
-                    Get Models from <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face</a> (e.g., <code>hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M</code>)
-                </p>
-            </div>
-            <div class="enhanced-input-group">
-                <div class="form-group">
-                    <label for="model-name-input">Model Name</label>
-                    <input type="text" id="model-name-input" placeholder="e.g., gemma:2b, mistral:latest">
+            <div style="display: flex; gap: 1.5rem; align-items: flex-start;">
+                <div style="flex: 1;">
+                    <div class="card-model-pull">
+                        <div style="display: flex; align-items: flex-end; gap: 0.75rem;">
+                            <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
+                                <label for="model-name-input">Pull New Model</label>
+                                <input type="text" id="model-name-input" placeholder="e.g., gemma:2b, mistral:latest">
+                            </div>
+                            <button id="pull-model-btn" class="pull-model-btn" title="Pull Model">
+                                <span class="material-icons">cloud_download</span>
+                                <span>Pull Model</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <button id="pull-model-btn" class="pull-model-btn" title="Pull Model">
-                    <span class="material-icons">cloud_download</span>
-                    <span>Pull Model</span>
-                </button>
+                <div class="card-description" style="flex: 1; margin-top: 0; margin-bottom: 0;">
+                    <p>
+                        Get Models from <a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., <code>mistral:latest</code>)<br>
+                        or a <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face Library</a> (e.g., <code>hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M</code>)
+                    </p>
+                </div>
             </div>
             
             <div id="pull-status-container" class="pull-status-container" style="display: none;">
@@ -421,19 +409,20 @@
                 </button>
             </div>
             
-            <div class="status-container" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; margin-bottom: 1rem;">
-                <span style="font-size: 0.85rem;">Ollama Status:</span>
-                <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
-                    {{ ollama_status }}
-                </span>
-            </div>
-            
-            <div class="toggle-controls">
-                <span>De/Activate All Models</span>
-                <label class="switch" title="Toggle All Models Active/Inactive">
-                    <input type="checkbox" id="toggle-all-active">
-                    <span class="slider round"></span>
-                </label>
+            <div class="status-container toggle-controls" style="justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span style="font-size: 0.85rem;">Ollama Status:</span>
+                    <span class="status-indicator {{ 'connected' if ollama_status == 'Connected' else 'disconnected' }}" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+                        {{ ollama_status }}
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span>De/Activate All Models</span>
+                    <label class="switch" title="Toggle All Models Active/Inactive">
+                        <input type="checkbox" id="toggle-all-active">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
             </div>
             
             <table id="local-models-table" class="models-table">

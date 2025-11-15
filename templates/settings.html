@@ -84,6 +84,15 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
             gap: 1.5rem;
+            align-items: start; /* Align cards to the top */
+            margin-bottom: 2rem;
+        }
+
+        /* Custom grid for the 'general' tab to make the notes card wider */
+        #general .settings-section {
+            grid-template-columns: minmax(380px, 1fr) 2fr;
+        }
+        .settings-section {
             margin-bottom: 2rem;
         }
 

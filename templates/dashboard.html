@@ -12,6 +12,12 @@
         gap: 1.5rem;
         margin-bottom: 2rem;
     }
+    /* When the sidebar is expanded on larger screens, show 4 columns */
+    @media (min-width: 1200px) {
+        body:not(.sidebar-collapsed) .stats-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
     .stat-item {
         background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
         border: 1px solid var(--border);
@@ -160,7 +166,7 @@
 
     /* Table container with fixed height and scrollbar */
     .table-container {
-        max-height: 280px; /* Height of ~5 rows + header */
+        max-height: 350px; /* Height of ~7-8 rows + header */
         overflow-y: auto;
         position: relative;
         border-radius: 0.75rem;
@@ -208,7 +214,7 @@
 
     /* Feature list container with scrollbar */
     .feature-list-container {
-        max-height: 280px; /* Height of ~5 items */
+        max-height: 350px; /* Height of ~8-9 items */
         overflow-y: auto;
         position: relative;
         border: 1px solid var(--border);
@@ -708,7 +714,7 @@
     </div>
     <div class="dashboard" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
         <div>
-            <div class="card">
+            <div class="card" style="height: 100%;">
                 <h2>Active Models</h2>
                 <p class="text-muted" style="margin-bottom: 1rem;">
                     This section lists your currently active models.
@@ -718,7 +724,14 @@
                         <ul class="feature-list">
                             {% for model in stats.model_usage %}
                                 <li>
-                                    <strong>{{ model.name | format_model_name }}</strong>
+                                    {% if model.service == 'Ollama' %}
+                                        <img src="{{ url_for('static', filename='logos/ollama.png') }}" alt="Ollama" style="height:16px; vertical-align:middle; margin-right:8px;">
+                                        <strong>{{ model.name | format_model_name }}</strong>
+                                    {% else %}
+                                        {% set logo_filename = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
+                                        <img src="{{ url_for('static', filename='logos/' + logo_filename) }}" alt="{{ model.service }}" style="height:16px; vertical-align:middle; margin-right:8px;">
+                                        <strong>({{ model.service }}) {{ model.name }}</strong>
+                                    {% endif %}
                                 </li>
                             {% endfor %}
                         </ul>
@@ -729,7 +742,7 @@
             </div>
         </div>
         <div>
-            <div class="card">
+            <div class="card" style="height: 100%;">
                 <h2>API Calls per Model</h2>
                 <p class="text-muted" style="margin-bottom: 1rem;">
                     Number of API calls for each model in the selected time range.
