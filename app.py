@@ -2012,11 +2012,23 @@ def cloud_page():
 @app.route('/cloud_models')
 def cloud_models_page():
     """Render the Cloud Models management page."""
+    services = []
+    try:
+        # Load service and logo information from the CSV file
+        csv_path = os.path.join(os.path.dirname(__file__), 'data', 'cloud_logos.csv')
+        with open(csv_path, newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                services.append(row)
+    except Exception as e:
+        current_app.logger.error(f"Could not load cloud services from CSV: {e}")
+
     return render_template(
         'cloud_models.html',
         page_title="Cloud Models | AI Think Chat",
         page_id="cloud_models",
-        header_title="Cloud Model Management"
+        header_title="Cloud Model Management",
+        cloud_services=services
     )
 
 @app.route('/api/cloud_models', methods=['GET'])
@@ -2234,7 +2246,7 @@ def api_toggle_all_local_models_active():
 def api_get_service_url_map():
     """Return mapping of service name to base URL loaded from CSV."""
     try:
-        csv_path = os.path.join(os.path.dirname(__file__), 'data', 'cloud_modals.csv')
+        csv_path = os.path.join(os.path.dirname(__file__), 'data', 'cloud_api.csv')
         service_map = {}
         with open(csv_path, newline='', encoding='utf-8') as f:
             reader = csv.reader(f)
@@ -2248,7 +2260,7 @@ def api_get_service_url_map():
                     service_map[name] = url
         return jsonify(service_map)
     except FileNotFoundError:
-        return jsonify({"error": "cloud_modals.csv not found"}), 404
+        return jsonify({"error": "cloud_api.csv not found"}), 404
     except Exception as e:
         current_app.logger.error(f"Error reading service_url_map: {e}")
         return jsonify({"error": "Failed to load service URL map"}), 500

@@ -1,0 +1,15 @@
+service_name,logo_filename
+Anthropic,anthropic.png
+Cerebras,cerebras.png
+Cohere,cohere.png
+DeepSeek,deepseek.png
+Gemini,gemini.png
+Groq,groq.png
+Huggingface,huggingface.png
+LongCat,longcat.png
+Mistral AI,mistral.png
+Nvidia AI,nvidia.png
+OpenAI,openai.png
+Open router,openrouter.png
+Perplexity,perplexity.png
+Other,ollama.png

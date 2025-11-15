@@ -1,3 +1,4 @@
+service_name, api_endpoint
 Anthropic, https://api.anthropic.com
 Cerebras, https://api.cerebras.ai/v1
 Cohere, https://api.cohere.ai/compatibility/v1
