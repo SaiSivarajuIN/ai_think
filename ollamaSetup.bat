@@ -68,7 +68,7 @@ goto :eof
 
 :pull_models
 echo [3/5] Pulling recommended models (this may take some time)...
-ollama pull gemma:latest
+ollama pull gemma3:1b
 :: ollama pull hf.co/janhq/Jan-v1-4B-GGUF
 :: ollama pull hf.co/unsloth/granite-4.0-micro-GGUF
 echo      '- Models pulled. Available models:
