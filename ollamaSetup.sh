@@ -34,7 +34,7 @@ pull_models() {
     echo "📦 Pulling recommended models (this may take some time)..."
     
     # Pull standard models
-    ollama pull gemma3:1b
+    ollama pull gpt-oss:120b-cloud
     # ollama pull llama3:latest
     
     # Pull GGUF model from Hugging Face
@@ -77,7 +77,7 @@ until command -v ollama &> /dev/null; do
 done
 echo "✅ Ollama is available."
 
-start_ollama_server
+# start_ollama_server
 pull_models
 
 # Display available models

@@ -111,6 +111,9 @@ def regex_search(s, pattern):
     return re.search(pattern, s)
 app.jinja_env.filters['regex_search'] = regex_search
 
+app.jinja_env.globals.update(os_path_exists=os.path.exists)
+app.jinja_env.globals.update(os_path_join=os.path.join)
+
 @app.before_request
 def log_request_info():
     """Log information about each incoming request."""
@@ -1364,6 +1367,17 @@ def history():
     except sqlite3.OperationalError: # In case the table doesn't exist yet
         pass
 
+    # Load service logo mapping from CSV for use in the template
+    service_logo_map = {}
+    try:
+        csv_path = os.path.join(os.path.dirname(__file__), 'data', 'cloud_logos.csv')
+        with open(csv_path, newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                service_logo_map[row['service_name']] = row['logo_filename']
+    except Exception as e:
+        current_app.logger.error(f"Could not load cloud logos from CSV for history page: {e}")
+
     for session_id, messages in sorted_threads:
         last_message_dt = messages[-1]['timestamp']
         thread_date = last_message_dt.date()
@@ -1404,7 +1418,8 @@ def history():
         grouped_threads=grouped_threads.items(),
         session_start=session_start,
         newest_session_id=newest_session_id,
-        total_sessions=total_sessions
+        total_sessions=total_sessions,
+        service_logo_map=service_logo_map
     )
 
 
@@ -1905,6 +1920,18 @@ def dashboard():
         'total_tokens': 0,
         'model_call_counts': []
     }
+    
+    # Load service logo mapping from CSV
+    service_logo_map = {}
+    try:
+        csv_path = os.path.join(os.path.dirname(__file__), 'data', 'cloud_logos.csv')
+        with open(csv_path, newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                service_logo_map[row['service_name']] = row['logo_filename']
+    except Exception as e:
+        current_app.logger.error(f"Could not load cloud logos from CSV for dashboard: {e}")
+
 
     try:
         db = get_db()
@@ -2031,7 +2058,8 @@ def dashboard():
         header_title=f"User Dashboard ({time_range})",
         stats=stats,
         time_range_labels=time_range_labels,
-        current_range=time_range)
+        current_range=time_range,
+        service_logo_map=service_logo_map)
 
 # --- Cloud Model Endpoints ---
 
@@ -2044,23 +2072,44 @@ def cloud_page():
 @app.route('/cloud_models')
 def cloud_models_page():
     """Render the Cloud Models management page."""
-    services = []
+    services_from_csv = {}
+    other_service_data = None
+    other_logo_filename = 'ollama.png' # Default fallback
     try:
         # Load service and logo information from the CSV file
         csv_path = os.path.join(os.path.dirname(__file__), 'data', 'cloud_logos.csv')
         with open(csv_path, newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                services.append(row)
+                services_from_csv[row['service_name']] = row
+                if row['service_name'] == 'Other':
+                    other_service_data = row
+                    other_logo_filename = row.get('logo_filename', 'ollama.png')
     except Exception as e:
         current_app.logger.error(f"Could not load cloud services from CSV: {e}")
+
+    # Get unique service names from the database
+    try:
+        db = get_db()
+        db_services_cursor = db.execute('SELECT DISTINCT service FROM cloud_models').fetchall()
+        db_service_names = {row['service'] for row in db_services_cursor}
+
+        # Add any service from the DB that is not in the CSV
+        for service_name in db_service_names:
+            if service_name not in services_from_csv and other_service_data:
+                fallback_data = other_service_data.copy()
+                fallback_data['service_name'] = service_name # Use the actual service name
+                services_from_csv[service_name] = fallback_data
+    except Exception as e:
+        current_app.logger.error(f"Could not load services from database: {e}")
 
     return render_template(
         'cloud_models.html',
         page_title="Cloud Models | AI Think Chat",
         page_id="cloud_models",
         header_title="Cloud Model Management",
-        cloud_services=services
+        cloud_services=list(services_from_csv.values()),
+        other_logo_filename=other_logo_filename
     )
 
 @app.route('/api/cloud_models', methods=['GET'])

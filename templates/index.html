@@ -513,8 +513,14 @@
             {% if cloud_models %}
                 <optgroup label="Cloud Models">
                 {% for model in cloud_models if model.active %}
-                    {% set logo_filename = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
-                    <option value="cloud::{{ model.id }}" data-logo="<img src='{{ url_for('static', filename='logos/' + logo_filename) }}' alt='{{ model.service }}' style='height:16px; vertical-align:middle; margin-right:6px;'>">
+                    {% set logo_base_name = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
+                    {% set logo_path = os_path_join('static', 'logos', logo_base_name) %}
+                    {% if os_path_exists(logo_path) %}
+                        {% set final_logo_filename = logo_base_name %}
+                    {% else %}
+                        {% set final_logo_filename = 'ollama.png' %}
+                    {% endif %}
+                    <option value="cloud::{{ model.id }}" data-logo="<img src='{{ url_for('static', filename='logos/' + final_logo_filename) }}' alt='{{ model.service }}' style='height:16px; vertical-align:middle; margin-right:6px;'>">
                         <small>({{ model.service }})</small> {{ model.model_name }}</option>
                 {% endfor %}
                 </optgroup>
