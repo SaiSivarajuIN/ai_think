@@ -418,6 +418,10 @@ Returns:
 - Session ID
 - Tokens per second
 
+### 7.8 Frontend Experience: Typewriter Effect
+
+The backend's ability to stream responses token-by-token via a generator is crucial for the frontend implementation of a "typewriter effect." The frontend reads this stream and appends content to the UI in real-time, creating a dynamic and engaging user experience as the assistant appears to "type" its response. This is handled by `script.js` on the client side.
+
 ## Chat Session System
 
 ### ThreadManager
@@ -473,6 +477,46 @@ Fields stored:
 - api_key
 - model_name
 - active
+
+### Bulk Configuration via `cloud_api.csv`
+
+For easier setup, the application can read a `cloud_api.csv` file from the project root on startup to pre-populate known cloud services. This allows for defining service names and their API endpoints in bulk.
+
+The CSV file should contain two columns: `service_name` and `api_endpoint`.
+
+**Structure:**
+
+*   **Column 1**: `service_name` (e.g., `OpenAI`, `Perplexity`)
+*   **Column 2**: `api_endpoint` (The base URL for the service's API)
+
+**Example `cloud_api.csv`:**
+
+```csv
+OpenAI,https://api.openai.com/v1
+Perplexity,https://api.perplexity.ai
+```
+
+On startup, the application will parse this file and add these services to the database if they don't already exist. You will still need to add API keys and specific model names through the web UI.
+
+### Service Logo Mapping via `cloud_logos.csv`
+
+To automatically associate service providers with their brand logos in the user interface, the application can read a `cloud_logos.csv` file from the project root. This file maps a service name to a specific logo filename located in the `static/logos/` directory.
+
+The CSV file must contain two columns: `service_name` and `logo_filename`.
+
+**Structure:**
+
+*   **Column 1**: `service_name` (This should match the `service_name` used in `cloud_api.csv` and the database, e.g., `OpenAI`)
+*   **Column 2**: `logo_filename` (The corresponding logo file, e.g., `openai.png`)
+
+**Example `cloud_logos.csv`:**
+
+```csv
+OpenAI,openai.png
+Perplexity,perplexity.png
+```
+
+On startup, the application loads this mapping. When rendering cloud models, the system uses this information to display the correct logo next to the service name.
 
 
 ## Local Model (Ollama) Management
@@ -565,21 +609,76 @@ Used by the frontend to populate the chat history sidebar.
 
 ## Error Handling & Safeguards
 
-### Built-In Protection:
+The application is designed with several layers of error handling and safeguards to ensure stability and provide a good user experience.
 
-- Exponential backoff for models
-- Graceful fallback to SQLite
-- Chroma failures don't crash the app
-- Incognito mode (no DB writes, no Langfuse)
-- ClientDisconnected handling
-- Logging with rotation
-- Schema migration safety
+### 1. API & Network Resilience
+
+- **Model Interaction Retries**: Both `ollama_chat()` and `cloud_model_chat()` implement a retry mechanism with exponential backoff. If a request to an LLM fails due to a transient error, the system automatically retries up to 3 times with increasing delays (1s, 2s, 4s).
+- **Connection Timeouts**: All external API calls (Ollama, Cloud Models, SearXNG) have defined timeouts to prevent the application from hanging on unresponsive services. For example, model generation has a 5-minute timeout.
+- **Service Status Checks**: The `/health` endpoint actively checks the connectivity of all dependent services. The backend uses these checks to gracefully degrade functionality. For example, if SearXNG is down, the `/search` command will return an informative message to the user instead of failing the entire request.
+
+### 2. Database Fallbacks
+
+- **ChromaDB to SQLite**: The application prioritizes ChromaDB if configured. However, if the ChromaDB instance becomes unavailable (detected via `initialize_chroma()` or during an operation), the system automatically and gracefully falls back to using the local SQLite database for the current session. This ensures that chat history and other features continue to function without crashing the application. The connection status is re-checked periodically.
+- **Database Initialization**: On startup, `init_db()` ensures all necessary tables exist, preventing errors from missing tables.
+
+### 3. Client-Side Request Handling
+
+- **Generation Interruption**: The `/generate` endpoint is wrapped in a `try...except` block that specifically catches `ClientDisconnected` errors. This allows users to click the "Stop" button on the frontend to safely terminate a streaming response on the server without causing an application error.
+- **Input Validation**: API endpoints perform basic validation on incoming request bodies to ensure required fields are present before processing.
+
+### 4. File Upload Safeguards
+
+- **Type Filtering**: The `/upload` endpoint is configured to only accept specific file types (e.g., `.txt`, `.png`, `.jpg`). Attempts to upload other file types are rejected.
+- **Size Limits**: While not explicitly defined in the current implementation, it is recommended to configure the Flask application with `MAX_CONTENT_LENGTH` in a production environment to prevent denial-of-service attacks via very large file uploads.
+
+### 5. Comprehensive Logging
+
+- **Error Tracing**: All unhandled exceptions are caught by a global error handler, logged to the rotating log file in `logger/` with a full stack trace, and a generic "500 Internal Server Error" is returned to the user. This prevents leaking sensitive application details.
+- **Log Rotation**: The logging system uses a `TimedRotatingFileHandler` to automatically rotate logs daily and keep a 30-day history, preventing log files from consuming excessive disk space.
+
+- **Log Rotation**: The logging system uses a `TimedRotatingFileHandler` to automatically rotate logs daily and keep a 30-day history, preventing log files from consuming excessive disk space.
+
+### 6. API Status Codes & Error Responses
+
+For consistency, the standard API status codes, their meanings, and descriptions are defined in `error_handling.csv` in the project root. This file serves as a single source of truth for documentation and can be used by developers to ensure error responses are standardized across the application.
+
+**Structure:**
+
+The CSV file should contain three columns: `Status Code`, `Meaning`, and `Description`.
+
+*   **Column 1**: `Status Code` (e.g., `404`)
+*   **Column 2**: `Meaning` (e.g., `Not Found`)
+*   **Column 3**: `Description` (A brief explanation of the error)
+
+**Example `error_handling.csv`:**
+
+```csv
+Status Code,Meaning,Description
+400,Bad Request,"The server could not understand the request due to invalid syntax, such as malformed JSON or missing required parameters."
+404,Not Found,The requested resource could not be found on the server.
+503,Service Unavailable,The server is temporarily unable to handle the request, often because a required downstream service is offline.
+```
+
+
+The API uses standard HTTP status codes to indicate the success or failure of a request. For client-side errors (4xx) and server-side errors (5xx), the response body will typically contain a JSON object with an `error` key describing the issue.
+
+| Status Code | Meaning | Description |
+| :--- | :--- | :--- |
+| `200 OK` | Success | The request was successful. The response body contains the requested data. |
+| `201 Created` | Created | The resource was successfully created (e.g., a new prompt or cloud model). |
+| `400 Bad Request` | Bad Request | The server could not understand the request due to invalid syntax, such as malformed JSON or missing required parameters. |
+| `404 Not Found` | Not Found | The requested resource (e.g., a specific session ID, model, or API endpoint) could not be found on the server. |
+| `422 Unprocessable Entity` | Unprocessable Entity | The request was well-formed, but the server was unable to process the contained instructions (e.g., trying to pull a model that doesn't exist). |
+| `500 Internal Server Error` | Internal Server Error | A generic server error occurred. The logs will contain a detailed stack trace. This prevents leaking sensitive application details. |
+| `503 Service Unavailable` | Service Unavailable | The server is temporarily unable to handle the request, often because a required downstream service (like Ollama or ChromaDB) is offline. |
 
 ## Notes & Recommendations
 
 ### Suggested Modular Refactor 
 
 This file is monolithic; recommended modules:
+
 
     /services
      - ollama_service.py

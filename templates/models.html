@@ -7,6 +7,29 @@
 {% block head_extra %}
     <style>
         /* Modern Models Page Styling */
+        .toggle-card-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--theme-toggle-text);
+            transition: all 0.2s ease;
+        }
+        .toggle-card-btn:hover {
+            background: rgba(0,0,0,0.08);
+            color: var(--text);
+        }
+        .toggle-card-btn .material-icons {
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .model-card.collapsed .toggle-card-btn .material-icons {
+            transform: rotate(-180deg);
+        }
+
         .models-container {
             display: flex;
             flex-direction: column;
@@ -57,6 +80,27 @@
             align-items: center;
             gap: 0.5rem;
         }
+        
+        .model-card .card-content {
+            max-height: 1000px; /* Large enough value for content */
+            overflow: hidden;
+            opacity: 1;
+            transform: translateY(0);
+            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.2s ease-out,
+                        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        padding-top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        padding-bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .model-card.collapsed .card-content {
+            max-height: 0;
+            opacity: 0;
+            transform: translateY(-10px);
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
 
         .card-header h2 .material-icons {
             font-size: 1.5rem;
@@ -88,6 +132,23 @@
 
         .card-description a:hover {
             border-bottom-color: #000000;
+        }
+
+        /* Pull model form styling */
+        .pull-model-form {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .pull-model-form .form-group {
+            flex-grow: 1;
+            margin-bottom: 0;
+        }
+
+        .pull-model-form .form-group label {
+            display: none; /* Visually hide label, but keep for accessibility */
         }
 
         /* Enhanced Input Group */
@@ -364,34 +425,35 @@
 {% block content %}
     <div class="models-container">
         <!-- Pull New Model Card -->
-        <div class="model-card">
-            <div style="display: flex; gap: 1.5rem; align-items: flex-start;">
-                <div style="flex: 1;">
-                    <div class="card-model-pull">
-                        <div style="display: flex; align-items: flex-end; gap: 0.75rem;">
-                            <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
-                                <label for="model-name-input">Pull New Model</label>
-                                <input type="text" id="model-name-input" placeholder="e.g., gemma:2b, mistral:latest">
-                            </div>
-                            <button id="pull-model-btn" class="pull-model-btn" title="Pull Model">
-                                <span class="material-icons">cloud_download</span>
-                                <span>Pull Model</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-description" style="flex: 1; margin-top: 0; margin-bottom: 0;">
-                    <p>
-                        Get Models from <a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer">Ollama Library</a> (e.g., <code>mistral:latest</code>)<br>
-                        or a <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face Library</a> (e.g., <code>hf.co/janhq/Jan-v1-4B-GGUF:Q4_K_M</code>)
-                    </p>
-                </div>
+        <div id="pull-model-card" class="model-card">
+            <div class="card-header">
+                <h2>
+                    <span class="material-icons">cloud_download</span>
+                    Pull New Model
+                </h2>
+                <button class="toggle-card-btn" title="Toggle Content">
+                    <span class="material-icons">expand_less</span>
+                </button>
             </div>
-            
-            <div id="pull-status-container" class="pull-status-container" style="display: none;">
-                <pre id="pull-status"></pre>
-                <div class="progress-bar-container">
-                    <div id="progress-bar" class="progress-bar"></div>
+            <div class="card-content">
+                <div class="pull-model-form">
+                    <div class="form-group">
+                        <label for="model-name-input">Pull New Model</label>
+                        <input type="text" id="model-name-input" placeholder="e.g., gemma:2b, hf.co/unsloth/mistral-7b-v0.3-GGUF:Q4_K_M">
+                    </div>
+                    <button id="pull-model-btn" class="pull-model-btn" title="Pull Model">
+                        <span class="material-icons">cloud_download</span>
+                        <span>Pull Model</span>
+                    </button>
+                </div>
+                <p class="card-description" style="margin-bottom: 0;">
+                    Enter a model name from the <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer">Ollama Library</a> or a GGUF model from the <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face Hub</a>.
+                </p>
+                <div id="pull-status-container" class="pull-status-container" style="display: none;">
+                    <pre id="pull-status"></pre>
+                    <div class="progress-bar-container">
+                        <div id="progress-bar" class="progress-bar"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -450,5 +512,58 @@
 
 {% block page_scripts %}
     <script src="{{ url_for('static', filename='models.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const pullModelCard = document.getElementById('pull-model-card');
+            const toggleBtn = pullModelCard.querySelector('.toggle-card-btn');
+            const storageKey = 'pullModelCardCollapsed';
+
+            // Function to toggle collapse state
+            function toggleCollapse() {
+                pullModelCard.classList.toggle('collapsed');
+                // Save state to localStorage
+                localStorage.setItem(storageKey, pullModelCard.classList.contains('collapsed'));
+            }
+
+            // Check localStorage on page load
+            if (localStorage.getItem(storageKey) === 'true') {
+                pullModelCard.classList.add('collapsed');
+            }
+
+            toggleBtn.addEventListener('click', toggleCollapse);
+        });
+
+        // Add a check for existing models before pulling
+        document.addEventListener('DOMContentLoaded', function() {
+            const pullBtn = document.getElementById('pull-model-btn');
+            if (!pullBtn) return;
+
+            // We need to wait for models.js to populate the table.
+            // We can use a MutationObserver to know when the table is ready.
+            const modelsTableBody = document.querySelector('#local-models-table tbody');
+            if (!modelsTableBody) return;
+
+            const observer = new MutationObserver(() => {
+                // Once the table has models, we can add our check.
+                // We only need to do this once.
+                if (modelsTableBody.rows.length > 0) {
+                    pullBtn.addEventListener('click', function(event) {
+                        const modelInput = document.getElementById('model-name-input');
+                        const modelToPull = modelInput.value.trim();
+                        const existingModels = Array.from(modelsTableBody.querySelectorAll('tr td:first-child')).map(td => td.textContent.trim());
+
+                        if (existingModels.includes(modelToPull)) {
+                            if (!confirm(`The model "${modelToPull}" already exists. Do you want to pull it again to check for updates?`)) {
+                                event.stopImmediatePropagation(); // Stop models.js from handling this click
+                            }
+                        }
+                    }, true); // Use capture phase to run our check first
+                    observer.disconnect(); // We're done, no need to observe anymore
+                }
+            });
+
+            observer.observe(modelsTableBody, { childList: true });
+        });
+    </script>
     {{ super() }}
 {% endblock %}
