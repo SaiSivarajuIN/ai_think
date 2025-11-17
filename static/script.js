@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear existing history and add the selected prompt as the system message
                 conversationHistory = [{ role: 'system', content: promptContent }];
                 chatbox.innerHTML = ''; // Clear the visual chat
-                addMessage(`🚀 **Prompt Activated:** ${selectedOption.textContent}`, false);
+                addMessage(`**Prompt Activated:** ${selectedOption.textContent}`, false);
             }
         });
     }
@@ -514,7 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (serviceMatch) {
                     const service = serviceMatch[1];
                     const logoFilename = service.toLowerCase().replace(/ /g, '').replace('ai', '') + '.png';
-                    logoHtml = `<img src="/static/logos/${logoFilename}" alt="${service}" style="height:14px; vertical-align:middle; margin-right:4px;">`;
+                    logoHtml = `<img src="/static/logos/${logoFilename}" alt="${service}" style="height:14px; vertical-align:middle; margin-right:4px;" onerror="this.onerror=null;this.src='/static/logos/ollama.png';">`;
                 }
             } else if (modelUsed.startsWith('hf.co')) { // Hugging Face local model
                 logoHtml = `<img src="/static/logos/ollama.png" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">`;

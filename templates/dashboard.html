@@ -729,7 +729,8 @@
                                         <strong>{{ model.name | format_model_name }}</strong>
                                     {% else %}
                                         {% set logo_filename = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
-                                        <img src="{{ url_for('static', filename='logos/' + logo_filename) }}" alt="{{ model.service }}" style="height:16px; vertical-align:middle; margin-right:8px;">
+                                        {% set final_logo_filename = service_logo_map.get(model.service, service_logo_map.get('Other', 'ollama.png')) %}
+                                        <img src="{{ url_for('static', filename='logos/' + final_logo_filename) }}" alt="{{ model.service }}" style="height:16px; vertical-align:middle; margin-right:8px;">
                                         <strong>({{ model.service }}) {{ model.name }}</strong>
                                     {% endif %}
                                 </li>

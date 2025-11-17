@@ -574,7 +574,8 @@
                     <select id="model-service" name="service" class="model-selector" style="width: 100%;">
                         <option>Select Service</option>
                         {% for service in cloud_services %}
-                            <option value="{{ service.service_name }}" data-logo="<img src='{{ url_for('static', filename='logos/' + service.logo_filename) }}' alt='{{ service.service_name }}' style='height:22px; vertical-align:middle; margin-right:14px;'>">
+                            {% set logo_filename = service.logo_filename if service.logo_filename else other_logo_filename %}
+                            <option value="{{ service.service_name }}" data-logo="<img src='{{ url_for('static', filename='logos/' + logo_filename) }}' alt='{{ service.service_name }}' style='height:22px; vertical-align:middle; margin-right:14px;'>">
                                 {{ service.service_name }}
                             </option>
                         {% endfor %}
