@@ -58,6 +58,20 @@ def format_model_name(name):
 
 app = Flask(__name__)
 
+# --- Load Error Handling CSV ---
+def load_error_descriptions(file_path):
+    """Loads error descriptions from a CSV file into a dictionary."""
+    error_map = {}
+    try:
+        with open(file_path, mode='r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                error_map[int(row['Status Code'])] = row['Description']
+    except Exception as e:
+        app.logger.error(f"Could not load error descriptions from {file_path}: {e}")
+    return error_map
+
+ERROR_DESCRIPTIONS = load_error_descriptions('data/error_handling.csv')
 
 # --- Logging Setup ---
 def setup_logging(app_instance):
@@ -109,6 +123,7 @@ def log_request_info():
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", " ")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", " ")
 SEARXNG_URL = os.getenv("SEARXNG_URL", " ")
+SEARXNG_URL = os.getenv("SEARXNG_URL", "http://host.docker.internal:8080")
 
 # Langfuse Configuration
 LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", " ")
@@ -123,14 +138,14 @@ DEFAULT_SETTINGS = {
     'searxng_url': SEARXNG_URL
 }
 
-CHROMA_COLLECTION_NAME = "chat_history"
+CHROMA_COLLECTION_NAME = "messages"
 
 chroma_client = None    
 chroma_collection = None
 chroma_connected = False
 
 # Initialize SQLite database
-DATABASE = 'chat.db'
+DATABASE = os.getenv("SQLITE_DATABASE", " ")
 
 def get_db():
     """Get a database connection for the current request."""
@@ -648,9 +663,16 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_
             if attempt == max_retries - 1:
                 return {"content": f"Request timed out after {max_retries} attempts.", "usage": {}}
         except requests.exceptions.RequestException as e:
-            current_app.logger.error(f"Cloud model API error on attempt {attempt + 1}: {e} - Response: {e.response.text if e.response else 'N/A'}")
+            status_code = e.response.status_code if e.response is not None else None
+            error_text = e.response.text if e.response is not None else 'N/A'
+            current_app.logger.error(f"Cloud model API error on attempt {attempt + 1}: {e} - Status: {status_code} - Response: {error_text}")
+            
             if attempt == max_retries - 1:
-                return {"content": f"Error connecting to the cloud model after {max_retries} attempts. Please check the service status and your configuration.", "usage": {}}
+                error_message = f"Error connecting to the cloud model after {max_retries} attempts. Please check the service status and your configuration."
+                if status_code and status_code in ERROR_DESCRIPTIONS:
+                    error_message += f"\n\n**Details:** {ERROR_DESCRIPTIONS[status_code]}"
+                return {"content": error_message, "usage": {}}
+
         except Exception as e:
             current_app.logger.error(f"Unexpected error with cloud model on attempt {attempt + 1}: {e}")
             if attempt == max_retries - 1:

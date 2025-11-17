@@ -60,7 +60,33 @@ document.addEventListener('DOMContentLoaded', function() {
     let abortController = null; // New: for cancelling fetch requests
     let fileContextActive = false;
     let isIncognito = localStorage.getItem('isIncognito') === 'true';
+    let originalTitle = ''; // Will be set at the end of DOMContentLoaded
 
+    // --- New: Inject CSS for Typing Animation ---
+    const style = document.createElement('style');
+    style.textContent = `
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+        }
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: #999;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+            animation: typing-bounce 1.2s infinite ease-in-out;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.9s; }
+        .typing-indicator span:nth-child(3) { animation-delay: -0.6s; }
+        @keyframes typing-bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+    `;
+    document.head.appendChild(style);
     // Showdown converter for Markdown rendering
     const converter = new showdown.Converter({
         simplifiedAutoLink: true,
@@ -257,9 +283,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // When toggling incognito, always start a new thread
             resetThread();
             if (isIncognito) {
-                addMessage('👻 **Incognito Mode Enabled.** Chat history will not be saved.', false);
+                addMessage('**Incognito Mode Enabled.** Chat history will not be saved.', false);
             } else {
-                addMessage('✅ **Incognito Mode Disabled.** Chat history will now be saved.', false);
+                addMessage('**Incognito Mode Disabled.** Chat history will now be saved.', false);
             }
             updateSearchButtonState(); // Update search button state after incognito change
         });
@@ -384,7 +410,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Wrap content for editing
             const contentWrapper = document.createElement('div');
             contentWrapper.className = 'message-content-wrapper';
-            contentWrapper.innerHTML = formatMessage(escapeHtml(displayContent));
+            // Preserve line breaks by converting '\n' to '<br>' before markdown conversion
+            contentWrapper.innerHTML = formatMessage(displayContent);
             messageContainer.appendChild(contentWrapper);
             // Store the full raw content (with search results) for copy/regen
             messageContainer.dataset.rawContent = rawContentForCopy;
@@ -468,7 +495,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let footerHTML = '';
         if (generationTime) {
-            footerHTML += `<span class="generation-time">⏱️ ${generationTime.toFixed(2)}s</span>`;
+            footerHTML += `<span class="generation-time" title="Time taken">${generationTime.toFixed(2)}s</span>`;
         }
         if (tokensPerSecond) {
             if (footerHTML) footerHTML += `<span style="margin: 0 0.1rem;">|</span>`;
@@ -522,6 +549,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tokensPerSecond = data.tokens_per_second;
         // The user message is now confirmed and can be added to the history
         // along with the bot response.
+        document.title = originalTitle;
         const userMessageContent = data.user_message_content;
         conversationHistory.push({ role: 'user', content: userMessageContent });
         const sessionId = data.session_id;
@@ -570,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 thoughtsHtml += `
                     <details class="thought" style="margin-bottom: 1rem;">
                         <summary style="cursor: pointer; font-weight: 600;">
-                            🤔 Thought Process
+                            Thought Process
                         </summary>
                         <div class="thought-body" style="padding-top: 0.5rem;">${formatMessage(thoughtContent.trim())}</div>
                     </details>
@@ -614,8 +642,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show thinking indicator
     function showThinking() {
         thinkingMessageId = 'thinking-' + Date.now();
-        const thinkingDiv = addMessage('🤔 Thinking...', 'bot', thinkingMessageId);
+        const thinkingDiv = addMessage('', 'bot', thinkingMessageId);
         thinkingDiv.classList.add('thinking');
+        // Add typing indicator HTML
+        thinkingDiv.innerHTML = `
+            <div class="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        `;
     }
 
     // Remove thinking indicator
@@ -624,6 +660,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const thinkingElement = document.getElementById(thinkingMessageId);
             if (thinkingElement) {
                 thinkingElement.remove();
+                document.title = originalTitle;
             }
             thinkingMessageId = null;
         }
@@ -706,6 +743,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (error.name === 'AbortError') {
                 // When aborting, remove the marker for the thinking message
                 removeLastThreadMarker();
+                document.title = originalTitle;
                 console.log('Fetch aborted by user.');
             } else {
                 removeThinking();
@@ -1084,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 thoughtsHtml += `
                                     <details class="thought" style="margin-bottom: 1rem;">
                                         <summary style="cursor: pointer; font-weight: 600;">
-                                            🤔 Thought Process
+                                            Thought Process
                                         </summary>
                                         <div class="thought-body" style="padding-top: 0.5rem;">${formatMessage(thoughtContent.trim())}</div>
                                     </details>
@@ -1137,9 +1175,9 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             // No session ID, start a fresh chat
             if (isIncognito) {
-                addMessage('👻 **Incognito Mode Enabled.** Chat history will not be saved.', false);
+                addMessage('**Incognito Mode Enabled.** Chat history will not be saved.', false);
             } else {
-                addMessage('👋 Hello! I\'m your Ollama-powered assistant. How can I help you today?', false);
+                addMessage('Hello! I\'m your Ollama-powered assistant. How can I help you today?', false);
             }
         }
     }
@@ -1335,6 +1373,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Ensure send button is in initial state with correct listener
     toggleSendStopButton(false); // This correctly adds the initial 'click' listener for sendMessage
+
+    // Set original title after all initial setup is complete
+    originalTitle = document.title;
 });
 
 function renameSidebarThread(historyItem, sessionId) {
