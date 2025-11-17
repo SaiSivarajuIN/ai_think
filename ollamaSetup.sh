@@ -77,7 +77,7 @@ until command -v ollama &> /dev/null; do
 done
 echo "✅ Ollama is available."
 
-# start_ollama_server
+start_ollama_server
 pull_models
 
 # Display available models
