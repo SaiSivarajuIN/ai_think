@@ -488,36 +488,37 @@
     <div class="model-selector-wrapper">
         <label for="model-selector" class="visually-hidden">Model:</label>
         <select id="model-selector" class="model-selector">
-        {% if available_models %}
-            <optgroup label="Local Models">
-            {% for model in available_models if model.active %}
-                {% set parts = model.name.split('/') %}
-                {% if parts|length > 2 and '.' in parts[0] %}
-                    {# Hugging Face model: hf.co/user/model -> model (user) #}
-                    {% set source = parts[1] %}
-                    {% set model_name = parts[2] %}
-                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/ollama.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
-                        <small>({{ source }})</small> {{ model_name }}
-                    </option>
-                {% else %}
-                    <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/ollama.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
-                        {{ model.name }}
-                    </option>
-                {% endif %}
-            {% endfor %}
-            </optgroup>
-        {% else %}
-            <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
-        {% endif %}
-        {% if cloud_models %}
-            <optgroup label="Cloud Models">
-            {% for model in cloud_models if model.active %}
-                {% set logo_filename = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
-                <option value="cloud::{{ model.id }}" data-logo="<img src='{{ url_for('static', filename='logos/' + logo_filename) }}' alt='{{ model.service }}' style='height:16px; vertical-align:middle; margin-right:6px;'>">
-                    <small>({{ model.service }})</small> {{ model.model_name }}</option>
-            {% endfor %}
-            </optgroup>
-        {% endif %}
+            <option value="" data-content="">Select any Model</option>    
+            {% if available_models %}
+                <optgroup label="Local Models">
+                {% for model in available_models if model.active %}
+                    {% set parts = model.name.split('/') %}
+                    {% if parts|length > 2 and '.' in parts[0] %}
+                        {# Hugging Face model: hf.co/user/model -> model (user) #}
+                        {% set source = parts[1] %}
+                        {% set model_name = parts[2] %}
+                        <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/ollama.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
+                            <small>({{ source }})</small> {{ model_name }}
+                        </option>
+                    {% else %}
+                        <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/ollama.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
+                            {{ model.name }}
+                        </option>
+                    {% endif %}
+                {% endfor %}
+                </optgroup>
+            {% else %}
+                <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
+            {% endif %}
+            {% if cloud_models %}
+                <optgroup label="Cloud Models">
+                {% for model in cloud_models if model.active %}
+                    {% set logo_filename = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
+                    <option value="cloud::{{ model.id }}" data-logo="<img src='{{ url_for('static', filename='logos/' + logo_filename) }}' alt='{{ model.service }}' style='height:16px; vertical-align:middle; margin-right:6px;'>">
+                        <small>({{ model.service }})</small> {{ model.model_name }}</option>
+                {% endfor %}
+                </optgroup>
+            {% endif %}
         </select>
     </div>
     <div class="model-selector-wrapper">

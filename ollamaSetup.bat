@@ -93,3 +93,7 @@ goto :eof
 :: echo [5/5] Starting the AI Think application...
 :: python main.py
 :: goto :eof
+:start_ai_think_app
+echo [5/5] Starting the AI Think application...
+python main.py
+goto :eof

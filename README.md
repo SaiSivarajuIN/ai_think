@@ -17,10 +17,10 @@ Lightweight, self-hosted web chat for local **Ollama** models & cloud models lik
   * [Run](#run)
 * [Features](#features)
 * [Usage](#-usage)
-* [Optional SearXNG WebSearch](#-optional---searxng-websearch) 
-* [Keyboard Shortcuts](#-keyboard-shortcuts)
-* [Configuration Notes](#-configuration-notes)
-* [Documentation & Feedback](#-documentation--feedback)
+* [Optional SearXNG WebSearch](#optional---searxng-websearch) 
+* [Keyboard Shortcuts](#keyboard-shortcuts)
+* [Configuration Notes](#configuration-notes)
+* [Documentation & Feedback](#documentation--feedback)
 
 ---
 

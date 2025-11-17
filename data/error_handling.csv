@@ -1,0 +1,7 @@
+Status Code,Meaning,Description
+200,OK,Request completed successfully.
+400,Bad Request,"The request is invalid (missing parameters, invalid API key , invalid JSON, etc.)."
+404,Not Found,The requested resource or model was not found.
+429,Too Many Requests,Rate limit exceeded. The request should be retried later.
+500,Internal Server Error,The server encountered an unexpected condition.
+502,Bad Gateway,The upstream model or service could not be reached.

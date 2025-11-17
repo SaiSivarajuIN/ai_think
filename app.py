@@ -3,7 +3,6 @@ import time
 import re
 import uuid
 import base64
-from PIL import Image
 import pytesseract
 import psutil
 import GPUtil
@@ -17,15 +16,15 @@ import csv
 from uuid import uuid4
 from langfuse import Langfuse
 from datetime import datetime
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
 from flask import Flask, jsonify, render_template, request, session, redirect, url_for, current_app
 from flask import Response, stream_with_context
-from werkzeug.exceptions import ClientDisconnected
 from flask import g
+from werkzeug.exceptions import ClientDisconnected
 # Check if Tesseract is available
 try:
     pytesseract.get_tesseract_version()
@@ -58,6 +57,20 @@ def format_model_name(name):
 
 app = Flask(__name__)
 
+# --- Load Error Handling CSV ---
+def load_error_descriptions(file_path):
+    """Loads error descriptions from a CSV file into a dictionary."""
+    error_map = {}
+    try:
+        with open(file_path, mode='r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                error_map[int(row['Status Code'])] = row['Description']
+    except Exception as e:
+        app.logger.error(f"Could not load error descriptions from {file_path}: {e}")
+    return error_map
+
+ERROR_DESCRIPTIONS = load_error_descriptions('data/error_handling.csv')
 
 # --- Logging Setup ---
 def setup_logging(app_instance):
@@ -123,14 +136,14 @@ DEFAULT_SETTINGS = {
     'searxng_url': SEARXNG_URL
 }
 
-CHROMA_COLLECTION_NAME = "chat_history"
+CHROMA_COLLECTION_NAME = "messages"
 
 chroma_client = None    
 chroma_collection = None
 chroma_connected = False
 
 # Initialize SQLite database
-DATABASE = 'chat.db'
+DATABASE = os.getenv("SQLITE_DATABASE", " ")
 
 def get_db():
     """Get a database connection for the current request."""
@@ -457,15 +470,21 @@ def check_searxng_connection():
     """Check if SearXNG is running and accessible."""
     settings = get_settings()
     if not settings.get('searxng_enabled'):
+        current_app.logger.info("SearXNG check skipped: feature is disabled in settings.")
         return False
     url = settings.get('searxng_url')
     if not url:
+        current_app.logger.warning("SearXNG check failed: feature is enabled but no URL is configured.")
         return False
     try:
         # SearXNG's health endpoint or just the base URL
         response = requests.get(url, timeout=3)
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
+        if response.status_code == 200:
+            return True
+        current_app.logger.warning(f"SearXNG connection check failed with status code: {response.status_code}")
+        return False
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"SearXNG connection check failed with exception: {e}")
         return False
 
 
@@ -648,9 +667,16 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_
             if attempt == max_retries - 1:
                 return {"content": f"Request timed out after {max_retries} attempts.", "usage": {}}
         except requests.exceptions.RequestException as e:
-            current_app.logger.error(f"Cloud model API error on attempt {attempt + 1}: {e} - Response: {e.response.text if e.response else 'N/A'}")
+            status_code = e.response.status_code if e.response is not None else None
+            error_text = e.response.text if e.response is not None else 'N/A'
+            current_app.logger.error(f"Cloud model API error on attempt {attempt + 1}: {e} - Status: {status_code} - Response: {error_text}")
+            
             if attempt == max_retries - 1:
-                return {"content": f"Error connecting to the cloud model after {max_retries} attempts. Please check the service status and your configuration.", "usage": {}}
+                error_message = f"Error connecting to the cloud model after {max_retries} attempts. Please check the service status and your configuration."
+                if status_code and status_code in ERROR_DESCRIPTIONS:
+                    error_message += f"\n\n**Details:** {ERROR_DESCRIPTIONS[status_code]}"
+                return {"content": error_message, "usage": {}}
+
         except Exception as e:
             current_app.logger.error(f"Unexpected error with cloud model on attempt {attempt + 1}: {e}")
             if attempt == max_retries - 1:
@@ -1718,6 +1744,8 @@ def settings(tab_name='general'):
             loggable_settings['langfuse_secret_key'] = '********'
         if 'chroma_api_key' in loggable_settings:
             loggable_settings['chroma_api_key'] = '********'
+        if 'searxng_url' in loggable_settings:
+            loggable_settings['searxng_url'] = request.form.get('searxng_url', '')
         current_app.logger.info(f"Settings updated: {loggable_settings}")
 
         # Re-initialize services with new settings
