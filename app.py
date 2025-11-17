@@ -3,7 +3,6 @@ import time
 import re
 import uuid
 import base64
-from PIL import Image
 import pytesseract
 import psutil
 import GPUtil
@@ -17,15 +16,15 @@ import csv
 from uuid import uuid4
 from langfuse import Langfuse
 from datetime import datetime
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
 from flask import Flask, jsonify, render_template, request, session, redirect, url_for, current_app
 from flask import Response, stream_with_context
-from werkzeug.exceptions import ClientDisconnected
 from flask import g
+from werkzeug.exceptions import ClientDisconnected
 # Check if Tesseract is available
 try:
     pytesseract.get_tesseract_version()
@@ -123,7 +122,6 @@ def log_request_info():
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", " ")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", " ")
 SEARXNG_URL = os.getenv("SEARXNG_URL", " ")
-SEARXNG_URL = os.getenv("SEARXNG_URL", "http://host.docker.internal:8080")
 
 # Langfuse Configuration
 LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", " ")
@@ -1740,6 +1738,8 @@ def settings(tab_name='general'):
             loggable_settings['langfuse_secret_key'] = '********'
         if 'chroma_api_key' in loggable_settings:
             loggable_settings['chroma_api_key'] = '********'
+        if 'searxng_url' in loggable_settings:
+            loggable_settings['searxng_url'] = request.form.get('searxng_url', '')
         current_app.logger.info(f"Settings updated: {loggable_settings}")
 
         # Re-initialize services with new settings

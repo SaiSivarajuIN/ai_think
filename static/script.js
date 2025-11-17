@@ -570,7 +570,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     searchResultsHtml = `
                         <details class="thought" style="margin-bottom: 1rem;">
                             <summary style="cursor: pointer; font-weight: 600;">
-                                🌐 Web Search Results
+                                Web Search Results
                             </summary>
                             <div class="thought-body" style="padding-top: 0.5rem;">${formatMessage(searchResults)}</div>
                         </details>`;
@@ -1107,7 +1107,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     const searchResults = searchMatch[1].trim();
                                     searchResultsHtml = `
                                         <details class="thought" style="margin-bottom: 1rem;">
-                                            <summary style="cursor: pointer; font-weight: 600;">🌐 Web Search Results</summary>
+                                            <summary style="cursor: pointer; font-weight: 600;">Web Search Results</summary>
                                             <div class="thought-body" style="padding-top: 0.5rem;">${formatMessage(searchResults)}</div>
                                         </details>`;
                                 }
