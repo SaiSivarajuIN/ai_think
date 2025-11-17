@@ -470,15 +470,21 @@ def check_searxng_connection():
     """Check if SearXNG is running and accessible."""
     settings = get_settings()
     if not settings.get('searxng_enabled'):
+        current_app.logger.info("SearXNG check skipped: feature is disabled in settings.")
         return False
     url = settings.get('searxng_url')
     if not url:
+        current_app.logger.warning("SearXNG check failed: feature is enabled but no URL is configured.")
         return False
     try:
         # SearXNG's health endpoint or just the base URL
         response = requests.get(url, timeout=3)
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
+        if response.status_code == 200:
+            return True
+        current_app.logger.warning(f"SearXNG connection check failed with status code: {response.status_code}")
+        return False
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"SearXNG connection check failed with exception: {e}")
         return False
 
 
