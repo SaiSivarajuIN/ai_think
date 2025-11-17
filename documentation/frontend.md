@@ -167,6 +167,15 @@ Controls cloud model CRUD operations, grouping, display, and activation states.
 * Toggle all → `/api/cloud_models/toggle_all_active`
 
 ---
+### Service Logo Rendering
+
+The backend provides a `logo_filename` for each service, based on the mapping in `cloud_logos.csv`. The `cloud_models.js` script uses this filename to construct the path to the logo image.
+
+*   **Path**: The script assumes all logos are located in `/static/logos/`.
+*   **Rendering**: When `renderModels()` is called, it generates an `<img>` tag with a source like `static/logos/openai.png` and places it next to the service name in the table and sidebar.
+*   **Fallback**: If a logo filename is not provided by the API, no image is rendered. Fallback to `ollama.png`.
+
+---
 
 ## 2.3 models.js (Local/Ollama Models Manager)
 
