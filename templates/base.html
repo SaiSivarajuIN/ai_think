@@ -60,18 +60,18 @@
                 <a href="/prompts" class="nav-link" title="Prompt Hub">Prompt Hub</a>
             </details>
             <a href="/settings" class="nav-link" title="Settings">Settings</a>
-            
-            <details class="nav-dropdown" {% if page_id in ['health', 'about', 'feedback'] %}open{% endif %}>
-                <summary class="nav-link">
-                    <span>Info</span>
-                    <span class="material-icons dropdown-arrow">expand_more</span>
-                </summary>
-                <a href="/health" class="nav-link" title="System Health">System Health</a>
-                <a href="https://saisivarajuin.github.io/ai_think/" class="nav-link" title="About" target="_blank" rel="noopener noreferrer">About</a>
-            </details>
+            <a href="/health" class="nav-link" title="System Health">System Health</a>
 
-            
+            <!-- NEW FOOTER -->
+            <div class="sidebar-footer" style="margin-top:auto; padding:1rem; text-align:center; font-size:0.8rem; opacity:0.8;">
+                <a href="/about" class="nav-link" title="About AI Think">
+                    <span class="material-icons">info_outline</span>
+                    <span>About</span>
+                </a>
+                <p style="margin-top: 0.25rem; font-size: 0.75rem; opacity: 0.7;">{{ APP_VERSION }}</p>
+            </div>
         </aside>
+
         <div class="main-content-wrapper">
             <!-- Header -->
             <header class="header">

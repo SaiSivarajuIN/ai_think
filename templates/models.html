@@ -110,19 +110,19 @@
             border-radius: 0.5rem;
         }
 
-        .card-description, .card-model-pull {
+        .pull-status-card-description, .card-model-pull {
             background: var(--background);
             border-left: 4px solid #000000;
             padding: 0.875rem 1rem;
             border-radius: 0.5rem;
         }
 
-        .card-description {
+        .pull-status-card-description {
             margin-bottom: 1.25rem;
             line-height: 1.6;
         }
 
-        .card-description a {
+        .pull-status-card-description a {
             color: #000000;
             font-weight: 600;
             text-decoration: none;
@@ -130,7 +130,7 @@
             transition: border-color 0.2s ease;
         }
 
-        .card-description a:hover {
+        .pull-status-card-description a:hover {
             border-bottom-color: #000000;
         }
 
@@ -446,14 +446,16 @@
                         <span>Pull Model</span>
                     </button>
                 </div>
-                <p class="card-description" style="margin-bottom: 0;">
-                    Enter a model name from the <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer">Ollama Library</a> or a GGUF model from the <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face Hub</a>.
-                </p>
                 <div id="pull-status-container" class="pull-status-container" style="display: none;">
                     <pre id="pull-status"></pre>
                     <div class="progress-bar-container">
                         <div id="progress-bar" class="progress-bar"></div>
                     </div>
+                </div>
+                <div class="pull-status-card-description" style="margin-bottom: 0; margin-top: 1.25rem;">
+                    <p>
+                        Enter a model name from the <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer">Ollama Library</a> or a GGUF model from the <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener noreferrer">Hugging Face Hub</a>.
+                    </p>
                 </div>
             </div>
         </div>
