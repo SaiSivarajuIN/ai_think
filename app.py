@@ -36,6 +36,9 @@ except pytesseract.TesseractNotFoundError:
 
 load_dotenv()
 
+# App Version
+APP_VERSION = os.getenv("APP_VERSION", " ")
+
 def format_model_name(name):
     """Jinja filter to format model names for display."""
     if not isinstance(name, str):
@@ -111,8 +114,14 @@ def regex_search(s, pattern):
     return re.search(pattern, s)
 app.jinja_env.filters['regex_search'] = regex_search
 
-app.jinja_env.globals.update(os_path_exists=os.path.exists)
-app.jinja_env.globals.update(os_path_join=os.path.join)
+app.jinja_env.globals.update(
+    os_path_exists=os.path.exists,
+    os_path_join=os.path.join,
+    APP_VERSION=APP_VERSION
+)
+
+# Enable the 'do' extension for templates, allowing 'do' statements in Jinja.
+app.jinja_env.add_extension('jinja2.ext.do')
 
 @app.before_request
 def log_request_info():
@@ -578,7 +587,7 @@ def search_searxng(query):
     except Exception as e:
         current_app.logger.error(f"Error processing SearXNG results: {e}")
         return "Error processing search results."
-
+   
 def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_incognito=False):
 
     """Send chat messages to a configured cloud API and get a response with Langfuse tracing, respecting incognito mode."""
@@ -1292,6 +1301,18 @@ def get_sessions():
 @app.route('/history')
 def history():
     threads = defaultdict(list)
+    
+    # --- FILTERING & PAGINATION ---
+    search_query = request.args.get('search', '').lower()
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = int(os.getenv("PAGE_SIZE", "30"))
+    
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+
     session_start = {}
     utc_tz = ZoneInfo("UTC")
 
@@ -1351,22 +1372,47 @@ def history():
         reverse=True
     )
 
-    total_sessions = len(sorted_threads)
+    # --- APPLY FILTERS BEFORE PAGINATION ---
+    filtered_threads = []
+    custom_summaries = {}
+    try:
+        summary_rows = get_db().execute('SELECT session_id, summary FROM session_summaries').fetchall()
+        custom_summaries = {row['session_id']: row['summary'] for row in summary_rows}
+    except sqlite3.OperationalError:
+        pass
 
-    newest_session_id = sorted_threads[0][0] if sorted_threads else None
+    for session_id, messages in sorted_threads:
+        # Generate summary for filtering
+        if session_id in custom_summaries:
+            summary_text = custom_summaries[session_id]
+        else:
+            first_user_message = next((m['content'] for m in messages if m['sender'] == 'user'), 'Chat Session')
+            summary_text = (first_user_message[:75] + '...') if len(first_user_message) > 75 else first_user_message
+        
+        # Date filtering
+        thread_date = messages[-1]['timestamp'].date()
+        date_match = (not start_date or thread_date >= start_date) and \
+                     (not end_date or thread_date <= end_date)
+        
+        # Search query filtering
+        search_match = not search_query or search_query in summary_text.lower()
+
+        if date_match and search_match:
+            filtered_threads.append((session_id, messages))
+
+    total_sessions = len(filtered_threads)
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+    paginated_threads = filtered_threads[start_index:end_index]
+    total_pages = (total_sessions + per_page - 1) // per_page
+
+    newest_session_id = filtered_threads[0][0] if filtered_threads else None
 
     # Group threads by date
     grouped_threads = defaultdict(list)
     today = datetime.now(utc_tz).date()
 
     # Fetch custom summaries first to use them as titles
-    custom_summaries = {}
-    try:
-        summary_rows = get_db().execute('SELECT session_id, summary FROM session_summaries').fetchall()
-        custom_summaries = {row['session_id']: row['summary'] for row in summary_rows}
-    except sqlite3.OperationalError: # In case the table doesn't exist yet
-        pass
-
     # Load service logo mapping from CSV for use in the template
     service_logo_map = {}
     try:
@@ -1378,7 +1424,7 @@ def history():
     except Exception as e:
         current_app.logger.error(f"Could not load cloud logos from CSV for history page: {e}")
 
-    for session_id, messages in sorted_threads:
+    for session_id, messages in paginated_threads:
         last_message_dt = messages[-1]['timestamp']
         thread_date = last_message_dt.date()
         delta = today - thread_date
@@ -1419,7 +1465,13 @@ def history():
         session_start=session_start,
         newest_session_id=newest_session_id,
         total_sessions=total_sessions,
-        service_logo_map=service_logo_map
+        service_logo_map=service_logo_map,
+        page=page,
+        total_pages=total_pages,
+        per_page=per_page,
+        search_query=search_query,
+        start_date=start_date_str,
+        end_date=end_date_str
     )
 
 

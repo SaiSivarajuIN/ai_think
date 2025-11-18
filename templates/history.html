@@ -552,6 +552,62 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
+
+        /* Pagination Styling */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2.5rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .pagination-link {
+            padding: 0.625rem 1rem;
+            text-decoration: none;
+            color: var(--theme-toggle-text);
+            border-radius: 0.75rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .pagination-link:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text);
+            transform: translateY(-2px);
+        }
+
+        .pagination-link.active {
+            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border-color: #000000;
+        }
+
+        .pagination-link.disabled {
+            color: var(--border);
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .pagination-ellipsis {
+            padding: 0.625rem 0.5rem;
+            color: var(--theme-toggle-text);
+            font-weight: 600;
+        }
+
+        .pagination-info {
+            font-size: 0.875rem;
+            color: var(--theme-toggle-text);
+            margin: 0 1rem;
+        }
     </style>
 {% endblock %}
 
@@ -578,7 +634,7 @@
         <div class="filter-group">
             <div class="stats-badge" id="total-sessions-display">
                 <span class="material-icons" style="font-size: 1.2rem;">forum</span>
-                <span>{{ total_sessions }} Sessions</span>
+                <span>{{ total_sessions }} Session{{ 's' if total_sessions != 1 else '' }}</span>
             </div>
             <button id="delete-all-threads-btn" class="delete-all-btn" title="Delete All Sessions">
                 <span class="material-icons" style="font-size: 1rem;">delete_sweep</span>
@@ -586,10 +642,6 @@
             </button>
         </div>
     </div>
-
-    <!-- Hidden date inputs for filter functionality -->
-    <input type="date" id="start-date-filter" style="display: none;">
-    <input type="date" id="end-date-filter" style="display: none;">
 
     <!-- Custom Date Picker Modal -->
     <div class="date-picker-modal" id="datePickerModal">
@@ -738,10 +790,62 @@
             {% endfor %}
         {% endfor %}
     {% else %}
-        <div class="empty-state-card">
-            <span class="material-icons" style="font-size: 4rem; color: var(--theme-toggle-text); margin-bottom: 1rem; display: block;">history</span>
-            <p>No chat history found. Start a conversation to see your chat threads here.</p>
-        </div>
+        {% if search_query or start_date or end_date %}
+            <div class="empty-state-card">
+                <span class="material-icons" style="font-size: 4rem; color: var(--theme-toggle-text); margin-bottom: 1rem; display: block;">search_off</span>
+                <p>No chat sessions match your filter criteria.</p>
+                <a href="{{ url_for('history') }}" id="empty-state-clear-btn" class="clear-filter-btn" style="display: inline-flex; margin-top: 1.5rem; text-decoration: none;">
+                    <span class="material-icons" style="font-size: 1rem;">clear</span>
+                    Clear Filters
+                </a>
+            </div>
+        {% else %}
+            <div class="empty-state-card">
+                <span class="material-icons" style="font-size: 4rem; color: var(--theme-toggle-text); margin-bottom: 1rem; display: block;">history</span>
+                <p>No chat history found. Start a conversation to see your chat threads here.</p>
+            </div>
+        {% endif %}
+    {% endif %}
+
+    {% if total_pages > 1 %}
+    <div class="pagination-container">
+        {% set base_params = {} %}
+        {% if search_query %}{% do base_params.update({'search': search_query}) %}{% endif %}
+        {% if start_date %}{% do base_params.update({'start_date': start_date}) %}{% endif %}
+        {% if end_date %}{% do base_params.update({'end_date': end_date}) %}{% endif %}
+
+        <a href="{{ url_for('history', page=page-1, **base_params) }}" class="pagination-link {{ 'disabled' if page == 1 else '' }}" title="Previous Page">
+            <span class="material-icons" style="vertical-align: middle;">chevron_left</span>
+        </a>
+
+        {% set page_window = 2 %}
+        {% set start_page = [1, page - page_window] | max %}
+        {% set end_page = [total_pages, page + page_window] | min %}
+
+        {% if start_page > 1 %}
+            <a href="{{ url_for('history', page=1, **base_params) }}" class="pagination-link">1</a>
+            {% if start_page > 2 %}
+                <span class="pagination-ellipsis">...</span>
+            {% endif %}
+        {% endif %}
+
+        {% for p in range(start_page, end_page + 1) %}
+            <a href="{{ url_for('history', page=p, **base_params) }}" class="pagination-link {{ 'active' if p == page else '' }}">
+                {{ p }}
+            </a>
+        {% endfor %}
+
+        {% if end_page < total_pages %}
+            {% if end_page < total_pages - 1 %}
+                <span class="pagination-ellipsis">...</span>
+            {% endif %}
+            <a href="{{ url_for('history', page=total_pages, **base_params) }}" class="pagination-link">{{ total_pages }}</a>
+        {% endif %}
+
+        <a href="{{ url_for('history', page=page+1, **base_params) }}" class="pagination-link {{ 'disabled' if page == total_pages else '' }}" title="Next Page">
+            <span class="material-icons" style="vertical-align: middle;">chevron_right</span>
+        </a>
+    </div>
     {% endif %}
 
 {% endblock %}
@@ -749,17 +853,6 @@
 {% block scripts %}
 <script>
 function initializeHistoryPage() {
-    function clearFilter() {
-        // This logic remains the same
-        document.getElementById('clear-filter-btn').style.display = 'none';
-        document.querySelectorAll('.thread').forEach(thread => thread.style.display = 'block');
-        document.querySelectorAll('.history-group-header').forEach(header => header.style.display = 'block');
-        const paginationContainer = document.querySelector('.pagination-container');
-        if (paginationContainer) {
-            paginationContainer.style.display = 'block';
-        }
-    }
-
     const converter = new showdown.Converter({
         simplifiedAutoLink: true,
         strikethrough: true,
@@ -772,65 +865,34 @@ function initializeHistoryPage() {
         sanitize: true // Prevent interpretation of raw HTML in Markdown
     });
     
-    function applyFilters() {
-        const searchTerm = document.getElementById('search-summary-filter').value.toLowerCase();
-        const startDate = document.getElementById('start-date-filter').value; // YYYY-MM-DD
-        const endDate = document.getElementById('end-date-filter').value;
-        const threads = document.querySelectorAll('.thread');
-        const groupHeaders = document.querySelectorAll('.history-group-header');
-        const paginationContainer = document.querySelector('.pagination-container');
-        
-        const isFiltering = searchTerm || startDate || endDate;
-        document.getElementById('clear-filter-btn').style.display = isFiltering ? 'flex' : 'none';
-        if (paginationContainer) paginationContainer.style.display = isFiltering ? 'none' : 'block';
-        
-        threads.forEach(thread => {
-            const summary = thread.querySelector('.summary-main');
-            const timestamp = summary.getAttribute('data-timestamp');
-            const threadDate = new Date(timestamp).toISOString().split('T')[0];
+    function applyAndReload() {
+        const search = document.getElementById('search-summary-filter').value;
+        const startDate = document.getElementById('modalStartDate').value;
+        const endDate = document.getElementById('modalEndDate').value;
 
-            const startMatch = !startDate || threadDate >= startDate;
-            const endMatch = !endDate || threadDate <= endDate;
-            
-            const summaryText = summary.innerText.toLowerCase();
-            const textMatch = !searchTerm || summaryText.includes(searchTerm);
+        const url = new URL(window.location.href);
+        url.searchParams.set('search', search);
+        url.searchParams.set('start_date', startDate);
+        url.searchParams.set('end_date', endDate);
+        url.searchParams.set('page', '1'); // Reset to first page on new filter
 
-            thread.style.display = (startMatch && endMatch && textMatch) ? '' : 'none';
-        });
-
-        // Hide group headers if any filter is active
-        groupHeaders.forEach(header => {
-            header.style.display = isFiltering ? 'none' : 'block';
-        });
+        window.location.href = url.toString();
     }
 
     // --- Date Filter Logic ---
     const searchInput = document.getElementById('search-summary-filter');
-    const startDateFilter = document.getElementById('start-date-filter');
-    const endDateFilter = document.getElementById('end-date-filter');
-    const clearFilterBtn = document.getElementById('clear-filter-btn');
-    const threads = document.querySelectorAll('.thread');
-    const groupHeaders = document.querySelectorAll('.history-group-header');
-    const paginationContainer = document.querySelector('.pagination-container');
 
     if (searchInput) {
-        searchInput.addEventListener('input', applyFilters);
-    }
-    if (startDateFilter) {
-        startDateFilter.addEventListener('change', applyFilters);
-    }
-    if (endDateFilter) {
-        endDateFilter.addEventListener('change', applyFilters);
-    }
-
-    if (clearFilterBtn) {
-        clearFilterBtn.addEventListener('click', function() {
-            searchInput.value = '';
-            startDateFilter.value = ''; // Clear start date
-            endDateFilter.value = '';   // Clear end date
-            clearFilter();
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                applyAndReload();
+            }
         });
     }
+
+    document.getElementById('clear-filter-btn').addEventListener('click', function() {
+        window.location.href = "{{ url_for('history') }}";
+    });
 
     // Custom Date Picker Modal Logic
     const customDateBtn = document.getElementById('custom-date-btn');
@@ -842,6 +904,18 @@ function initializeHistoryPage() {
     const modalStartDate = document.getElementById('modalStartDate');
     const modalEndDate = document.getElementById('modalEndDate');
 
+    // Restore filter input values from URL on page load
+    const urlParams = new URLSearchParams(window.location.search);
+    searchInput.value = urlParams.get('search') || ''; // This is correct
+    modalStartDate.value = urlParams.get('start_date') || ''; // Use modal inputs
+    modalEndDate.value = urlParams.get('end_date') || ''; // Use modal inputs
+    const isFiltering = searchInput.value || modalStartDate.value || modalEndDate.value;
+    
+    const clearBtn = document.getElementById('clear-filter-btn');
+    if (clearBtn) {
+        clearBtn.style.display = isFiltering ? 'flex' : 'none';
+    }
+
     // Set max date to today
     const today = new Date().toISOString().split('T')[0];
     modalStartDate.setAttribute('max', today);
@@ -850,9 +924,6 @@ function initializeHistoryPage() {
     // Open modal
     if (customDateBtn) {
         customDateBtn.addEventListener('click', function() {
-            // Pre-fill with current filter values if they exist
-            modalStartDate.value = startDateFilter.value;
-            modalEndDate.value = endDateFilter.value;
             datePickerModal.classList.add('active');
         });
     }
@@ -884,10 +955,8 @@ function initializeHistoryPage() {
         clearDateBtn.addEventListener('click', function() {
             modalStartDate.value = '';
             modalEndDate.value = '';
-            startDateFilter.value = '';
-            endDateFilter.value = '';
             closeModal();
-            applyFilters();
+            applyAndReload();
         });
     }
 
@@ -902,12 +971,8 @@ function initializeHistoryPage() {
                 return;
             }
 
-            // Set the hidden filter inputs
-            startDateFilter.value = startDate;
-            endDateFilter.value = endDate;
-
             closeModal();
-            applyFilters();
+            applyAndReload();
         });
     }
 
