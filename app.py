@@ -15,6 +15,7 @@ import httpx
 import csv
 from uuid import uuid4
 from langfuse import Langfuse
+from pypdf import PdfReader
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
@@ -927,7 +928,41 @@ def upload_file():
             current_app.logger.error(f"Error processing uploaded image '{filename}': {e}")
             return jsonify({"error": "Failed to process image file"}), 500
 
-    return jsonify({"error": "Invalid file type. Please upload a .txt, .png, .jpg, or .jpeg file."}), 400
+    elif file and filename.lower().endswith('.pdf'):
+        try:
+            pdf_reader = PdfReader(file)
+            content = ""
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    content += page_text + "\n"
+
+            if not content.strip():
+                return jsonify({"error": "Could not extract text from PDF. The PDF might be image-based or empty."}), 400
+
+            message_to_save = f"File uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
+
+            if chroma_connected:
+                try:
+                    chroma_collection.add(
+                        documents=[message_to_save],
+                        metadatas=[{"sender": "system", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}],
+                        ids=[str(uuid.uuid4())]
+                    )
+                except Exception as e:
+                    current_app.logger.error(f"Failed to save PDF content to ChromaDB: {e}")
+            else:
+                db = get_db()
+                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'system', message_to_save))
+                db.commit()
+
+            current_app.logger.info(f"Extracted text from '{file.filename}' and stored it for session {session_id}.")
+            return jsonify({"success": True, "filename": file.filename, "message": message_to_save})
+        except Exception as e:
+            current_app.logger.error(f"Error reading PDF file '{filename}': {e}")
+            return jsonify({"error": "Failed to process PDF file."}), 500
+
+    return jsonify({"error": "Invalid file type. Please upload a .txt, .pdf, .png, .jpg, or .jpeg file."}), 400
 
 @app.route('/generate', methods=['POST'])
 def generate():
