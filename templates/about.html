@@ -6,236 +6,92 @@
     <link rel="icon" href="{{ url_for('static', filename='logos/ollama.png') }}">
     <title>About | AI Think</title>
 
-    <!-- Material Icons -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    
     <!-- Stylesheets -->
     <style>
         :root {
-            --background: #f5f5f5;
-            --background-alt: #e8e8e8;
+            --background: #ffffff;
+            --background-alt: #f0f2f5;
             --card: #ffffff;
             --text: #1a1a1a;
-            --text-light: #6b7280;
-            --border: #e5e7eb;
-            --radius-sm: 0.25rem;
-            --radius-md: 0.5rem;
-            --radius-lg: 0.75rem;
+            --text-light: #595959;
+            --border: #e0e0e0;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
         }
-
-        * {
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-alt);
             color: var(--text);
             margin: 0;
             padding: 2rem;
-            line-height: 1.6;
-            min-height: 100vh;
+            line-height: 1.2;
         }
-
         .about-page {
-            max-width: 1400px;
+            max-width: 1800px;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
-            animation: fadeIn 0.5s ease;
         }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Header Card */
-        .header-card {
-            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #000000, #2d2d2d);
-        }
-
-        .header-card h2 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--text);
-            margin: 0 0 0.875rem 0;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        
-
-        .header-card p {
-            margin: 0.625rem 0;
-            font-size: 1rem;
-            line-height: 1.65;
-            color: var(--text);
-        }
-
-        .header-card a {
-            color: #000000;
-            font-weight: 600;
-            text-decoration: none;
-            border-bottom: 2px solid transparent;
-            transition: border-color 0.2s ease;
-        }
-
-        .header-card a:hover {
-            border-bottom-color: #000000;
-        }
-
-        /* Main Content Grid */
         .about-page-main-content {
             display: grid;
-            grid-template-columns: 2fr 1fr;
+            grid-template-columns: 3fr 1fr; /* Features is 3/4, License card is 1/4 */
             gap: 1.5rem;
             align-items: start;
         }
-
         .right-column {
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
         }
-
-        /* Enhanced Cards */
         .card {
-            background: linear-gradient(135deg, var(--card) 0%, var(--background) 100%);
+            background-color: var(--card);
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
             padding: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #000000, #2d2d2d);
+        h2 {
+            margin-top: 0;
         }
-
-        .card:hover {
-            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-            transform: translateY(-4px);
-        }
-
         h3 {
-            margin: 0 0 1.25rem 0;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text);
-            padding-bottom: 0.625rem;
-            border-bottom: 2px solid var(--border);
+            margin-top: 0;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
         }
-
-        /* Feature List */
         .feature-list {
-            padding-left: 0;
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
+            padding-left: 20px;
+            list-style-type: disc;
+            color: black;
         }
-
         .feature-list li {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.625rem;
-            padding: 0.875rem;
-            background: var(--background);
-            border-radius: var(--radius-md);
-            border-left: 3px solid rgba(0,0,0,0.2);
-            transition: all 0.2s ease;
+            margin-bottom: 0.5rem;
         }
-
-        .feature-list li:hover {
-            border-left-color: #000000;
-            background: linear-gradient(90deg, rgba(0,0,0,0.05) 0%, transparent 100%);
-            transform: translateX(4px);
-        }
-
-        .feature-list li::before {
-            content: '✓';
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 24px;
-            height: 24px;
-            background: linear-gradient(135deg, #000000 0%, #2d2d2d 100%);
-            color: white;
-            border-radius: 50%;
+        a {
+            color: black;
             font-weight: bold;
-            font-size: 0.875rem;
-            margin-top: 2px;
+            text-decoration: none;
         }
-
-        .feature-list li strong {
-            color: var(--text);
-            font-weight: 600;
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            margin-top: 1rem;
+            background-color: var(--background-alt);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            max-height: 300px;
+            overflow-y: auto;
         }
-
-        /* License Card */
         .license-card {
             text-align: center;
         }
-
-        .license-card h3 {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-
         .license-card img {
             width: 80px;
             margin: 1rem auto;
-            display: block;
-            filter: grayscale(0.3);
-            transition: all 0.3s ease;
         }
-
-        .license-card:hover img {
-            filter: grayscale(0);
-            transform: scale(1.05);
-        }
-
-        .license-card p {
-            margin: 1rem 0;
-            color: var(--text-light);
-            line-height: 1.6;
-        }
-
         .license-card a,
         .feedback-card a {
             display: inline-block;
@@ -250,90 +106,34 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
-        .license-card a:hover,
-        .feedback-card a:hover {
-            background: linear-gradient(135deg, #1a1a1a 0%, #404040 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
-        }
-
-        /* Feedback Card */
-        .feedback-card {
-            text-align: center;
-        }
-
-        .feedback-card h3 {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-
-        .feedback-card p {
-            margin: 1rem 0;
-            color: var(--text-light);
-            line-height: 1.6;
-        }
-
         /* Footer */
         .footer {
-            max-width: 1400px;
-            margin: 1.5rem auto 0 auto;
+            max-width: 900px;
+            margin: 0.75rem auto 0 auto; /* Margin-top to push it below the input */
             text-align: center;
-            font-size: 0.875rem;
-            color: var(--text-light);
-            padding: 1.25rem;
-            border-top: 2px solid var(--border);
-            background: var(--card);
-            border-radius: var(--radius-lg);
+            font-size: 0.75rem;
+            color: #999;
+            padding: 0 !important; /* Override inline style */
+            border: none !important; /* Override inline style */
         }
-
         .footer p {
-            margin: 0.5rem;
-            display: inline-block;
-            padding: 0 1rem;
+            margin: 0.1rem;
+            display: inline; /* Make them flow inline */
+            padding: 0 0.5rem; /* Add spacing */
         }
-
         .footer p:first-child {
-            display: block;
-            font-weight: 600;
-            font-size: 1rem;
-            margin-bottom: 0.75rem;
-            color: var(--text);
+            display: block; /* Keep 'AI Think' on its own line */
+            margin-bottom: 0.25rem;
         }
-
-        /* Responsive Design */
-        @media (max-width: 1024px) {
-            .about-page-main-content {
-                grid-template-columns: 1fr;
-            }
-        }
-
         @media (max-width: 768px) {
-            body {
-                padding: 1rem;
-            }
-
-            .header-card,
-            .card {
-                padding: 1.25rem;
-            }
-
-            .header-card h2 {
-                font-size: 1.5rem;
-            }
-
-            h3 {
-                font-size: 1.125rem;
-            }
-
-            .feature-list li {
-                padding: 0.75rem;
+            .about-page-main-content {
+                grid-template-columns: 1fr; /* Stack on smaller screens */
             }
 
             .footer p {
-                display: block;
-                padding: 0.25rem 0;
+                display: block; /* Stack footer text on mobile */
+                padding: 0;
+                margin: 0;
             }
         }
     </style>
@@ -343,10 +143,9 @@
 </head>
 <body>
     <div class="about-page">
-        <div class="card header-card">
+        <div class="card">
             <h2>Welcome to AI Think</h2>
             <p>AI Think is a self-hosted, web-based chat application that provides a user-friendly interface for interacting with large language models (LLMs). It connects to a local Ollama instance and can also integrate with various cloud model providers.</p>
-            <p>This project aims to provide a powerful, private, and extensible platform for experimenting with and utilizing generative AI.</p>
             <p>For more information, visit the <a href="https://github.com/SaiSivarajuIN/ai_think" target="_blank" rel="noopener noreferrer">GitHub repository</a>.</p>
         </div>
 
@@ -361,30 +160,31 @@
                     <li><strong>Web Search:</strong> Get up-to-date answers from the internet by integrating with a local SearXNG instance.</li>
                     <li><strong>System Health Dashboard:</strong> Monitor real-time CPU, memory, disk, and GPU usage.</li>
                     <li><strong>Dynamic Configuration:</strong> Adjust model parameters and integration settings on the fly without restarting the server.</li>
-                    <li><strong>Session Management:</strong> Bookmark, share, and resume conversations via URL session IDs.</li>
+                    <li><strong>Session Management:</strong> Bookmark and resume conversations via URL session IDs.</li>
                     <li><strong>Langfuse Integration:</strong> Optional, powerful tracing and observability for your LLM interactions.</li>
-                    <li><strong>File Upload:</strong> Provide `.txt`, `.png`, `.jpg` files as context for your conversations.</li>
+                    <li><strong>File Upload:</strong> Provide `.txt`, `.png`, `.jpg`, `.pdf` files as context for your conversations.</li>
                 </ul>
             </div>
             <div class="right-column">
                 <div class="card license-card">
                     <h3>MIT License</h3>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg" alt="MIT Logo">
                     <p>This project is open-source and licensed under the MIT License.</p>
                     <a href="https://github.com/SaiSivarajuIN/ai_think/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">View License on GitHub</a>
                 </div>
                 <div class="card feedback-card">
                     <h3>✍️ Feedback & contact us</h3>
                     <p>Have feedback or a feature request? Share it with us!</p>
-                    <a href="https://forms.gle/5LeiKT1tRoNWmVst5" target="_blank" rel="noopener noreferrer">Share Feedback</a>
+                    <div style="text-align: right;">
+                        <a href="https://forms.gle/5LeiKT1tRoNWmVst5" target="_blank" rel="noopener noreferrer">Share Feedback</a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <footer class="footer">
+    <footer class="footer" style="padding: 0.05rem 0 0 0; border: none;">
         <p>AI Think - Your Local AI Companion</p>
         <p>AI can mess up.</p>
-        <p>Made with 🖤 </p>
+        <p>Made with 🖤</p>
         <p>by Sai Sivaraju.</p>
     </footer>
 </body>

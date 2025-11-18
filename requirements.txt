@@ -10,3 +10,4 @@ tzdata
 tensorboard
 protobuf
 pytesseract
+pypdf

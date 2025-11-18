@@ -150,7 +150,7 @@ Provides observability for chat interactions:
 - Error handling: Catches `ClientDisconnected` for stop functionality
 
 `POST /upload`: File upload for context
-- Accepts: `.txt`, `.png`, `.jpg` files
+- Accepts: `.txt`, `.pdf`, `.png`, `.jpg` files
 - Stores text content or Base64-encoded image data as a 'system' message
 - Returns: Success confirmation with filename
 
@@ -338,6 +338,7 @@ Route: `/upload`
 | Type   | Handling |
 |--------|----------|
 | `.txt` | Stored directly as text into SQLite/Chroma |
+| `.pdf` | Text is extracted using `pypdf` and stored as text content |
 | Images | Converted to Base64, stored as special multimodal content |
 
 File context is automatically prepended on the next `/generate` call.
