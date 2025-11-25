@@ -36,7 +36,7 @@ pull_models() {
     echo "📦 Pulling recommended models (this may take some time)..."
     
     # Pull standard models
-    ollama pull gpt-oss:120b-cloud
+    # ollama pull gpt-oss:120b-cloud
     ollama pull gemma3:270m
     # ollama pull gemma3:1b
     # ollama pull llama3:latest

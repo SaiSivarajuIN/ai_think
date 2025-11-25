@@ -1700,10 +1700,10 @@ def health():
     # Create a map of model values to their display names for the health page
     model_name_map = {}
     local_models = get_ollama_models()
-    for model in local_models:
-        model_name_map[model['name']] = model['name']
-
     cloud_models = get_cloud_models()
+    for model in local_models:
+        model_name_map[model['name']] = format_model_name(model['name'])
+    
     for model in cloud_models:
         # The value is 'cloud::' + id, the name is 'service / model_name'
         key = f"cloud::{model['id']}"

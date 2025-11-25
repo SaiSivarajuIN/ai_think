@@ -324,7 +324,12 @@
                     {{ ollama_status }}
                 </span>
             </p>
-            <p><strong>Active Model:</strong> <span id="active-model-display">{{ ollama_model }}</span></p>
+            <p>
+                <strong>Active Model:</strong> 
+                <span id="active-model-display" data-default-model="{{ ollama_model }}" data-model-map='{{ model_name_map | tojson | e }}' style="font-size: 0.8rem;">
+                    {{ model_name_map.get(ollama_model, ollama_model) }}
+                </span>
+            </p>
             <small>This reflects the model selected on the main chat page. The default is shown if no selection has been made.</small>
         </div>
         <div class="card">
@@ -351,12 +356,19 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const modelDisplay = document.getElementById('active-model-display');
-            if (modelDisplay) {
-                // Retrieve the last selected model from localStorage.
-                const storedModel = localStorage.getItem('selectedModel');
-                if (storedModel) {
-                    modelDisplay.textContent = storedModel;
-                }
+            if (!modelDisplay) return;
+
+            // Retrieve the last selected model from localStorage
+            const storedModel = localStorage.getItem('selectedModel');
+            const modelMap = JSON.parse(modelDisplay.dataset.modelMap || '{}');
+            const defaultModel = modelDisplay.dataset.defaultModel;
+
+            const activeModelIdentifier = storedModel || defaultModel;
+
+            // Use the map to find the display name, or fall back to the identifier itself
+            const displayName = modelMap[activeModelIdentifier] || activeModelIdentifier;
+            if (displayName) {
+                modelDisplay.textContent = displayName;
             }
         });
     </script>
