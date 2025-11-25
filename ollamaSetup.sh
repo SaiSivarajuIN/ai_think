@@ -18,15 +18,17 @@ install_ollama() {
 
 # Function to start Ollama server
 start_ollama_server() {
-    echo "🚀 Starting Ollama server in the background..."
-    ollama serve &
-
-    # Wait for a few seconds to allow the server to initialize
-    sleep 5
-
-    # Check if the server is running
-    ollama ps > /dev/null 2>&1 || { echo "❌ Ollama server failed to start."; exit 1; }
-    echo "✅ Ollama server is running."
+    echo "🚀 Checking if Ollama server is running..."
+    if ollama ps > /dev/null 2>&1; then
+        echo "✅ Ollama server is already running."
+    else
+        echo "🚀 Starting Ollama server in the background..."
+        ollama serve &
+        echo "⏳ Waiting for server to initialize..."
+        sleep 5
+        ollama ps > /dev/null 2>&1 || { echo "❌ Ollama server failed to start."; exit 1; }
+        echo "✅ Ollama server is running."
+    fi
 }
 
 # Function to pull the models
@@ -35,6 +37,8 @@ pull_models() {
     
     # Pull standard models
     ollama pull gpt-oss:120b-cloud
+    ollama pull gemma3:270m
+    # ollama pull gemma3:1b
     # ollama pull llama3:latest
     
     # Pull GGUF model from Hugging Face

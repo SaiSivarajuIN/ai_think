@@ -5,6 +5,7 @@ import uuid
 import base64
 import pytesseract
 import psutil
+from pdf2image import convert_from_bytes
 import GPUtil
 import chromadb
 import logging
@@ -932,12 +933,22 @@ def upload_file():
         try:
             pdf_reader = PdfReader(file)
             content = ""
+            is_image_based = True
             for page in pdf_reader.pages:
                 page_text = page.extract_text()
                 if page_text:
+                    is_image_based = False
                     content += page_text + "\n"
 
-            if not content.strip():
+            if is_image_based and TESSERACT_AVAILABLE:
+                current_app.logger.info(f"'{filename}' appears to be image-based. Attempting OCR...")
+                file.seek(0)  # Reset file pointer
+                images = convert_from_bytes(file.read())
+                for image in images:
+                    content += pytesseract.image_to_string(image) + "\n"
+                current_app.logger.info(f"OCR successful for '{filename}'.")
+
+            if not content.strip() and not is_image_based:
                 return jsonify({"error": "Could not extract text from PDF. The PDF might be image-based or empty."}), 400
 
             message_to_save = f"File uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"

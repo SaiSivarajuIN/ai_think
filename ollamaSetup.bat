@@ -53,22 +53,27 @@ goto :eof
 
 :start_ollama_server
 echo [2/5] Starting Ollama server...
-start "Ollama Server" ollama serve
-echo      '- Waiting for server to initialize...
-timeout /t 5 /nobreak >nul
-
 ollama ps >nul 2>&1
-if %errorlevel% neq 0 (
+if %errorlevel% equ 0 (
+    echo      '- Ollama server is already running.
+) else (
+    echo      '- Starting Ollama server...
+    start "Ollama Server" ollama serve
+    echo      '- Waiting for server to initialize...
+    timeout /t 5 /nobreak >nul
+    ollama ps >nul 2>&1
+    if %errorlevel% neq 0 (
     echo      '- ERROR: Ollama server failed to start.
     exit /b 1
+    )
+    echo      '- Ollama server is running.
 )
-echo      '- Ollama server is running.
 goto :eof
 
 
 :pull_models
 echo [3/5] Pulling recommended models (this may take some time)...
-ollama pull gemma3:1b
+ollama pull gemma3:270m
 :: ollama pull hf.co/janhq/Jan-v1-4B-GGUF
 :: ollama pull hf.co/unsloth/granite-4.0-micro-GGUF
 echo      '- Models pulled. Available models:

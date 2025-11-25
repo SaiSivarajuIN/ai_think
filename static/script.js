@@ -85,6 +85,22 @@ document.addEventListener('DOMContentLoaded', function() {
             0%, 80%, 100% { transform: scale(0); }
             40% { transform: scale(1.0); }
         }
+        .thread-marker {
+            font-size: 1.5rem; /* Increase marker size */
+            line-height: 0.5;  /* Adjust line height for better spacing */
+            margin: 2px 0;     /* Add some vertical margin */
+        }
+        .thread-marker.active {
+            font-weight: 900;
+            color: var(--primary);
+            animation: marker-pulse 0.5s ease-out;
+        }
+        @keyframes marker-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(3.0); }
+            100% { transform: scale(1); }
+        }
+
     `;
     document.head.appendChild(style);
     // Showdown converter for Markdown rendering
@@ -262,6 +278,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isIncognito) {
             incognitoIcon.textContent = 'visibility_off';
             incognitoBtn.title = 'Disable Incognito Mode';
+            const url = new URL(window.location);
+            url.search = `?incognito=true`;
+            window.history.pushState({ path: url.href }, '', url.href);
         } else {
             incognitoIcon.textContent = 'visibility';
             incognitoBtn.title = 'Enable Incognito Mode';
@@ -279,14 +298,16 @@ document.addEventListener('DOMContentLoaded', function() {
             isIncognito = !isIncognito; // Toggle the state
             localStorage.setItem('isIncognito', isIncognito); // Save state
             updateIncognitoUI();
-
-            // When toggling incognito, always start a new thread
-            resetThread();
+ 
             if (isIncognito) {
                 addMessage('**Incognito Mode Enabled.** Chat history will not be saved.', false);
+                const url = new URL(window.location);
+                url.search = `?incognito=true`;
+                window.history.pushState({ path: url.href }, '', url.href);
             } else {
                 addMessage('**Incognito Mode Disabled.** Chat history will now be saved.', false);
             }
+            resetThread();
             updateSearchButtonState(); // Update search button state after incognito change
         });
     }
@@ -478,6 +499,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update click listener to scroll to the start of the message
         marker.addEventListener('click', () => {
+            // Remove 'active' class from any previously active marker
+            if (threadMarkerBar) {
+                const currentActive = threadMarkerBar.querySelector('.thread-marker.active');
+                if (currentActive) {
+                    currentActive.classList.remove('active');
+                }
+            }
+            // Add 'active' class to the clicked marker
+            marker.classList.add('active');
+
             messageContainer.scrollIntoView({ 
                 behavior: 'smooth', 
                 block: 'start'  // Changed from 'center' to 'start'
@@ -780,6 +811,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!isIncognito) {
                     addMessage('🆕 New conversation started!', 'bot');
                     // Reset URL to the base path only if not in incognito
+                    window.history.pushState({}, '', '/');
+                } else {
+                    const url = new URL(window.location);
+                    url.search = `?incognito=true`;
                     window.history.pushState({}, '', '/');
                 }
             }
@@ -1175,6 +1210,9 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             // No session ID, start a fresh chat
             if (isIncognito) {
+                const url = new URL(window.location);
+                url.search = `?incognito=true`;
+                window.history.pushState({ path: url.href }, '', url.href);
                 addMessage('**Incognito Mode Enabled.** Chat history will not be saved.', false);
             } else {
                 addMessage('Hello! I\'m your Ollama-powered assistant. How can I help you today?', false);
