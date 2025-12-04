@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />    
-    <link rel="icon" href="{{ url_for('static', filename='logos/ollama.png') }}">
+    <link rel="icon" href="{{ url_for('static', filename='logos/logo.png') }}">
     <title>{% block title %}AI Think{% endblock %}</title>
 
     <style>
@@ -56,8 +56,12 @@
                     <span>Hub</span>
                     <span class="material-icons dropdown-arrow">expand_more</span>
                 </summary>
+                {% if settings.get('local_models_enabled', True) %}
                 <a href="/models" class="nav-link" title="Models Hub">Local Models</a>
+                {% endif %}
+                {% if settings.get('cloud_models_enabled', True) %}
                 <a href="/cloud" class="nav-link" title="Cloud Models">Cloud Models</a>
+                {% endif %}
                 <a href="/prompts" class="nav-link" title="Prompt Hub">Prompt Hub</a>
             </details>
             <a href="/settings" class="nav-link" title="Settings">Settings</a>

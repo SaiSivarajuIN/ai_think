@@ -59,6 +59,28 @@ def format_model_name(name):
         # For names without a '/', just format as before
         return capitalize_words(name.replace('_', '_'))
 
+def format_indian_number(num):
+    """Jinja filter to format numbers in the Indian numbering system."""
+    if num is None:
+        return ''
+    try:
+        num = int(num)
+    except (ValueError, TypeError):
+        return num
+
+    s = str(num)
+    if len(s) <= 3:
+        return s
+
+    last_three = s[-3:]
+    other_digits = s[:-3]
+    
+    # Reverse the string of other digits, add commas every two digits, then reverse back
+    other_digits_rev = other_digits[::-1]
+    res = ','.join(other_digits_rev[i:i+2] for i in range(0, len(other_digits_rev), 2))
+    
+    return res[::-1] + ',' + last_three
+
 
 app = Flask(__name__)
 
@@ -109,6 +131,7 @@ app.secret_key = secrets.token_hex(32)
 
 # Register the custom filter
 app.jinja_env.filters['format_model_name'] = format_model_name
+app.jinja_env.filters['format_indian'] = format_indian_number
 
 def regex_search(s, pattern):
     """A Jinja filter to perform a regex search."""
@@ -265,6 +288,10 @@ def init_db():
             cursor.execute('ALTER TABLE settings ADD COLUMN searxng_url TEXT')
         if 'searxng_enabled' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN searxng_enabled BOOLEAN DEFAULT 0')
+        if 'local_models_enabled' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN local_models_enabled BOOLEAN DEFAULT 1')
+        if 'cloud_models_enabled' not in column_names:
+            cursor.execute('ALTER TABLE settings ADD COLUMN cloud_models_enabled BOOLEAN DEFAULT 1')
 
         messages_table_info = cursor.execute("PRAGMA table_info(messages)").fetchall()
         messages_column_names = [info[1] for info in messages_table_info]
@@ -299,8 +326,8 @@ def init_db():
             chroma_api_key = os.getenv("CHROMA_API_KEY", "")
             chroma_tenant = os.getenv("CHROMA_TENANT", "")
             chroma_database = os.getenv("CHROMA_DATABASE", "")
-            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, chroma_api_key, chroma_tenant, chroma_database, langfuse_enabled, chromadb_enabled, searxng_url, searxng_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, chroma_api_key, chroma_tenant, chroma_database, 0, 0, DEFAULT_SETTINGS['searxng_url'], 0))
+            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, chroma_api_key, chroma_tenant, chroma_database, langfuse_enabled, chromadb_enabled, searxng_url, searxng_enabled, local_models_enabled, cloud_models_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, chroma_api_key, chroma_tenant, chroma_database, 0, 0, DEFAULT_SETTINGS['searxng_url'], 0, 1, 1))
         else:
             # For existing installations, ensure langfuse columns have default values if they are NULL
             db.execute("UPDATE settings SET chroma_api_key = '' WHERE chroma_api_key IS NULL")
@@ -313,6 +340,8 @@ def init_db():
             db.execute("UPDATE settings SET chromadb_enabled = 0 WHERE chromadb_enabled IS NULL")
             db.execute("UPDATE settings SET searxng_url = ? WHERE searxng_url IS NULL", (DEFAULT_SETTINGS['searxng_url'],))
             db.execute("UPDATE settings SET searxng_enabled = 0 WHERE searxng_enabled IS NULL")
+            db.execute("UPDATE settings SET local_models_enabled = 1 WHERE local_models_enabled IS NULL")
+            db.execute("UPDATE settings SET cloud_models_enabled = 1 WHERE cloud_models_enabled IS NULL")
 
         db.commit()
         app.logger.info("Database initialized")
@@ -346,7 +375,9 @@ def get_settings():
         'langfuse_enabled': False,
         'chromadb_enabled': False,
         'searxng_url': SEARXNG_URL,
-        'searxng_enabled': False
+        'searxng_enabled': False,
+        'local_models_enabled': True,
+        'cloud_models_enabled': True
     }
 
 def save_settings(settings_dict):
@@ -365,20 +396,23 @@ def save_settings(settings_dict):
         'langfuse_enabled': bool(settings_dict.get('langfuse_enabled', False)),
         'chromadb_enabled': bool(settings_dict.get('chromadb_enabled', False)),
         'searxng_url': str(settings_dict.get('searxng_url', '')),
-        'searxng_enabled': bool(settings_dict.get('searxng_enabled', False))
+        'searxng_enabled': bool(settings_dict.get('searxng_enabled', False)),
+        'local_models_enabled': bool(settings_dict.get('local_models_enabled', False)),
+        'cloud_models_enabled': bool(settings_dict.get('cloud_models_enabled', False))
     }
 
     # Always save to SQLite as the primary fallback
     try:
         db = get_db()
         db.execute(
-            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, chroma_api_key = ?, chroma_tenant = ?, chroma_database = ?, langfuse_enabled = ?, chromadb_enabled = ?, searxng_url = ?, searxng_enabled = ? WHERE id = 1',
+            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, chroma_api_key = ?, chroma_tenant = ?, chroma_database = ?, langfuse_enabled = ?, chromadb_enabled = ?, searxng_url = ?, searxng_enabled = ?, local_models_enabled = ?, cloud_models_enabled = ? WHERE id = 1',
             (
                 typed_settings['num_predict'], typed_settings['temperature'], typed_settings['top_p'], typed_settings['top_k'],
                 typed_settings['langfuse_public_key'], typed_settings['langfuse_secret_key'], typed_settings['langfuse_host'],
                 typed_settings['chroma_api_key'], typed_settings['chroma_tenant'], typed_settings['chroma_database'], 
                 typed_settings['langfuse_enabled'], typed_settings['chromadb_enabled'],
-                typed_settings['searxng_url'], typed_settings['searxng_enabled']
+                typed_settings['searxng_url'], typed_settings['searxng_enabled'],
+                typed_settings['local_models_enabled'], typed_settings['cloud_models_enabled']
             )
         )
         db.commit()
@@ -504,6 +538,10 @@ def check_searxng_connection():
 
 def get_ollama_models():
     """Fetch the list of available models from the Ollama API."""
+    settings = get_settings()
+    if not settings.get('local_models_enabled'):
+        return []
+
     if not check_ollama_connection():
         current_app.logger.warning("Cannot fetch Ollama models, connection failed.")
         return []
@@ -544,6 +582,10 @@ def get_ollama_models():
 
 def get_cloud_models():
     """Fetch all configured cloud models from the database."""
+    settings = get_settings()
+    if not settings.get('cloud_models_enabled'):
+        return []
+
     try:
         db = get_db()
         models_cursor = db.execute('SELECT id, service, base_url, api_key, model_name, active FROM cloud_models ORDER BY service, model_name').fetchall()
@@ -848,6 +890,7 @@ def index():
         available_models=[m for m in available_models if m.get('active', True)],
         cloud_models=cloud_models,
         ollama_status=ollama_status,
+        settings=settings,
         langfuse_enabled=langfuse_enabled,
         prompts=prompts,
         searxng_enabled=settings.get('searxng_enabled', False)
@@ -1516,6 +1559,7 @@ def history():
         total_pages=total_pages,
         per_page=per_page,
         search_query=search_query,
+        settings=get_settings(),
         start_date=start_date_str,
         end_date=end_date_str
     )
@@ -1737,7 +1781,8 @@ def models_hub():
         page_title="Models Hub | AI Think Chat",
         page_id="models",
         header_title="Models Hub",
-        ollama_status=ollama_status
+        ollama_status=ollama_status,
+        settings=get_settings()
     )
 
 @app.route('/api/models', methods=['GET'])
@@ -1845,7 +1890,9 @@ def settings(tab_name='general'):
             'chroma_database': request.form.get('chroma_database', ''),
             'chromadb_enabled': 'chromadb_enabled' in request.form,
             'searxng_url': request.form.get('searxng_url', ''),
-            'searxng_enabled': 'searxng_enabled' in request.form
+            'searxng_enabled': 'searxng_enabled' in request.form,
+            'local_models_enabled': 'local_models_enabled' in request.form,
+            'cloud_models_enabled': 'cloud_models_enabled' in request.form
         }
         save_settings(settings_to_save)
         
@@ -1888,7 +1935,8 @@ def prompts_hub():
         'prompts.html',
         page_title="Prompt Hub | AI Think Chat",
         page_id="prompts",
-        header_title="Prompt Hub"
+        header_title="Prompt Hub",
+        settings=get_settings()
     )
 
 @app.route('/api/prompts', methods=['GET'])
@@ -2034,6 +2082,11 @@ def dashboard():
     try:
         db = get_db()
 
+        settings = get_settings()
+        local_models_enabled = settings.get('local_models_enabled', True)
+        cloud_models_enabled = settings.get('cloud_models_enabled', True)
+
+
         if chroma_connected:
             # Fetch stats from ChromaDB
             results = chroma_collection.get(include=["metadatas"])
@@ -2075,14 +2128,16 @@ def dashboard():
         # A more advanced implementation would be needed.
         # Let's count which models are configured.
         local_models = db.execute("SELECT name from local_models WHERE active = 1").fetchall()
-        cloud_models_cursor = db.execute("SELECT service, model_name from cloud_models WHERE active = 1").fetchall()
+        cloud_models = db.execute("SELECT service, model_name from cloud_models WHERE active = 1").fetchall()
         
         model_usage_list = []
-        for m in local_models:
-            model_usage_list.append({'name': m['name'], 'service': 'Ollama'})
+        if local_models_enabled:
+            for m in local_models:
+                model_usage_list.append({'name': m['name'], 'service': 'Ollama'})
 
-        for m in cloud_models_cursor:
-            model_usage_list.append({'name': m['model_name'], 'service': m['service']})
+        if cloud_models_enabled:
+            for m in cloud_models:
+                model_usage_list.append({'name': m['model_name'], 'service': m['service']})
 
         # This is a simplified view of "usage" - just listing active models with their service.
         stats['model_usage'] = model_usage_list
@@ -2155,6 +2210,7 @@ def dashboard():
         page_id="dashboard",
         header_title=f"User Dashboard ({time_range})",
         stats=stats,
+        settings=settings,
         time_range_labels=time_range_labels,
         current_range=time_range,
         service_logo_map=service_logo_map)
@@ -2207,7 +2263,8 @@ def cloud_models_page():
         page_id="cloud_models",
         header_title="Cloud Model Management",
         cloud_services=list(services_from_csv.values()),
-        other_logo_filename=other_logo_filename
+        other_logo_filename=other_logo_filename,
+        settings=get_settings()
     )
 
 @app.route('/api/cloud_models', methods=['GET'])

@@ -231,10 +231,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedOption = this.options[this.selectedIndex];
             const promptContent = selectedOption.dataset.content;
             if (promptContent) {
-                // Clear existing history and add the selected prompt as the system message
-                conversationHistory = [{ role: 'system', content: promptContent }];
-                chatbox.innerHTML = ''; // Clear the visual chat
-                addMessage(`**Prompt Activated:** ${selectedOption.textContent}`, false);
+                // If the first message is a system prompt, replace it. Otherwise, add it.
+                if (conversationHistory.length > 0 && conversationHistory[0].role === 'system') {
+                    conversationHistory[0].content = promptContent;
+                } else {
+                    conversationHistory.unshift({ role: 'system', content: promptContent });
+                }
+                // Add a subtle message to confirm activation, but don't clear the chat.
+                addMessage(`*Prompt '${selectedOption.textContent}' is now active.*`, 'system');
+            } else {
+                // If user selects "Select a Prompt...", remove the system prompt if it exists
+                if (conversationHistory.length > 0 && conversationHistory[0].role === 'system') {
+                    conversationHistory.shift();
+                    addMessage('*Prompt deactivated.*', 'system');
+                }
             }
         });
     }
@@ -316,6 +326,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const isUser = sender === 'user';
         const isSystem = sender === 'system';
         let messageContainer;
+
+        // Per user request, do not display system messages for prompt activation/deactivation or file uploads.
+        if (isSystem && (content.startsWith('*Prompt') || content.startsWith('File uploaded:') || content.startsWith('Image uploaded:'))) {
+            // The action (like setting the prompt) is already done, so we just prevent the UI message.
+            return null;
+        }
 
         if (isSystem) {
             messageContainer = document.createElement('details');
