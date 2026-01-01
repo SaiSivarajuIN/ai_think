@@ -16,19 +16,26 @@ install_ollama() {
     fi
 }
 
+# Function to set up the database
+setup_database() {
+    echo "⚙️  Setting up database..."
+    mkdir -p "instance"
+    echo "    - Directory 'instance' ensured."
+    touch "instance/chat.db"
+    echo "    - Database file 'instance/chat.db' ensured."
+}
+
 # Function to start Ollama server
 start_ollama_server() {
-    echo "🚀 Checking if Ollama server is running..."
-    if ollama ps > /dev/null 2>&1; then
-        echo "✅ Ollama server is already running."
-    else
-        echo "🚀 Starting Ollama server in the background..."
-        ollama serve &
-        echo "⏳ Waiting for server to initialize..."
-        sleep 5
-        ollama ps > /dev/null 2>&1 || { echo "❌ Ollama server failed to start."; exit 1; }
-        echo "✅ Ollama server is running."
-    fi
+    echo "🚀 Starting Ollama server in the background..."
+    ollama serve &
+
+    # Wait for a few seconds to allow the server to initialize
+    sleep 5
+
+    # Check if the server is running
+    ollama ps > /dev/null 2>&1 || { echo "❌ Ollama server failed to start."; exit 1; }
+    echo "✅ Ollama server is running."
 }
 
 # Function to pull the models
@@ -36,17 +43,12 @@ pull_models() {
     echo "📦 Pulling recommended models (this may take some time)..."
     
     # Pull standard models
-    # ollama pull gpt-oss:120b-cloud
-    ollama pull gemma3:270m
-    # ollama pull gemma3:1b
-    # ollama pull llama3:latest
+    ollama pull llama3:latest
     
     # Pull GGUF model from Hugging Face
-    # ollama pull hf.co/janhq/Jan-v1-edge-gguf:Q8_0
-    # ollama pull hf.co/iassivarajuss/Mistral-7b-v0.3-bnb-4bit-GGUF:Q8_0
-    # ollama pull hf.co/iassivarajuss/llama-3-8b-bnb-4bit-GGUF:Q8_0
-    # ollama pull hf.co/unsloth/granite-4.0-micro-GGUF
-    # ollama pull hf.co/unsloth/gpt-oss-20b-GGUF:Q4_K_M  # Uncomment if needed
+    # ollama pull hf.co/ss-lab/Llama-3.2-1B-Instruct-bnb-4bit-GGUF:Q3_K_M
+    # ollama pull hf.co/ss-lab/EXAONE-4.0-1.2B-GGUF:Q4_K_M
+
 }
 
 # Function to handle SearXNG services
@@ -73,6 +75,7 @@ start_ai_think_app() {
 
 # Main execution
 install_ollama
+setup_database
 
 # Wait for Ollama to be available
 until command -v ollama &> /dev/null; do

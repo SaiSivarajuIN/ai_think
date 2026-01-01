@@ -974,26 +974,68 @@ def upload_file():
 
     elif file and filename.lower().endswith('.pdf'):
         try:
-            pdf_reader = PdfReader(file)
+            import io
+            pdf_bytes = file.read()
+            pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
+            
             content = ""
-            is_image_based = True
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    is_image_based = False
-                    content += page_text + "\n"
-
-            if is_image_based and TESSERACT_AVAILABLE:
-                current_app.logger.info(f"'{filename}' appears to be image-based. Attempting OCR...")
-                file.seek(0)  # Reset file pointer
-                images = convert_from_bytes(file.read())
-                for image in images:
-                    content += pytesseract.image_to_string(image) + "\n"
-                current_app.logger.info(f"OCR successful for '{filename}'.")
-
-            if not content.strip() and not is_image_based:
-                return jsonify({"error": "Could not extract text from PDF. The PDF might be image-based or empty."}), 400
-
+            num_pages = len(pdf_reader.pages)
+            
+            # Try to extract text from PDF pages first
+            for i, page in enumerate(pdf_reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text:
+                        content += page_text + "\n"
+                except Exception as e:
+                    current_app.logger.warning(f"Failed to extract text from page {i+1}: {e}")
+            
+            # If no text extracted and Tesseract is available, try OCR on converted images
+            if not content.strip() and TESSERACT_AVAILABLE:
+                try:
+                    current_app.logger.info(f"No text extracted via PDF parser. Attempting OCR on '{filename}'...")
+                    pdf_images = convert_from_bytes(pdf_bytes)
+                    
+                    if len(pdf_images) != num_pages:
+                        current_app.logger.warning(f"Page count mismatch: PDF has {num_pages} pages but {len(pdf_images)} images converted.")
+                    
+                    for i, image in enumerate(pdf_images):
+                        try:
+                            ocr_text = pytesseract.image_to_string(image)
+                            if ocr_text:
+                                content += ocr_text + "\n"
+                        except Exception as e:
+                            current_app.logger.warning(f"OCR failed on page {i+1}: {e}")
+                except Exception as e:
+                    current_app.logger.warning(f"Image conversion or OCR failed for '{filename}': {e}")
+            
+            # If still no content, try basic OCR even if text extraction worked
+            # (to capture text from embedded images in text-based PDFs)
+            elif TESSERACT_AVAILABLE and content.strip():
+                try:
+                    current_app.logger.info(f"Performing supplementary OCR on '{filename}' to capture text in images...")
+                    pdf_images = convert_from_bytes(pdf_bytes)
+                    
+                    for i, image in enumerate(pdf_images):
+                        try:
+                            ocr_text = pytesseract.image_to_string(image)
+                            if ocr_text and ocr_text.strip():
+                                content += "\n[Text from page image]\n" + ocr_text
+                        except Exception as e:
+                            current_app.logger.debug(f"Supplementary OCR skipped for page {i+1}: {e}")
+                except Exception as e:
+                    current_app.logger.debug(f"Supplementary OCR failed for '{filename}': {e}")
+            
+            # Final validation: ensure we have some content
+            if not content.strip():
+                error_msg = "Could not extract text from PDF. The PDF might be:"
+                error_msg += "\n- Completely image-based without OCR capability"
+                if not TESSERACT_AVAILABLE:
+                    error_msg += "\n- Missing Tesseract OCR installation (required for image-based PDFs)"
+                error_msg += "\n- Corrupted or encrypted"
+                current_app.logger.warning(f"PDF extraction failed for '{filename}': {error_msg}")
+                return jsonify({"error": error_msg}), 400
+            
             message_to_save = f"File uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
 
             if chroma_connected:
@@ -1010,11 +1052,11 @@ def upload_file():
                 db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'system', message_to_save))
                 db.commit()
 
-            current_app.logger.info(f"Extracted text from '{file.filename}' and stored it for session {session_id}.")
+            current_app.logger.info(f"Successfully extracted text from '{file.filename}' ({len(content)} chars) and stored it for session {session_id}.")
             return jsonify({"success": True, "filename": file.filename, "message": message_to_save})
         except Exception as e:
-            current_app.logger.error(f"Error reading PDF file '{filename}': {e}")
-            return jsonify({"error": "Failed to process PDF file."}), 500
+            current_app.logger.error(f"Error reading PDF file '{filename}': {e}", exc_info=True)
+            return jsonify({"error": "Failed to process PDF file. Please ensure the file is valid and not corrupted."}), 500
 
     return jsonify({"error": "Invalid file type. Please upload a .txt, .pdf, .png, .jpg, or .jpeg file."}), 400
 
@@ -1662,6 +1704,7 @@ def get_gpu_status(gpus):
     for gpu in gpus:
         load = float(gpu['load'].rstrip('%'))
         mem_used = int(float(gpu['memory_used'].rstrip('MB')))
+       
         mem_total = int(float(gpu['memory_total'].rstrip('MB')))
         temp = float(gpu['temperature'].rstrip('°C'))
         
@@ -2313,8 +2356,7 @@ def api_create_cloud_model():
         # Insert one row for each model name
         for model_name in model_names:
             if model_name: # Ensure not empty
-                db.execute('INSERT INTO cloud_models (service, base_url, api_key, model_name) VALUES (?, ?, ?, ?)',
-                                   (service, base_url, api_key, model_name.strip()))
+                db.execute('INSERT INTO cloud_models (service, base_url, api_key, model_name) VALUES (?, ?, ?, ?)', (service, base_url, api_key, model_name.strip()))
         db.commit()
         return jsonify({"success": True}), 201
     except Exception as e:

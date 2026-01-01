@@ -7,6 +7,7 @@ echo.
 
 :: Main execution flow
 call :install_ollama
+call :setup_database
 call :start_ollama_server
 call :pull_models
 call :start_searxng_services
@@ -51,29 +52,37 @@ echo      '- NOTE: You may need to open a new terminal for the 'ollama' command 
 goto :eof
 
 
-:start_ollama_server
-echo [2/5] Starting Ollama server...
-ollama ps >nul 2>&1
-if %errorlevel% equ 0 (
-    echo      '- Ollama server is already running.
-) else (
-    echo      '- Starting Ollama server...
-    start "Ollama Server" ollama serve
-    echo      '- Waiting for server to initialize...
-    timeout /t 5 /nobreak >nul
-    ollama ps >nul 2>&1
-    if %errorlevel% neq 0 (
-    echo      '- ERROR: Ollama server failed to start.
-    exit /b 1
-    )
-    echo      '- Ollama server is running.
+:setup_database
+echo [2/6] Setting up database...
+if not exist "instance" (
+    mkdir "instance"
+    echo      '- Directory 'instance' created.
+)
+if not exist "instance\chat.db" (
+    type nul > "instance\chat.db"
+    echo      '- Database file 'instance\chat.db' created.
 )
 goto :eof
 
 
+:start_ollama_server
+echo [3/6] Starting Ollama server...
+start "Ollama Server" ollama serve
+echo      '- Waiting for server to initialize...
+timeout /t 5 /nobreak >nul
+
+ollama ps >nul 2>&1
+if %errorlevel% neq 0 (
+    echo      '- ERROR: Ollama server failed to start.
+    exit /b 1
+)
+echo      '- Ollama server is running.
+goto :eof
+
+
 :pull_models
-echo [3/5] Pulling recommended models (this may take some time)...
-ollama pull gemma3:270m
+echo [4/6] Pulling recommended models (this may take some time)...
+ollama pull gemma3:1b
 :: ollama pull hf.co/janhq/Jan-v1-4B-GGUF
 :: ollama pull hf.co/unsloth/granite-4.0-micro-GGUF
 echo      '- Models pulled. Available models:
@@ -82,7 +91,7 @@ goto :eof
 
 
 :start_searxng_services
-echo [4/5] Starting SearXNG services...
+echo [5/6] Starting SearXNG services...
 if exist "searxng-docker\docker-compose.yml" (
     cd searxng-docker
     docker compose up -d
@@ -95,10 +104,10 @@ goto :eof
 
 
 :: :start_ai_think_app
-:: echo [5/5] Starting the AI Think application...
+:: echo [6/6] Starting the AI Think application...
 :: python main.py
 :: goto :eof
 :start_ai_think_app
-echo [5/5] Starting the AI Think application...
+echo [6/6] Starting the AI Think application...
 python main.py
 goto :eof
