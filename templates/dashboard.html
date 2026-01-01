@@ -779,6 +779,46 @@
         </div>
     </div>
     <div class="full-width-card" style="margin-top: 2rem;">
+        <h2>Rate Limits Breakdown</h2>
+        <p class="text-muted" style="margin-bottom: 1rem;">
+            Peak usage metrics observed during the selected period.
+        </p>
+        <div class="stats-grid" style="margin-bottom: 0;">
+            <div class="stat-item">
+                <div class="stat-header">
+                    <span class="stat-icon material-icons">speed</span>
+                    <span class="stat-label">Peak RPM</span>
+                </div>
+                <span class="stat-value">{{ stats.peak_rpm | default(0) | format_indian }}</span>
+                <small class="text-muted">Requests per Minute</small>
+            </div>
+            <div class="stat-item">
+                <div class="stat-header">
+                    <span class="stat-icon material-icons">data_usage</span>
+                    <span class="stat-label">Peak TPM</span>
+                </div>
+                <span class="stat-value">{{ stats.peak_tpm | default(0) | format_indian }}</span>
+                <small class="text-muted">Input Tokens per Minute</small>
+            </div>
+            <div class="stat-item">
+                <div class="stat-header">
+                    <span class="stat-icon material-icons">output</span>
+                    <span class="stat-label">Peak Output TPM</span>
+                </div>
+                <span class="stat-value">{{ stats.peak_output_tpm | default(0) | format_indian }}</span>
+                <small class="text-muted">Output Tokens per Minute</small>
+            </div>
+            <div class="stat-item">
+                <div class="stat-header">
+                    <span class="stat-icon material-icons">calendar_today</span>
+                    <span class="stat-label">Peak RPD</span>
+                </div>
+                <span class="stat-value">{{ stats.peak_rpd | default(0) | format_indian }}</span>
+                <small class="text-muted">Requests per Day</small>
+            </div>
+        </div>
+    </div>
+    <div class="full-width-card" style="margin-top: 2rem;">
             <h2>API Usage Statistics</h2>
             <p class="text-muted" style="margin-bottom: 1rem;">
                 Detailed breakdown of recent API calls and token usage.

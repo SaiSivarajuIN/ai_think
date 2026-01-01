@@ -640,9 +640,12 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_
 
     for attempt in range(max_retries):
         try:
+            # Sanitize messages to remove internal fields that some APIs (like Mistral) reject
+            sanitized_messages = [{k: v for k, v in msg.items() if k in ('role', 'content')} for msg in messages]
+
             payload = {
                 "model": model_name,
-                "messages": messages,
+                "messages": sanitized_messages,
                 "stream": False,
                 # Some cloud providers might use these, others might not.
                 # This is a generic payload.
@@ -656,14 +659,16 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_
                 'Authorization': f"Bearer {model_config['api_key']}"
             }
 
-            # Use the base_url from the model config
-            api_url = f"{model_config['base_url'].rstrip('/')}/chat/completions"
             # Use the base_url from the model config and append the correct path.
             base_url = model_config['base_url'].rstrip('/')
             if base_url.endswith('/chat/completions'):
                 api_url = base_url
             else:
                 api_url = f"{base_url}/chat/completions"
+
+            # Ensure Mistral API endpoint is correct (requires /v1/)
+            if "api.mistral.ai" in api_url and "/v1/" not in api_url:
+                api_url = api_url.replace("api.mistral.ai/chat/completions", "api.mistral.ai/v1/chat/completions")
 
             if langfuse_enabled and not is_incognito:
                 with langfuse.start_as_current_span(
@@ -913,7 +918,7 @@ def upload_file():
     if file and file.filename.endswith('.txt'):
         try:
             content = file.read().decode('utf-8')
-            message_to_save = f"File uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
+            message_to_save = f"File Uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
 
             if chroma_connected:
                 try:
@@ -948,7 +953,7 @@ def upload_file():
             mime_type = file.mimetype
 
             # Create a special message format for images
-            message_to_save = f"Image uploaded: {filename}\n\n--- IMAGE ---\n{mime_type};base64,{base64_image}"
+            message_to_save = f"Image Uploaded: {filename}\n\n--- IMAGE ---\n{mime_type};base64,{base64_image}"
 
             # Save the image message to the database
             if chroma_connected:
@@ -974,69 +979,27 @@ def upload_file():
 
     elif file and filename.lower().endswith('.pdf'):
         try:
-            import io
-            pdf_bytes = file.read()
-            pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
-            
+            pdf_reader = PdfReader(file)
             content = ""
-            num_pages = len(pdf_reader.pages)
-            
-            # Try to extract text from PDF pages first
-            for i, page in enumerate(pdf_reader.pages):
-                try:
-                    page_text = page.extract_text()
-                    if page_text:
-                        content += page_text + "\n"
-                except Exception as e:
-                    current_app.logger.warning(f"Failed to extract text from page {i+1}: {e}")
-            
-            # If no text extracted and Tesseract is available, try OCR on converted images
-            if not content.strip() and TESSERACT_AVAILABLE:
-                try:
-                    current_app.logger.info(f"No text extracted via PDF parser. Attempting OCR on '{filename}'...")
-                    pdf_images = convert_from_bytes(pdf_bytes)
-                    
-                    if len(pdf_images) != num_pages:
-                        current_app.logger.warning(f"Page count mismatch: PDF has {num_pages} pages but {len(pdf_images)} images converted.")
-                    
-                    for i, image in enumerate(pdf_images):
-                        try:
-                            ocr_text = pytesseract.image_to_string(image)
-                            if ocr_text:
-                                content += ocr_text + "\n"
-                        except Exception as e:
-                            current_app.logger.warning(f"OCR failed on page {i+1}: {e}")
-                except Exception as e:
-                    current_app.logger.warning(f"Image conversion or OCR failed for '{filename}': {e}")
-            
-            # If still no content, try basic OCR even if text extraction worked
-            # (to capture text from embedded images in text-based PDFs)
-            elif TESSERACT_AVAILABLE and content.strip():
-                try:
-                    current_app.logger.info(f"Performing supplementary OCR on '{filename}' to capture text in images...")
-                    pdf_images = convert_from_bytes(pdf_bytes)
-                    
-                    for i, image in enumerate(pdf_images):
-                        try:
-                            ocr_text = pytesseract.image_to_string(image)
-                            if ocr_text and ocr_text.strip():
-                                content += "\n[Text from page image]\n" + ocr_text
-                        except Exception as e:
-                            current_app.logger.debug(f"Supplementary OCR skipped for page {i+1}: {e}")
-                except Exception as e:
-                    current_app.logger.debug(f"Supplementary OCR failed for '{filename}': {e}")
-            
-            # Final validation: ensure we have some content
-            if not content.strip():
-                error_msg = "Could not extract text from PDF. The PDF might be:"
-                error_msg += "\n- Completely image-based without OCR capability"
-                if not TESSERACT_AVAILABLE:
-                    error_msg += "\n- Missing Tesseract OCR installation (required for image-based PDFs)"
-                error_msg += "\n- Corrupted or encrypted"
-                current_app.logger.warning(f"PDF extraction failed for '{filename}': {error_msg}")
-                return jsonify({"error": error_msg}), 400
-            
-            message_to_save = f"File uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
+            is_image_based = True
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    is_image_based = False
+                    content += page_text + "\n"
+
+            if is_image_based and TESSERACT_AVAILABLE:
+                current_app.logger.info(f"'{filename}' appears to be image-based. Attempting OCR...")
+                file.seek(0)  # Reset file pointer
+                images = convert_from_bytes(file.read())
+                for image in images:
+                    content += pytesseract.image_to_string(image) + "\n"
+                current_app.logger.info(f"OCR successful for '{filename}'.")
+
+            if not content.strip() and not is_image_based:
+                return jsonify({"error": "Could not extract text from PDF. The PDF might be image-based or empty."}), 400
+
+            message_to_save = f"File Uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
 
             if chroma_connected:
                 try:
@@ -1052,11 +1015,11 @@ def upload_file():
                 db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'system', message_to_save))
                 db.commit()
 
-            current_app.logger.info(f"Successfully extracted text from '{file.filename}' ({len(content)} chars) and stored it for session {session_id}.")
+            current_app.logger.info(f"Extracted text from '{file.filename}' and stored it for session {session_id}.")
             return jsonify({"success": True, "filename": file.filename, "message": message_to_save})
         except Exception as e:
-            current_app.logger.error(f"Error reading PDF file '{filename}': {e}", exc_info=True)
-            return jsonify({"error": "Failed to process PDF file. Please ensure the file is valid and not corrupted."}), 500
+            current_app.logger.error(f"Error reading PDF file '{filename}': {e}")
+            return jsonify({"error": "Failed to process PDF file."}), 500
 
     return jsonify({"error": "Invalid file type. Please upload a .txt, .pdf, .png, .jpg, or .jpeg file."}), 400
 
@@ -1193,7 +1156,7 @@ def generate():
                     content_split = file_context_message.split('\n\n--- CONTENT ---\n')
                     if len(content_split) == 2:
                         header_line, file_content = content_split
-                        filename = header_line.replace('File uploaded: ', '')
+                        filename = header_line.replace('File uploaded: ', '').replace('File Uploaded: ', '')
                         contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{new_message_content}"
                         messages_for_model[-1]['content'] = contextual_prompt
                         user_message_to_save = contextual_prompt
@@ -1704,7 +1667,6 @@ def get_gpu_status(gpus):
     for gpu in gpus:
         load = float(gpu['load'].rstrip('%'))
         mem_used = int(float(gpu['memory_used'].rstrip('MB')))
-       
         mem_total = int(float(gpu['memory_total'].rstrip('MB')))
         temp = float(gpu['temperature'].rstrip('°C'))
         
@@ -2107,7 +2069,11 @@ def dashboard():
         'total_input_tokens': 0,
         'total_output_tokens': 0,
         'total_tokens': 0,
-        'model_call_counts': []
+        'model_call_counts': [],
+        'peak_rpm': 0,
+        'peak_tpm': 0,
+        'peak_rpd': 0,
+        'peak_output_tpm': 0
     }
     
     # Load service logo mapping from CSV
@@ -2245,6 +2211,90 @@ def dashboard():
             ).fetchall()
         stats['model_call_counts'] = [dict(row) for row in model_call_counts_rows]
 
+        # Calculate Peak RPM
+        if end_time:
+            peak_rpm_row = db.execute(
+                '''SELECT MAX(cnt) as peak_rpm FROM (
+                    SELECT strftime('%Y-%m-%d %H:%M', timestamp) as minute, COUNT(*) as cnt
+                    FROM api_usage_metrics
+                    WHERE timestamp >= ? AND timestamp <= ?
+                    GROUP BY minute
+                )''', (start_time, end_time)
+            ).fetchone()
+        else:
+            peak_rpm_row = db.execute(
+                '''SELECT MAX(cnt) as peak_rpm FROM (
+                    SELECT strftime('%Y-%m-%d %H:%M', timestamp) as minute, COUNT(*) as cnt
+                    FROM api_usage_metrics
+                    WHERE timestamp >= ?
+                    GROUP BY minute
+                )''', (start_time,)
+            ).fetchone()
+        stats['peak_rpm'] = peak_rpm_row['peak_rpm'] if peak_rpm_row and peak_rpm_row['peak_rpm'] else 0
+
+        # Calculate Peak TPM
+        if end_time:
+            peak_tpm_row = db.execute(
+                '''SELECT MAX(token_sum) as peak_tpm FROM (
+                    SELECT strftime('%Y-%m-%d %H:%M', timestamp) as minute, SUM(input_tokens_per_message) as token_sum
+                    FROM api_usage_metrics
+                    WHERE timestamp >= ? AND timestamp <= ?
+                    GROUP BY minute
+                )''', (start_time, end_time)
+            ).fetchone()
+        else:
+            peak_tpm_row = db.execute(
+                '''SELECT MAX(token_sum) as peak_tpm FROM (
+                    SELECT strftime('%Y-%m-%d %H:%M', timestamp) as minute, SUM(input_tokens_per_message) as token_sum
+                    FROM api_usage_metrics
+                    WHERE timestamp >= ?
+                    GROUP BY minute
+                )''', (start_time,)
+            ).fetchone()
+        stats['peak_tpm'] = peak_tpm_row['peak_tpm'] if peak_tpm_row and peak_tpm_row['peak_tpm'] else 0
+
+        # Calculate Peak Output TPM
+        if end_time:
+            peak_output_tpm_row = db.execute(
+                '''SELECT MAX(token_sum) as peak_output_tpm FROM (
+                    SELECT strftime('%Y-%m-%d %H:%M', timestamp) as minute, SUM(output_tokens_per_message) as token_sum
+                    FROM api_usage_metrics
+                    WHERE timestamp >= ? AND timestamp <= ?
+                    GROUP BY minute
+                )''', (start_time, end_time)
+            ).fetchone()
+        else:
+            peak_output_tpm_row = db.execute(
+                '''SELECT MAX(token_sum) as peak_output_tpm FROM (
+                    SELECT strftime('%Y-%m-%d %H:%M', timestamp) as minute, SUM(output_tokens_per_message) as token_sum
+                    FROM api_usage_metrics
+                    WHERE timestamp >= ?
+                    GROUP BY minute
+                )''', (start_time,)
+            ).fetchone()
+        stats['peak_output_tpm'] = peak_output_tpm_row['peak_output_tpm'] if peak_output_tpm_row and peak_output_tpm_row['peak_output_tpm'] else 0
+
+        # Calculate Peak RPD
+        if end_time:
+            peak_rpd_row = db.execute(
+                '''SELECT MAX(cnt) as peak_rpd FROM (
+                    SELECT strftime('%Y-%m-%d', timestamp) as day, COUNT(*) as cnt
+                    FROM api_usage_metrics
+                    WHERE timestamp >= ? AND timestamp <= ?
+                    GROUP BY day
+                )''', (start_time, end_time)
+            ).fetchone()
+        else:
+            peak_rpd_row = db.execute(
+                '''SELECT MAX(cnt) as peak_rpd FROM (
+                    SELECT strftime('%Y-%m-%d', timestamp) as day, COUNT(*) as cnt
+                    FROM api_usage_metrics
+                    WHERE timestamp >= ?
+                    GROUP BY day
+                )''', (start_time,)
+            ).fetchone()
+        stats['peak_rpd'] = peak_rpd_row['peak_rpd'] if peak_rpd_row and peak_rpd_row['peak_rpd'] else 0
+
     except Exception as e:
         current_app.logger.error(f"Error fetching dashboard stats: {e}")
 
@@ -2356,7 +2406,8 @@ def api_create_cloud_model():
         # Insert one row for each model name
         for model_name in model_names:
             if model_name: # Ensure not empty
-                db.execute('INSERT INTO cloud_models (service, base_url, api_key, model_name) VALUES (?, ?, ?, ?)', (service, base_url, api_key, model_name.strip()))
+                db.execute('INSERT INTO cloud_models (service, base_url, api_key, model_name) VALUES (?, ?, ?, ?)',
+                                   (service, base_url, api_key, model_name.strip()))
         db.commit()
         return jsonify({"success": True}), 201
     except Exception as e:
