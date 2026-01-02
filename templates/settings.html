@@ -342,28 +342,53 @@
     <form id="settings-form" class="settings-form" method="POST">
         <input type="hidden" name="active_tab" value="{{ active_tab }}">
         <div id="general" class="tab-content {% if active_tab == 'general' %}active{% endif %}">
-            <div class="settings-section">
-                <div class="card">
-                    <h2>Model Parameters</h2>
-                    <p class="text-muted">Control the behavior of the AI models.</p>
-                    <div class="form-group">
-                        <label for="num_predict">Tokens to Predict</label>
-                        <input type="number" id="num_predict" name="num_predict" value="{{ settings['num_predict'] }}" min="1" max="40960" step="1" required>
+            <div class="settings-section" style="grid-template-columns: minmax(380px, 1fr) 2fr;">
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div class="card">
+                        <h2>Model Parameters</h2>
+                        <p class="text-muted">Control the behavior of the AI models.</p>
+                        <div class="form-group">
+                            <label for="num_predict">Tokens to Predict</label>
+                            <input type="number" id="num_predict" name="num_predict" value="{{ settings['num_predict'] }}" min="1" max="40960" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="temperature">Temperature</label>
+                            <input type="number" id="temperature" name="temperature" value="{{ settings['temperature'] }}" min="0" max="2" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="top_k">Top K</label>
+                            <input type="number" id="top_k" name="top_k" value="{{ settings['top_k'] }}" min="1" max="100" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="top_p">Top P</label>
+                            <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="temperature">Temperature</label>
-                        <input type="number" id="temperature" name="temperature" value="{{ settings['temperature'] }}" min="0" max="2" step="0.01" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="top_k">Top K</label>
-                        <input type="number" id="top_k" name="top_k" value="{{ settings['top_k'] }}" min="1" max="100" step="1" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="top_p">Top P</label>
-                        <input type="number" id="top_p" name="top_p" value="{{ settings['top_p'] }}" min="0" max="1" step="0.01" required>
+                    <div class="card">
+                        <h2>Model Sources</h2>
+                        <p class="text-muted">Enable or disable entire categories of models.</p>
+                        <div class="form-group toggle-group">
+                            <label for="local_models_enabled">
+                                <span style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <img src="{{ url_for('static', filename='logos/ollama.png') }}" alt="Ollama" style="height: 20px;">
+                                    Local Models (Ollama)
+                                </span>
+                            </label>
+                            <label class="switch">
+                                <input type="checkbox" id="local_models_enabled" name="local_models_enabled" {% if settings.get('local_models_enabled', True) %}checked{% endif %}>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="form-group toggle-group">
+                            <label for="cloud_models_enabled">Cloud Models</label>
+                            <label class="switch">
+                                <input type="checkbox" id="cloud_models_enabled" name="cloud_models_enabled" {% if settings.get('cloud_models_enabled', True) %}checked{% endif %}>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
                     </div>
                 </div>
-                <div class="notes">
+                <div class="notes" style="height: 100%;">
                     <h3>Note- Understanding Model Parameters</h3>
                     <dl style="display: flex; flex-direction: column; gap: 1rem;">
                         <div>

@@ -11,3 +11,4 @@ tensorboard
 protobuf
 pytesseract
 pypdf
+pdf2image

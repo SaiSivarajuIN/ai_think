@@ -660,56 +660,56 @@
                 <span class="stat-icon material-icons">forum</span>
                 <span class="stat-label">Total Sessions</span>
             </div>
-            <span class="stat-value">{{ stats.total_sessions }}</span>
+            <span class="stat-value">{{ stats.total_sessions | format_indian }}</span>
         </div>
         <div class="stat-item">
             <div class="stat-header">
                 <span class="stat-icon material-icons">dynamic_feed</span>
                 <span class="stat-label">Total Messages</span>
             </div>
-            <span class="stat-value">{{ stats.total_messages }}</span>
+            <span class="stat-value">{{ stats.total_messages | format_indian }}</span>
         </div>
         <div class="stat-item">
             <div class="stat-header">
                 <span class="stat-icon material-icons">person</span>
                 <span class="stat-label">User Messages</span>
             </div>
-            <span class="stat-value">{{ stats.user_messages }}</span>
+            <span class="stat-value">{{ stats.user_messages | format_indian }}</span>
         </div>
         <div class="stat-item">
             <div class="stat-header">
                 <span class="stat-icon material-icons">smart_toy</span>
                 <span class="stat-label">Assistant Responses</span>
             </div>
-            <span class="stat-value">{{ stats.assistant_messages }}</span>
+            <span class="stat-value">{{ stats.assistant_messages | format_indian }}</span>
         </div>
         <div class="stat-item">
             <div class="stat-header">
                 <span class="stat-icon material-icons">api</span>
                 <span class="stat-label">API Calls</span>
             </div>
-            <span class="stat-value">{{ stats.api_usage | length }}</span>
+            <span class="stat-value">{{ (stats.api_usage | length) | format_indian }}</span>
         </div>
         <div class="stat-item">
             <div class="stat-header">
                 <span class="stat-icon material-icons">input</span>
                 <span class="stat-label">Input Tokens</span>
             </div>
-            <span class="stat-value">{{ "{:,}".format(stats.total_input_tokens) }}</span>
+            <span class="stat-value">{{ stats.total_input_tokens | format_indian }}</span>
         </div>
         <div class="stat-item">
             <div class="stat-header">
                 <span class="stat-icon material-icons">output</span>
                 <span class="stat-label">Output Tokens</span>
             </div>
-            <span class="stat-value">{{ "{:,}".format(stats.total_output_tokens) }}</span>
+            <span class="stat-value">{{ stats.total_output_tokens | format_indian }}</span>
         </div>
         <div class="stat-item">
             <div class="stat-header">
                 <span class="stat-icon material-icons">token</span>
                 <span class="stat-label">Total Tokens</span>
             </div>
-            <span class="stat-value">{{ "{:,}".format(stats.total_tokens) }}</span>
+            <span class="stat-value">{{ stats.total_tokens | format_indian }}</span>
         </div>
     </div>
     <div class="dashboard" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
@@ -723,7 +723,8 @@
                     <div class="feature-list-container">
                         <ul class="feature-list">
                             {% for model in stats.model_usage %}
-                                <li>
+                                {% if (model.service == 'Ollama' and settings.get('local_models_enabled', True)) or (model.service != 'Ollama' and settings.get('cloud_models_enabled', True)) %}
+                                    <li>
                                     {% if model.service == 'Ollama' %}
                                         <img src="{{ url_for('static', filename='logos/ollama.png') }}" alt="Ollama" style="height:16px; vertical-align:middle; margin-right:8px;">
                                         <strong>{{ model.name | format_model_name }}</strong>
@@ -733,7 +734,8 @@
                                         <img src="{{ url_for('static', filename='logos/' + final_logo_filename) }}" alt="{{ model.service }}" style="height:16px; vertical-align:middle; margin-right:8px;">
                                         <strong>({{ model.service }}) {{ model.name }}</strong>
                                     {% endif %}
-                                </li>
+                                    </li>
+                                {% endif %}
                             {% endfor %}
                         </ul>
                     </div>
@@ -764,7 +766,7 @@
                                 {% for item in stats.model_call_counts %}
                                     <tr>
                                         <td>{{ item.model | format_model_name }}</td>
-                                        <td>{{ "{:,}".format(item.call_count) }}</td>
+                                        <td>{{ item.call_count | format_indian }}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -773,6 +775,46 @@
                 {% else %}
                     <p>No API call data available for this period.</p>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="full-width-card" style="margin-top: 2rem;">
+        <h2>Rate Limits Breakdown</h2>
+        <p class="text-muted" style="margin-bottom: 1rem;">
+            Peak usage metrics observed during the selected period.
+        </p>
+        <div class="stats-grid" style="margin-bottom: 0;">
+            <div class="stat-item">
+                <div class="stat-header">
+                    <span class="stat-icon material-icons">speed</span>
+                    <span class="stat-label">Peak RPM</span>
+                </div>
+                <span class="stat-value">{{ stats.peak_rpm | default(0) | format_indian }}</span>
+                <small class="text-muted">Requests per Minute</small>
+            </div>
+            <div class="stat-item">
+                <div class="stat-header">
+                    <span class="stat-icon material-icons">data_usage</span>
+                    <span class="stat-label">Peak TPM</span>
+                </div>
+                <span class="stat-value">{{ stats.peak_tpm | default(0) | format_indian }}</span>
+                <small class="text-muted">Input Tokens per Minute</small>
+            </div>
+            <div class="stat-item">
+                <div class="stat-header">
+                    <span class="stat-icon material-icons">output</span>
+                    <span class="stat-label">Peak Output TPM</span>
+                </div>
+                <span class="stat-value">{{ stats.peak_output_tpm | default(0) | format_indian }}</span>
+                <small class="text-muted">Output Tokens per Minute</small>
+            </div>
+            <div class="stat-item">
+                <div class="stat-header">
+                    <span class="stat-icon material-icons">calendar_today</span>
+                    <span class="stat-label">Peak RPD</span>
+                </div>
+                <span class="stat-value">{{ stats.peak_rpd | default(0) | format_indian }}</span>
+                <small class="text-muted">Requests per Day</small>
             </div>
         </div>
     </div>

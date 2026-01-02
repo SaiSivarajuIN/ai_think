@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />    
-    <link rel="icon" href="{{ url_for('static', filename='logos/ollama.png') }}">
+    <link rel="icon" href="{{ url_for('static', filename='logos/logo.png') }}">
     <title>{% block title %}AI Think{% endblock %}</title>
 
     <style>
@@ -35,6 +35,7 @@
 
 <body class="fixed-layout">
     <div class="page-container">
+        {% if page_id != 'health' %}
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h4>AI Menu</h4>
@@ -55,15 +56,22 @@
                     <span>Hub</span>
                     <span class="material-icons dropdown-arrow">expand_more</span>
                 </summary>
+                {% if settings.get('local_models_enabled', True) %}
                 <a href="/models" class="nav-link" title="Models Hub">Local Models</a>
+                {% endif %}
+                {% if settings.get('cloud_models_enabled', True) %}
                 <a href="/cloud" class="nav-link" title="Cloud Models">Cloud Models</a>
+                {% endif %}
                 <a href="/prompts" class="nav-link" title="Prompt Hub">Prompt Hub</a>
             </details>
             <a href="/settings" class="nav-link" title="Settings">Settings</a>
-            <a href="/health" class="nav-link" title="System Health">System Health</a>
 
             <!-- NEW FOOTER -->
             <div class="sidebar-footer" style="margin-top:auto; padding:1rem; text-align:center; font-size:0.8rem; opacity:0.8;">
+                <a href="/health" target="_blank" class="nav-link" title="System Health">
+                    <span class="material-icons">health_and_safety</span>
+                    <span> Health</span>
+                </a>
                 <a href="/about" target="_blank" class="nav-link" title="About AI Think">
                     <span class="material-icons">info_outline</span>
                     <span>About</span>
@@ -71,14 +79,17 @@
                 <p style="margin-top: 0.25rem; font-size: 0.75rem; opacity: 0.7;">{{ APP_VERSION }}</p>
             </div>
         </aside>
+        {% endif %}
 
         <div class="main-content-wrapper">
             <!-- Header -->
             <header class="header">
+                {% if page_id != 'health' %}
                 <button class="sidebar-toggle-btn" title="Toggle Sidebar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 25 25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path></svg>
                     <span class="visually-hidden">Toggle Sidebar</span>
                 </button>
+                {% endif %}
                 <h2>{% block header_title %}{% endblock %}</h2>
                 <div style="flex-grow: 1;"></div>
                 <!-- Spacer to push nav to the right -->

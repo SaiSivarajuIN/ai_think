@@ -5,6 +5,13 @@
 {% block header_title %} {{ header_title }} {% endblock %}
 
 {% block head_extra %}
+    <!-- Pre-emptive script to prevent welcome screen flash on reload -->
+    <script>
+        if (localStorage.getItem('hasVisited') === 'true') {
+            document.documentElement.style.setProperty('--welcome-screen-display', 'none');
+        }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
 
     <script>
@@ -31,6 +38,67 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <style>
+        /* Welcome Screen */
+        :root { --welcome-screen-display: flex; }
+        #welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--background);
+            display: var(--welcome-screen-display);
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10000;
+            opacity: 1;
+            transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+            visibility: visible;
+        }
+
+        #welcome-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .welcome-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .welcome-footer {
+            padding: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--theme-toggle-text);
+        }
+
+        .welcome-emoji {
+            font-size: 8rem;
+            animation: glow-and-float 2.5s ease-in-out;
+        }
+
+        @keyframes glow-and-float {
+            0% {
+                opacity: 0;
+                transform: scale(0.8) translateY(20px);
+                text-shadow: none;
+            }
+            60% {
+                opacity: 1;
+                transform: scale(1.1) translateY(-5px);
+                text-shadow: 0 0 25px rgba(255, 215, 0, 0.7), 0 0 40px rgba(255, 215, 0, 0.5);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+                text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+            }
+        }
+
         .model-selector-wrapper {
             position: relative;
         }
@@ -424,6 +492,7 @@
         .thought summary {
             cursor: pointer;
             font-weight: 600;
+            user-select: none;
             padding: 0.75rem 1rem;
             user-select: none;
         }
@@ -434,14 +503,15 @@
         
         /* Empty chat state */
         #chatbox:empty::before {
-            content: "Start a conversation by typing a message below";
             display: block;
             text-align: center;
             color: var(--theme-toggle-text);
-            font-size: 1.1rem;
+            font-size: 1.5rem;
+            font-weight: 600;
             padding: 4rem 2rem;
             margin: 2rem auto;
             max-width: 600px;
+            animation: fadeIn 0.5s ease;
         }
         
         /* Loading indicator */
@@ -453,31 +523,41 @@
             background: var(--card);
             border-radius: 1rem;
             max-width: fit-content;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: var(--card);
+            border-radius: 1rem;
+            max-width: fit-content;
         }
-        
+
         .typing-indicator span {
             width: 8px;
             height: 8px;
             background: var(--theme-toggle-text);
             border-radius: 50%;
             animation: typing 1.4s infinite;
+            animation: typing 1.4s infinite;
         }
-        
+
         .typing-indicator span:nth-child(2) {
             animation-delay: 0.2s;
+            animation-delay: 0.2s;
         }
-        
+
         .typing-indicator span:nth-child(3) {
             animation-delay: 0.4s;
+            animation-delay: 0.4s;
         }
-        
+
         @keyframes typing {
             0%, 60%, 100% {
                 transform: translateY(0);
                 opacity: 0.7;
             }
             30% {
-                transform: translateY(-10px);
+                transform: translateY(-8px);
                 opacity: 1;
             }
         }
@@ -489,7 +569,7 @@
         <label for="model-selector" class="visually-hidden">Model:</label>
         <select id="model-selector" class="model-selector">
             <option value="" data-content="">Select any Model</option>    
-            {% if available_models %}
+            {% if available_models and settings.get('local_models_enabled', True) %}
                 <optgroup label="Local Models">
                 {% for model in available_models if model.active %}
                     {% set parts = model.name.split('/') %}
@@ -508,9 +588,9 @@
                 {% endfor %}
                 </optgroup>
             {% else %}
-                <option value="{{ model_id }}" selected>{{ model_id }} (default)</option>
+                <!--<option value="{{ model_id }}" selected>{{ model_id }} (default)</option>-->
             {% endif %}
-            {% if cloud_models %}
+            {% if cloud_models and settings.get('cloud_models_enabled', True) %}
                 <optgroup label="Cloud Models">
                 {% for model in cloud_models if model.active %}
                     {% set logo_base_name = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
@@ -547,6 +627,14 @@
 {% endblock %}
 
 {% block content %}
+    <div id="welcome-screen">
+        <div class="welcome-content">
+            <div class="welcome-emoji">🙏</div>
+        </div>
+        <footer class="welcome-footer" >
+            <p>AI can mess up.</p>
+        </footer>
+    </div>
     <div id="chatbox" class="chat-area-container"></div>
 {% endblock %}
 
@@ -558,7 +646,7 @@
             <button id="search-button" class="nav-link" title="{% if searxng_enabled %}Web Search (type /search){% else %}Web Search disabled (Enable in Settings){% endif %}" {% if not searxng_enabled %}disabled{% endif %}>
                 <span class="material-icons">language</span>
             </button>
-            <input type="file" id="fileUpload" accept=".txt,.pdf,.png,.jpg,.jpeg" title="Upload File" style="display: none;" />
+            <input type="file" id="fileUpload" accept=".txt,.pdf,.png,.jpg,.jpeg" title="Upload File" style="display: none;" multiple />
             <button id="uploadButton" class="nav-link" title="Upload File (.txt, .pdf, .png, .jpg, .jpeg)"><span class="material-icons">attach_file</span></button>
             <div id="userMessageContainer" class="user-message-container">
                 <div id="userMessage" contenteditable="true" data-placeholder="Type your message..."></div>
@@ -578,15 +666,43 @@
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
 
     <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const hasVisited = localStorage.getItem('hasVisited');
+
+        if (!hasVisited) {
+            // First time visit: show animation
+            setTimeout(() => {
+                welcomeScreen.classList.add('hidden');
+                // Set flag after animation completes
+                localStorage.setItem('hasVisited', 'true');
+            }, 2500); // Corresponds to animation duration
+        } else {
+            // Subsequent visits are handled by the pre-emptive script in <head>
+        }
+    });
+
     (function() {
         document.addEventListener('DOMContentLoaded', function () {
+            const messageInput = document.getElementById('userMessage');
+            const sendButton = document.getElementById('sendButton');
+
+            // Function to toggle send button state
+            function toggleSendButton() {
+                const hasText = messageInput.textContent.trim().length > 0;
+                sendButton.disabled = !hasText;
+            }
+
+            // Check on input
+            messageInput.addEventListener('input', toggleSendButton);
+
+            // Initial check
+            toggleSendButton();
+
             // Add send button click handler
-            document.getElementById('sendButton').addEventListener('click', function() {
-                const messageInput = document.getElementById('userMessage');
-                if (messageInput && messageInput.textContent.trim()) {
-                    // Assuming there's a global sendMessage function
-                    sendMessage();
-                }
+            sendButton.addEventListener('click', function() {
+                // The button is only clickable when enabled, so we can just send.
+                sendMessage();
             });
 
             // Generic enhancer: builds a floating dropdown with inner scrollbar when > 1 options
