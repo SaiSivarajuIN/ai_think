@@ -577,11 +577,11 @@
                         {# Hugging Face model: hf.co/user/model -> model (user) #}
                         {% set source = parts[1] %}
                         {% set model_name = parts[2] %}
-                        <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/ollama.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
+                        <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/logo.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
                             <small>({{ source }})</small> {{ model_name }}
                         </option>
                     {% else %}
-                        <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/ollama.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
+                        <option value="{{ model.name }}" {% if model.name == model_id %}selected{% endif %} data-logo="<img src='{{ url_for('static', filename='logos/logo.png') }}' alt='Ollama' style='height:16px; vertical-align:middle; margin-right:6px;'>">
                             {{ model.name }}
                         </option>
                     {% endif %}
@@ -598,7 +598,7 @@
                     {% if os_path_exists(logo_path) %}
                         {% set final_logo_filename = logo_base_name %}
                     {% else %}
-                        {% set final_logo_filename = 'ollama.png' %}
+                        {% set final_logo_filename = 'logo.png' %}
                     {% endif %}
                     <option value="cloud::{{ model.id }}" data-logo="<img src='{{ url_for('static', filename='logos/' + final_logo_filename) }}' alt='{{ model.service }}' style='height:16px; vertical-align:middle; margin-right:6px;'>">
                         <small>({{ model.service }})</small> {{ model.model_name }}</option>
