@@ -498,3 +498,404 @@ No frontend frameworks (React/Vue/Angular) are used.
 This frontend is built using clean and maintainable vanilla JavaScript with a highly structured CSS theme system.
 Pages are isolated by script files, and all dynamic UI elements follow clear rendering patterns.
 The chat page contains the most advanced logic with Markdown, LaTeX, streaming, and file embedding.
+
+---
+
+# 6. Current Feature Additions and Implementation Notes
+
+This section documents newer frontend behavior present in the current templates and JavaScript files without removing the older documentation above.
+
+---
+
+## 6.1 Chat Page Additions (`static/script.js` + `templates/index.html`)
+
+### Persistent Model Selection
+
+The model selector stores the last selected model in:
+
+```text
+localStorage.selectedModel
+```
+
+On page load, the selector restores that value when it is still present in the rendered options.
+
+### Search Mode State
+
+The search button toggles:
+
+```text
+localStorage.isSearchModeActive
+```
+
+When active, the next message is sent as a search-backed request. The UI clears the input when search mode is toggled so stale text does not accidentally get sent with a changed mode.
+
+### Incognito State
+
+Incognito mode is stored in:
+
+```text
+localStorage.isIncognito
+```
+
+When enabled:
+
+- The icon changes to `visibility_off`.
+- The URL is updated with `?incognito=true`.
+- The current thread is reset.
+- Search mode is turned off.
+- The backend is told not to persist or trace the generation.
+
+### Prompt Selector
+
+Selecting a prompt inserts or replaces the first system message in the in-memory `conversationHistory` array. Selecting the empty prompt option removes the active system prompt.
+
+Prompt activation/deactivation system messages are intentionally hidden from the visible chat UI.
+
+### Upload Flow and OCR-Friendly UX
+
+The upload button triggers the hidden file input and sends the selected file to:
+
+```text
+POST /upload
+```
+
+During upload, a temporary "Uploading" assistant message is shown. On success, the returned system message is passed through `addMessage()`.
+
+File upload system messages for prompt/file context are not shown in the main chat stream by default, but the raw context remains available to the conversation and history rendering.
+
+The page also includes OCR popup handlers:
+
+- `#ocrPopup`
+- `#ocrOk`
+
+The OK button closes the popup and reloads the page.
+
+### Abort / Stop Generation
+
+`script.js` maintains an `AbortController` for in-flight generation. The send button is switched into a stop state while a response is running, allowing the frontend to abort the request.
+
+### Scroll Restoration
+
+Before unload, the script stores:
+
+```text
+sessionStorage.scrollPosition
+sessionStorage.lastSessionId
+```
+
+This supports restoring the scroll position when returning to a session or refreshing the page.
+
+### History Sidebar Actions
+
+The chat page fetches and renders a history sidebar from backend session APIs. Each history item supports:
+
+- Open session.
+- Rename session inline.
+- Delete session.
+- Context menu behavior that closes when clicking elsewhere.
+
+Renames call:
+
+```text
+POST /api/session/rename
+```
+
+Deletes call:
+
+```text
+DELETE /delete_thread/:session_id
+```
+
+### Sidebar Keyboard Shortcuts
+
+Global shortcuts are registered in `script.js`:
+
+| Shortcut | Action |
+| -------- | ------ |
+| `Alt + S` | Toggle main sidebar |
+| `Alt + H` | Toggle history sidebar |
+| `Alt + N` | Toggle incognito mode |
+
+### Welcome Screen State
+
+`templates/index.html` uses:
+
+```text
+localStorage.hasVisited
+```
+
+to avoid showing the welcome screen after the first visit.
+
+### Custom Select Controls
+
+`templates/index.html` enhances native selects into custom dropdown controls that support:
+
+- Provider/model grouping.
+- Logo HTML from option data attributes.
+- Viewport-aware dropdown positioning.
+- Escape-to-close behavior.
+- Repositioning on scroll and resize.
+
+---
+
+## 6.2 History Page Additions (`templates/history.html`)
+
+The history page includes a larger inline script for browsing, filtering, rendering, deleting, and exporting conversations.
+
+### Search and Date Filtering
+
+History filters are applied by rebuilding the current URL query string.
+
+Supported query params:
+
+- `search`
+- `start_date`
+- `end_date`
+- `page`
+
+The custom date modal supports:
+
+- Start date.
+- End date.
+- Clear date.
+- Apply date.
+- Escape-to-close.
+- Click-outside-to-close.
+
+### Message Rendering
+
+History rendering preserves the chat formatting stack:
+
+- Markdown via Showdown.
+- LaTeX preservation and MathJax rendering.
+- Highlighted code blocks.
+- Copy buttons for code blocks.
+- File and image upload previews.
+- Download buttons for uploaded files/images.
+
+### Thought and Search Blocks
+
+The history renderer recognizes:
+
+- `<think>...</think>` blocks and renders them as collapsible thought sections.
+- Search-augmented prompts and renders the embedded search results separately from the user's visible question.
+
+### Delete Controls
+
+History supports:
+
+- `DELETE /delete_message/:id` for single messages.
+- `DELETE /delete_thread/:session_id` for a full thread.
+- `DELETE /delete_all_threads` for all threads.
+
+The UI removes deleted items optimistically after successful responses.
+
+### Export Controls
+
+The delegated download handlers support:
+
+- PDF export through `html2pdf`.
+- Word-compatible `.doc` export through generated HTML and Blob download.
+
+Exports clone the existing thread DOM, remove action buttons, preserve rendered formatting where possible, and add a generated timestamp.
+
+---
+
+## 6.3 Cloud Models Page Additions (`static/cloud_models.js` + `templates/cloud_models.html`)
+
+### Service URL Auto-Fill
+
+`templates/cloud_models.html` fetches:
+
+```text
+GET /api/cloud_models/service_url_map
+```
+
+When the user selects a known provider, the base URL input is filled from `data/cloud_api.csv`.
+
+### Service Logo Options
+
+The cloud service select uses option-level `data-logo` HTML. `cloud_models.js` builds a `serviceLogoMap` from those attributes and uses it in:
+
+- The services sidebar.
+- The service detail panel.
+
+### Grouped Service Model
+
+Although the backend stores one row per model name, the frontend groups models by:
+
+```text
+service + "::" + base_url
+```
+
+Grouped records expose a `model_names` array in the UI.
+
+### Service Sidebar and Detail Panel
+
+The page now includes a service-oriented layout:
+
+- Filterable services list.
+- Active/inactive status dots.
+- Persisted selected service:
+
+```text
+localStorage.cloud_models.selected_service
+```
+
+- Detail card with service, status, base URL, API key, and model list.
+- Header toggle for enabling/disabling the selected service group.
+
+### Inline Model Name Management
+
+Inside the detail panel:
+
+- Existing model names are displayed as rows.
+- Individual model names can be deleted as long as at least one remains.
+- The Add flow opens an inline popup.
+- Existing names can be marked for removal.
+- New names can be added in multiple fields.
+- Duplicate names are removed before save.
+
+All changes are saved through:
+
+```text
+POST /api/cloud_models/update/:id
+```
+
+### API Key Handling
+
+The list endpoint only exposes masked API keys. When the user copies a key, the frontend calls:
+
+```text
+GET /api/cloud_models/:id
+```
+
+The returned full key is cached in memory for that page session only.
+
+### Column Resizing
+
+The cloud models table adds draggable `.resizer` handles to header cells and updates column widths during mouse movement.
+
+---
+
+## 6.4 Local Models Page Additions (`static/models.js` + `templates/models.html`)
+
+### Pull Card Collapse State
+
+The model pull card stores collapsed state in:
+
+```text
+localStorage.pullModelCardCollapsed
+```
+
+### Duplicate Pull Guard
+
+`templates/models.html` includes a guard that compares the requested model name with the visible local model table before starting a pull, helping avoid duplicate pulls from the UI.
+
+### Pull Streaming
+
+`models.js` reads the streamed response from:
+
+```text
+POST /api/models/pull
+```
+
+It parses newline-delimited JSON chunks and updates:
+
+- Status text.
+- Progress bar width when `completed` and `total` are present.
+- The model table after completion.
+
+### Activation Toggles
+
+The page supports:
+
+- Per-model active toggles through `POST /api/local_models/toggle_active`.
+- Master active toggle through `POST /api/local_models/toggle_all_active`.
+
+The master toggle reflects whether all visible model toggles are enabled.
+
+### Delete All Models
+
+The delete-all button calls:
+
+```text
+POST /api/models/delete/all
+```
+
+The UI waits briefly before refreshing the table because Ollama deletion can lag behind the API response.
+
+---
+
+## 6.5 Settings Page Additions (`templates/settings.html`)
+
+Settings now support route-backed tabs:
+
+```text
+/settings
+/settings/:tab_name
+```
+
+The tab script:
+
+- Updates visible tab content.
+- Pushes the current tab into browser history.
+- Restores tab state on browser back/forward with `popstate`.
+- Submits an `active_tab` value so the backend can redirect back to the tab the user edited.
+
+---
+
+## 6.6 Health Page Additions (`templates/health.html`)
+
+The health page reads the selected model from:
+
+```text
+localStorage.selectedModel
+```
+
+It maps that value through backend-provided `model_name_map`, falling back to the default model when no local selection is stored.
+
+---
+
+## 6.7 Dashboard Page Additions (`templates/dashboard.html`)
+
+The dashboard is rendered server-side from `GET /dashboard` rather than the older `usage.js` `/api/usage` flow.
+
+Current dashboard ranges include:
+
+- `5m`
+- `15m`
+- `30m`
+- `1h`
+- `1d`
+- `7d`
+- `28d`
+- `90d`
+- Custom start/end dates
+
+The page displays session/message totals, token totals, peak RPM/TPM/RPD metrics, model call counts, and recent usage rows.
+
+---
+
+## 6.8 Additional Frontend Libraries
+
+In addition to Showdown, Highlight.js, MathJax, Google Fonts, and Material Icons, current history export behavior can use:
+
+- `html2pdf` for PDF export.
+- Browser Blob/Object URL APIs for Word-compatible `.doc` export and uploaded file downloads.
+
+---
+
+## 6.9 State Storage Summary
+
+| Key | Storage | Purpose |
+| --- | ------- | ------- |
+| `selectedModel` | `localStorage` | Last selected chat model and health-page active model display. |
+| `isSearchModeActive` | `localStorage` | Search mode button state. |
+| `isIncognito` | `localStorage` | Incognito mode state. |
+| `sidebarCollapsed` | `localStorage` | Main sidebar collapsed state. |
+| `cloud_models.selected_service` | `localStorage` | Last selected cloud service group. |
+| `pullModelCardCollapsed` | `localStorage` | Models page pull-card collapsed state. |
+| `hasVisited` | `localStorage` | Welcome screen suppression. |
+| `scrollPosition` | `sessionStorage` | Chat scroll restoration. |
+| `lastSessionId` | `sessionStorage` | Session-aware scroll restoration. |

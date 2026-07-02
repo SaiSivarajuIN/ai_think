@@ -83,8 +83,10 @@ goto :eof
 :pull_models
 echo [4/6] Pulling recommended models (this may take some time)...
 ollama pull gemma3:1b
+:: ollama pull gemma3:1b
 :: ollama pull hf.co/janhq/Jan-v1-4B-GGUF
 :: ollama pull hf.co/unsloth/granite-4.0-micro-GGUF
+ollama pull hf.co/ss-lab/Falcon-H1-0.5B-Instruct-GGUF:Q8_0
 echo      '- Models pulled. Available models:
 ollama list
 goto :eof

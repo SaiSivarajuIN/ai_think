@@ -602,6 +602,91 @@
         display: flex;
         gap: 1rem;
     }
+
+    /* Expand/Collapse Icons */
+    .card-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .expand-icon {
+        cursor: pointer;
+        color: var(--theme-toggle-text);
+        transition: all 0.3s ease;
+        font-size: 1.25rem;
+    }
+
+    .expand-icon:hover {
+        color: var(--text);
+        transform: scale(1.1);
+    }
+
+    /* Modal for expanded table view */
+    .table-expand-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1001;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .table-expand-modal.active {
+        display: flex;
+    }
+
+    .table-expand-content {
+        background: var(--background);
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        max-width: 900px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+    }
+
+    .table-expand-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 1rem;
+    }
+
+    .table-expand-header h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--text);
+    }
+
+    .close-expand-modal {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--theme-toggle-text);
+        transition: color 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .close-expand-modal:hover {
+        color: var(--text);
+    }
+
+    .table-expand-container {
+        max-height: calc(90vh - 150px);
+        overflow-y: auto;
+    }
 </style>
 {% endblock %}
 
@@ -713,9 +798,16 @@
         </div>
     </div>
     <div class="dashboard" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-        <div>
-            <div class="card" style="height: 100%;">
-                <h2>Active Models</h2>
+        <div style="display: flex;">
+            <div class="card" style="height: 100%; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin: 0;">Active Models</h2>
+                    <div class="card-header-actions">
+                        <svg class="expand-icon" id="expandActiveModelsIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                        </svg>
+                    </div>
+                </div>
                 <p class="text-muted" style="margin-bottom: 1rem;">
                     This section lists your currently active models.
                 </p>
@@ -726,11 +818,11 @@
                                 {% if (model.service == 'Ollama' and settings.get('local_models_enabled', True)) or (model.service != 'Ollama' and settings.get('cloud_models_enabled', True)) %}
                                     <li>
                                     {% if model.service == 'Ollama' %}
-                                        <img src="{{ url_for('static', filename='logos/ollama.png') }}" alt="Ollama" style="height:16px; vertical-align:middle; margin-right:8px;">
+                                        <img src="{{ url_for('static', filename='logos/logo.png') }}" alt="Ollama" style="height:16px; vertical-align:middle; margin-right:8px;">
                                         <strong>{{ model.name | format_model_name }}</strong>
                                     {% else %}
                                         {% set logo_filename = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
-                                        {% set final_logo_filename = service_logo_map.get(model.service, service_logo_map.get('Other', 'ollama.png')) %}
+                                        {% set final_logo_filename = service_logo_map.get(model.service, service_logo_map.get('Other', 'logo.png')) %}
                                         <img src="{{ url_for('static', filename='logos/' + final_logo_filename) }}" alt="{{ model.service }}" style="height:16px; vertical-align:middle; margin-right:8px;">
                                         <strong>({{ model.service }}) {{ model.name }}</strong>
                                     {% endif %}
@@ -744,9 +836,16 @@
                 {% endif %}
             </div>
         </div>
-        <div>
-            <div class="card" style="height: 100%;">
-                <h2>API Calls per Model</h2>
+        <div style="display: flex;">
+            <div class="card" style="height: 100%; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin: 0;">API Calls per Model</h2>
+                    <div class="card-header-actions">
+                        <svg class="expand-icon" id="expandModelCallsIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                        </svg>
+                    </div>
+                </div>
                 <p class="text-muted" style="margin-bottom: 1rem;">
                     Number of API calls for each model in the selected time range.
                 </p>
@@ -778,6 +877,44 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal for expanded table view -->
+    <div class="table-expand-modal" id="modelCallsExpandModal">
+        <div class="table-expand-content">
+            <div class="table-expand-header">
+                <h3>API Calls per Model</h3>
+                <button class="close-expand-modal" id="closeExpandModelCallsBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="table-expand-container">
+                <div class="search-wrapper" style="margin-bottom: 1rem;">
+                    <input type="text" class="table-search" placeholder="Search models..." onkeyup="filterTable(this, 'model-calls-table-expanded')">
+                </div>
+                <table class="api-usage-table" id="model-calls-table-expanded">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>API Calls</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stats.model_call_counts %}
+                            <tr>
+                                <td>{{ item.model | format_model_name }}</td>
+                                <td>{{ item.call_count | format_indian }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <div class="full-width-card" style="margin-top: 2rem;">
         <h2>Rate Limits Breakdown</h2>
         <p class="text-muted" style="margin-bottom: 1rem;">
@@ -819,7 +956,14 @@
         </div>
     </div>
     <div class="full-width-card" style="margin-top: 2rem;">
-            <h2>API Usage Statistics</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0;">API Usage Statistics</h2>
+                <div class="card-header-actions">
+                    <svg class="expand-icon" id="expandApiUsageIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                </div>
+            </div>
             <p class="text-muted" style="margin-bottom: 1rem;">
                 Detailed breakdown of recent API calls and token usage.
             </p>
@@ -856,6 +1000,94 @@
                 <p>No API usage data available for the selected period.</p>
             {% endif %}
         </div>
+
+    <!-- Modal for expanded Active Models view -->
+    <div class="table-expand-modal" id="activeModelsExpandModal">
+        <div class="table-expand-content">
+            <div class="table-expand-header">
+                <h3>Active Models</h3>
+                <button class="close-expand-modal" id="closeExpandActiveModelsBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="table-expand-container">
+                {% if stats.model_usage %}
+                    <div class="feature-list-container" style="max-height: none; border: none;">
+                        <ul class="feature-list">
+                            {% for model in stats.model_usage %}
+                                {% if (model.service == 'Ollama' and settings.get('local_models_enabled', True)) or (model.service != 'Ollama' and settings.get('cloud_models_enabled', True)) %}
+                                    <li>
+                                    {% if model.service == 'Ollama' %}
+                                        <img src="{{ url_for('static', filename='logos/logo.png') }}" alt="Ollama" style="height:16px; vertical-align:middle; margin-right:8px;">
+                                        <strong>{{ model.name | format_model_name }}</strong>
+                                    {% else %}
+                                        {% set logo_filename = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
+                                        {% set final_logo_filename = service_logo_map.get(model.service, service_logo_map.get('Other', 'logo.png')) %}
+                                        <img src="{{ url_for('static', filename='logos/' + final_logo_filename) }}" alt="{{ model.service }}" style="height:16px; vertical-align:middle; margin-right:8px;">
+                                        <strong>({{ model.service }}) {{ model.name }}</strong>
+                                    {% endif %}
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% else %}
+                    <p>No active models found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for expanded API Usage Statistics view -->
+    <div class="table-expand-modal" id="apiUsageExpandModal">
+        <div class="table-expand-content">
+            <div class="table-expand-header">
+                <h3>API Usage Statistics</h3>
+                <button class="close-expand-modal" id="closeExpandApiUsageBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="table-expand-container">
+                {% if stats.api_usage %}
+                    <div class="search-wrapper" style="margin-bottom: 1rem;">
+                        <input type="text" class="table-search" placeholder="Search models..." onkeyup="filterTable(this, 'api-usage-table-expanded')">
+                    </div>
+                    <table class="api-usage-table" id="api-usage-table-expanded">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>Session ID</th>
+                                <th>Input Tokens/Msg</th>
+                                <th>Output Tokens/Msg</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usage in stats.api_usage %}
+                                <tr>
+                                    <td>{{ usage.model | format_model_name }}</td>
+                                    <td>
+                                        <a href="{{ url_for('index', session_id=usage.session_id) }}" title="View Session" target="_blank">{{ usage.session_id[:8] }}...</a>
+                                    </td>
+                                    <td>{{ usage.input_tokens_per_message }}</td>
+                                    <td>{{ usage.output_tokens_per_message }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>No API usage data available for the selected period.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
     <footer style="text-align: right; margin-top: 2rem; font-size: 0.85rem; opacity: 0.7;">
         <p>*Note: Cached tokens are not included in the usage statistics.</p>
@@ -966,6 +1198,88 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && datePickerModal.classList.contains('active')) {
             closeModal();
+        }
+    });
+
+    // Expanded table view for API Calls per Model
+    const expandModelCallsIcon = document.getElementById('expandModelCallsIcon');
+    const modelCallsExpandModal = document.getElementById('modelCallsExpandModal');
+    const closeExpandModelCallsBtn = document.getElementById('closeExpandModelCallsBtn');
+
+    expandModelCallsIcon.addEventListener('click', function() {
+        modelCallsExpandModal.classList.add('active');
+    });
+
+    function closeExpandModal() {
+        modelCallsExpandModal.classList.remove('active');
+    }
+
+    closeExpandModelCallsBtn.addEventListener('click', closeExpandModal);
+
+    // Close modal when clicking outside
+    modelCallsExpandModal.addEventListener('click', function(e) {
+        if (e.target === modelCallsExpandModal) {
+            closeExpandModal();
+        }
+    });
+
+    // Close with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modelCallsExpandModal.classList.contains('active')) {
+            closeExpandModal();
+        }
+    });
+
+    // Expanded table view for Active Models
+    const expandActiveModelsIcon = document.getElementById('expandActiveModelsIcon');
+    const activeModelsExpandModal = document.getElementById('activeModelsExpandModal');
+    const closeExpandActiveModelsBtn = document.getElementById('closeExpandActiveModelsBtn');
+
+    expandActiveModelsIcon.addEventListener('click', function() {
+        activeModelsExpandModal.classList.add('active');
+    });
+
+    closeExpandActiveModelsBtn.addEventListener('click', function() {
+        activeModelsExpandModal.classList.remove('active');
+    });
+
+    activeModelsExpandModal.addEventListener('click', function(e) {
+        if (e.target === activeModelsExpandModal) {
+            activeModelsExpandModal.classList.remove('active');
+        }
+    });
+
+    // Expanded table view for API Usage Statistics
+    const expandApiUsageIcon = document.getElementById('expandApiUsageIcon');
+    const apiUsageExpandModal = document.getElementById('apiUsageExpandModal');
+    const closeExpandApiUsageBtn = document.getElementById('closeExpandApiUsageBtn');
+
+    expandApiUsageIcon.addEventListener('click', function() {
+        apiUsageExpandModal.classList.add('active');
+    });
+
+    closeExpandApiUsageBtn.addEventListener('click', function() {
+        apiUsageExpandModal.classList.remove('active');
+    });
+
+    apiUsageExpandModal.addEventListener('click', function(e) {
+        if (e.target === apiUsageExpandModal) {
+            apiUsageExpandModal.classList.remove('active');
+        }
+    });
+
+    // Close with Escape key for all modals
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (modelCallsExpandModal.classList.contains('active')) {
+                modelCallsExpandModal.classList.remove('active');
+            }
+            if (activeModelsExpandModal.classList.contains('active')) {
+                activeModelsExpandModal.classList.remove('active');
+            }
+            if (apiUsageExpandModal.classList.contains('active')) {
+                apiUsageExpandModal.classList.remove('active');
+            }
         }
     });
 });

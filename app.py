@@ -27,14 +27,6 @@ from flask import Flask, jsonify, render_template, request, session, redirect, u
 from flask import Response, stream_with_context
 from flask import g
 from werkzeug.exceptions import ClientDisconnected
-# Check if Tesseract is available
-try:
-    pytesseract.get_tesseract_version()
-    TESSERACT_AVAILABLE = True
-except pytesseract.TesseractNotFoundError:
-    TESSERACT_AVAILABLE = False
-    logging.warning("Tesseract is not installed or not in your PATH. OCR functionality will be disabled.")
-
 
 load_dotenv()
 
@@ -2321,7 +2313,7 @@ def cloud_models_page():
     """Render the Cloud Models management page."""
     services_from_csv = {}
     other_service_data = None
-    other_logo_filename = 'ollama.png' # Default fallback
+    other_logo_filename = 'logo.png' # Default fallback
     try:
         # Load service and logo information from the CSV file
         csv_path = os.path.join(os.path.dirname(__file__), 'data', 'cloud_logos.csv')
@@ -2331,7 +2323,7 @@ def cloud_models_page():
                 services_from_csv[row['service_name']] = row
                 if row['service_name'] == 'Other':
                     other_service_data = row
-                    other_logo_filename = row.get('logo_filename', 'ollama.png')
+                    other_logo_filename = row.get('logo_filename', 'logo.png')
     except Exception as e:
         current_app.logger.error(f"Could not load cloud services from CSV: {e}")
 

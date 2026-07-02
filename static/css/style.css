@@ -351,6 +351,9 @@ body.dark-theme .model-selector {
   border-bottom-left-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
+  max-width: 100%; /* Allow full width for content like tables */
+  width: fit-content; /* Auto-adjust width to content */
+  overflow-x: auto;   /* Enable horizontal scroll if needed */
 }
 .message-content-wrapper {
     outline: none;
@@ -363,6 +366,31 @@ body.dark-theme .model-selector {
     margin: -0.25rem; /* Counteract padding to maintain size */
 }
 
+
+/* Ensure tables inside bot messages fit and inherit background */
+.bot-message table {
+    background: var(--message-assistant);
+    max-width: 100%;
+    width: auto;
+    overflow-x: auto;
+    display: block;
+    border-radius: 0.5rem;
+    margin: 1em 0;
+    box-sizing: border-box;
+}
+
+.bot-message th, .bot-message td {
+    background: var(--message-assistant);
+    word-break: break-word;
+    white-space: pre-line;
+}
+
+/* Prevent table from overflowing the message bubble */
+.bot-message .message-content-wrapper,
+.bot-message table {
+    max-width: 100%;
+    overflow-x: auto;
+}
 
 /* More spacing after bold step headings in messages/history */
 .bot-message strong,

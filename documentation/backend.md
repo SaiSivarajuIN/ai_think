@@ -810,3 +810,189 @@ This table includes:
 | **GET** | `/`        | Main chat UI      |
 | **GET** | `/about`   | About page        |
 | **GET** | `/history` | History list view |
+
+---
+
+## Current Feature Additions and Implementation Notes
+
+This section documents newer behavior present in the current backend without removing the older notes above.
+
+### Application Entry Point
+
+- `main.py` imports the Flask `app` from `app.py` and runs it on `0.0.0.0:1111`.
+- Debug mode is controlled by `FLASK_DEBUG`; it defaults to enabled when the variable is absent.
+- The server runs with `threaded=True`.
+
+### Runtime Environment and Configuration
+
+The backend reads these important environment values:
+
+- `APP_VERSION`: Exposed to templates as a Jinja global.
+- `SQLITE_DATABASE`: SQLite database path.
+- `OLLAMA_BASE_URL`: Ollama API host.
+- `OLLAMA_MODEL`: Default local model.
+- `SEARXNG_URL`: Default SearXNG URL.
+- `LANGFUSE_HOST`: Default Langfuse host.
+- `PAGE_SIZE`: Number of chat sessions per page on `/history`; defaults to `30`.
+- `TESSERACT_CMD`: Optional absolute or relative path to the installed Tesseract executable.
+
+### Jinja Helpers
+
+The backend registers these helpers for template rendering:
+
+- `format_model_name`: Formats model names, including provider/model strings.
+- `format_indian`: Formats integers using the Indian numbering system.
+- `regex_search`: Enables regex checks inside templates.
+- `APP_VERSION`, `os_path_exists`, and `os_path_join` are available as template globals.
+- The `jinja2.ext.do` extension is enabled for templates that need side-effect statements.
+
+### OCR and PDF Processing
+
+PDF upload support now includes two paths:
+
+- Text PDFs are parsed with `pypdf.PdfReader.extract_text()`.
+- Image-based PDFs can be converted with `pdf2image.convert_from_bytes()` and OCR'd with `pytesseract.image_to_string()` when Tesseract is available.
+
+Tesseract availability is detected at startup. If `TESSERACT_CMD` points to an installer or invalid executable, OCR is disabled and the issue is logged. Normal text PDF extraction still works without Tesseract.
+
+### Upload Types
+
+`POST /upload` accepts:
+
+| Type | Backend behavior |
+| ---- | ---------------- |
+| `.txt` | Reads UTF-8 text and stores it as a system file-context message. |
+| `.pdf` | Extracts text with `pypdf`; optionally uses OCR for scanned/image PDFs. |
+| `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp` | Stores Base64 image data with the original MIME type. |
+
+Stored upload messages use marker blocks:
+
+- `--- CONTENT ---` for extracted text.
+- `--- IMAGE ---` for image MIME/Base64 payloads.
+
+### Chat Generation Details
+
+`POST /generate` currently expects:
+
+- `messages`: Existing conversation history.
+- `newMessage.content`: The new user message.
+- `model`: Local model name or `cloud::<cloud_model_id>`.
+- `incognito`: Skips persistence and tracing when true.
+- `is_regeneration`: Removes the last user/assistant message pair from SQLite before regenerating.
+
+Important behavior:
+
+- The route checks Ollama availability before generation.
+- `/search <query>` rewrites the prompt with SearXNG results when configured.
+- Cloud models are selected by the `cloud::` prefix and resolved from `cloud_models`.
+- Regeneration deletion is implemented for SQLite. ChromaDB regeneration deletion is logged as unsupported.
+- User and assistant messages are saved with timing, model, and token-rate metadata when not incognito.
+
+### Thread Rename API
+
+`POST /api/session/rename`
+
+Request body:
+
+```json
+{
+  "session_id": "session-id",
+  "summary": "New title"
+}
+```
+
+The route writes to `session_summaries` using `INSERT OR REPLACE`, so rename works for both new and existing custom titles.
+
+### History Filtering and Pagination
+
+`GET /history` supports:
+
+- `search`: Filters sessions by generated/custom summary text.
+- `start_date`: Inclusive start date in `YYYY-MM-DD`.
+- `end_date`: Inclusive end date in `YYYY-MM-DD`.
+- `page`: Page number.
+
+Pagination uses `PAGE_SIZE` from the environment, defaulting to `30`. Sessions are sorted by most recent message and grouped as Today, Yesterday, weekday/month labels, or year labels.
+
+### Dashboard Metrics
+
+`GET /dashboard` accepts:
+
+- `range=5m|15m|30m|1h|1d|7d|28d|90d`
+- `range=custom&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
+
+The dashboard computes:
+
+- Total sessions and message counts.
+- User and assistant message counts.
+- Active local/cloud model list, respecting `local_models_enabled` and `cloud_models_enabled`.
+- Recent API usage rows from `api_usage_metrics`.
+- Total input, output, and combined tokens.
+- Calls per model.
+- Peak requests per minute.
+- Peak input tokens per minute.
+- Peak output tokens per minute.
+- Peak requests per day.
+
+### Health Dashboard Enhancements
+
+`GET /health` reports:
+
+- CPU count and usage.
+- Memory and disk usage.
+- GPU status through `GPUtil` when available.
+- Ollama, SearXNG, Langfuse, and ChromaDB status.
+- A `model_name_map` combining active local models and cloud model display names for the frontend active-model display.
+
+### Cloud Model Service Data
+
+Cloud services are backed by two CSV files in `data/`:
+
+- `data/cloud_api.csv`: Maps service names to base URLs for automatic form population.
+- `data/cloud_logos.csv`: Maps service names to logo filenames in `static/logos/`.
+
+`GET /api/cloud_models/service_url_map` returns the service-to-base-URL map loaded from `cloud_api.csv`.
+
+Unknown services from the database are merged into the cloud model page using the `Other` service fallback when available.
+
+### Cloud Model Grouping Rules
+
+Cloud models are stored one row per model name, but the UI and several APIs treat `service + base_url` as a group.
+
+- `POST /api/cloud_models/create` inserts one row for each submitted model name.
+- `POST /api/cloud_models/update/<id>` updates shared service/base URL/API key fields and syncs the model-name set by adding/removing rows.
+- `POST /api/cloud_models/toggle_active/<id>` toggles every row with the same service and base URL.
+- `POST /api/cloud_models/toggle_all_active` toggles all cloud model rows.
+- `GET /api/cloud_models/<id>` returns full row details including the full API key, used only for explicit copy/edit flows.
+
+### Local Model Activation
+
+Local Ollama models are fetched live from `OLLAMA_BASE_URL/api/tags` and merged with active state from `local_models`.
+
+Activation APIs:
+
+- `POST /api/local_models/toggle_active` with `{ "name": "...", "active": true }`
+- `POST /api/local_models/toggle_all_active` with `{ "active": true }`
+
+### Model Pull Streaming
+
+`POST /api/models/pull` accepts:
+
+```json
+{
+  "name": "model-name"
+}
+```
+
+It proxies Ollama's streamed pull response as newline-delimited JSON with MIME type `application/x-ndjson`.
+
+### Error Description CSV
+
+The backend loads `data/error_handling.csv` at startup into `ERROR_DESCRIPTIONS`. This provides a single data source for status-code descriptions and can be used to keep documented error behavior consistent.
+
+### Security and Privacy Notes
+
+- Settings updates redact Langfuse secret keys and Chroma API keys before logging.
+- `incognito` generation skips database storage and Langfuse tracing.
+- API keys are masked in `GET /api/cloud_models`; full keys are only returned by `GET /api/cloud_models/<id>`.
+- Uploaded file content is stored as chat context, so production deployments should still add size limits and content policy checks.

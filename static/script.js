@@ -561,14 +561,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (serviceMatch) {
                     const service = serviceMatch[1];
                     const logoFilename = service.toLowerCase().replace(/ /g, '').replace('ai', '') + '.png';
-                    logoHtml = `<img src="/static/logos/${logoFilename}" alt="${service}" style="height:14px; vertical-align:middle; margin-right:4px;" onerror="this.onerror=null;this.src='/static/logos/ollama.png';">`;
+                    logoHtml = `<img src="/static/logos/${logoFilename}" alt="${service}" style="height:14px; vertical-align:middle; margin-right:4px;" onerror="this.onerror=null;this.src='/static/logos/logo.png';">`;
                 }
             } else if (modelUsed.startsWith('hf.co')) { // Hugging Face local model
-                logoHtml = `<img src="/static/logos/ollama.png" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">`;
+                logoHtml = `<img src="/static/logos/logo.png" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">`;
                 const parts = modelUsed.split('/');
                 if (parts.length > 2) formattedModelName = `${parts[2]} (${parts[1]})`;
             } else { // Ollama local model
-                logoHtml = `<img src="/static/logos/ollama.png" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">`;
+                logoHtml = `<img src="/static/logos/logo.png" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">`;
             }
 
             footerHTML += `<span class="model-used" title="Model used for this response">${logoHtml} ${formattedModelName}</span>`;

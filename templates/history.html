@@ -735,11 +735,11 @@
                                                     {% set service_match = msg.model_used | regex_search('\\((.*?)\\)') %}
                                                     {% if service_match %}
                                                         {% set service = service_match.group(1) %}
-                                                        {% set final_logo_filename = service_logo_map.get(service, service_logo_map.get('Other', 'ollama.png')) %}
+                                                        {% set final_logo_filename = service_logo_map.get(service, service_logo_map.get('Other', 'logo.png')) %}
                                                         <img src="{{ url_for('static', filename='logos/' + final_logo_filename) }}" alt="{{ service }}" style="height:16px; vertical-align:middle; margin-right:8px;">
                                                     {% endif %}
                                                 {% else %}
-                                                    <img src="{{ url_for('static', filename='logos/ollama.png') }}" alt="Ollama" style="height:16px; vertical-align:middle; margin-right:4px;">
+                                                    <img src="{{ url_for('static', filename='logos/logo.png') }}" alt="Ollama" style="height:16px; vertical-align:middle; margin-right:4px;">
                                                 {% endif %}
                                                 Bot
                                             {% endif %}
@@ -769,13 +769,13 @@
                                                             {% set service_match = msg.model_used | regex_search('\\((.*?)\\)') %}
                                                             {% if service_match %}
                                                                 {% set service = service_match.group(1) %}
-                                                                {% set final_logo_filename = service_logo_map.get(service, service_logo_map.get('Other', 'ollama.png')) %}
+                                                                {% set final_logo_filename = service_logo_map.get(service, service_logo_map.get('Other', 'logo.png')) %}
                                                                 <img src="{{ url_for('static', filename='logos/' + final_logo_filename) }}" alt="{{ service }}" style="height:14px; vertical-align:middle; margin-right:4px;">
                                                             {% endif %}
                                                         {% elif msg.model_used.startswith('hf.co') %}
                                                             <img src="{{ url_for('static', filename='logos/huggingface.png') }}" alt="Hugging Face" style="height:14px; vertical-align:middle; margin-right:4px;">
                                                         {% else %}
-                                                            <img src="{{ url_for('static', filename='logos/ollama.png') }}" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">
+                                                            <img src="{{ url_for('static', filename='logos/logo.png') }}" alt="Ollama" style="height:14px; vertical-align:middle; margin-right:4px;">
                                                         {% endif %}
                                                         {{ msg.model_used | format_model_name }}</span>
                                                 {% endif %}
