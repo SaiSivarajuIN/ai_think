@@ -155,6 +155,28 @@ SEARXNG_URL = os.getenv("SEARXNG_URL", " ")
 # Langfuse Configuration
 LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", " ")
 
+# --- Tesseract OCR Configuration ---
+TESSERACT_CMD = os.getenv("TESSERACT_CMD")
+TESSERACT_AVAILABLE = False
+
+def initialize_tesseract():
+    """Checks for and configures Tesseract OCR."""
+    global TESSERACT_AVAILABLE
+    tesseract_path = os.getenv("TESSERACT_CMD")
+    if tesseract_path:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+    
+    try:
+        pytesseract.get_tesseract_version()
+        TESSERACT_AVAILABLE = True
+        app.logger.info(f"Tesseract OCR is available. Path: {pytesseract.pytesseract.tesseract_cmd}")
+    except Exception as e:
+        TESSERACT_AVAILABLE = False
+        if tesseract_path:
+            app.logger.warning(f"Tesseract OCR configured at '{tesseract_path}' but failed to initialize: {e}")
+        else:
+            app.logger.info("Tesseract OCR not found in system PATH. OCR for image-based PDFs will be disabled.")
+
 # Default settings
 DEFAULT_SETTINGS = {
     'num_predict': os.getenv("NUM_PREDICT", " "),
@@ -493,6 +515,7 @@ def initialize_chroma():
         app.logger.warning("ChromaDB is enabled in settings, but credentials are not fully provided. Falling back to SQLite.")
         chroma_connected = False
 
+initialize_tesseract()
 init_db()
 initialize_langfuse() # Initial call on startup
 initialize_chroma() # Initialize ChromaDB
@@ -623,6 +646,27 @@ def search_searxng(query):
     except Exception as e:
         current_app.logger.error(f"Error processing SearXNG results: {e}")
         return "Error processing search results."
+
+def langfuse_observation(name, as_type="span", **kwargs):
+    """Return a Langfuse observation context manager across SDK versions."""
+    if hasattr(langfuse, "start_as_current_observation"):
+        return langfuse.start_as_current_observation(
+            name=name,
+            as_type=as_type,
+            **kwargs,
+        )
+
+    if as_type == "generation":
+        return langfuse.start_as_current_generation(name=name, **kwargs)
+
+    return langfuse.start_as_current_span(name=name, **kwargs)
+
+def update_langfuse_trace_metadata(span, user_id, session_id):
+    """Attach trace/session metadata across Langfuse SDK versions."""
+    if hasattr(span, "update_trace"):
+        span.update_trace(user_id=user_id, session_id=session_id)
+    else:
+        span.update(metadata={"user_id": user_id, "session_id": session_id})
    
 def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_incognito=False):
 
@@ -663,17 +707,16 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_
                 api_url = api_url.replace("api.mistral.ai/chat/completions", "api.mistral.ai/v1/chat/completions")
 
             if langfuse_enabled and not is_incognito:
-                with langfuse.start_as_current_span(
+                with langfuse_observation(
                     name=f"{model_name}::cloud_chat_generation",
+                    as_type="span",
                     input={"messages": messages}
                 ) as span:
-                    span.update_trace(
-                        user_id="cloud-model-user",
-                        session_id=session_id or str(uuid4())
-                    )
+                    update_langfuse_trace_metadata(span, "cloud-model-user", session_id or str(uuid4()))
 
-                    with langfuse.start_as_current_generation(
+                    with langfuse_observation(
                         name=f"{model_name}::generation",
+                        as_type="generation",
                         model=model_name,
                         input=messages,
                         model_parameters={k: v for k, v in payload.items() if k != 'messages'}
@@ -769,17 +812,16 @@ def ollama_chat(messages, model, session_id=None, max_retries=3, is_incognito=Fa
             
             # Create Langfuse trace if enabled
             if langfuse_enabled and not is_incognito:
-                with langfuse.start_as_current_span(
+                with langfuse_observation(
                     name=f"{model}::chat_generation",
+                    as_type="span",
                     input={"messages": final_messages}
                 ) as span:
-                    span.update_trace(
-                        user_id="local-model-user", 
-                        session_id=session_id or str(uuid4())
-                    )
+                    update_langfuse_trace_metadata(span, "local-model-user", session_id or str(uuid4()))
                     
-                    with langfuse.start_as_current_generation(
+                    with langfuse_observation(
                         name=f"{model}::generation",
+                        as_type="generation",
                         model=model,
                         input=final_messages,
                         model_parameters=payload.get("options", {})
