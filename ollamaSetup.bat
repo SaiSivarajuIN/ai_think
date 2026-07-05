@@ -61,6 +61,8 @@ if not exist "instance" (
 if not exist "instance\chat.db" (
     type nul > "instance\chat.db"
     echo      '- Database file 'instance\chat.db' created.
+)else (
+    echo      '- Database file 'instance\chat.db' already exists.
 )
 goto :eof
 
@@ -82,11 +84,10 @@ goto :eof
 
 :pull_models
 echo [4/6] Pulling recommended models (this may take some time)...
-ollama pull gemma3:1b
-:: ollama pull gemma3:1b
+ollama pull gemma3:270m
+ollama pull hf.co/ss-lab/Falcon-H1-0.5B-Instruct-GGUF:Q8_0
 :: ollama pull hf.co/janhq/Jan-v1-4B-GGUF
 :: ollama pull hf.co/unsloth/granite-4.0-micro-GGUF
-ollama pull hf.co/ss-lab/Falcon-H1-0.5B-Instruct-GGUF:Q8_0
 echo      '- Models pulled. Available models:
 ollama list
 goto :eof
@@ -94,7 +95,7 @@ goto :eof
 
 :start_searxng_services
 echo [5/6] Starting SearXNG services...
-if exist "searxng-docker\docker-compose.yml" (
+if exist "searxng-docker\docker-compose.yaml" (
     cd searxng-docker
     docker compose up -d
     cd ..
@@ -111,5 +112,12 @@ goto :eof
 :: goto :eof
 :start_ai_think_app
 echo [6/6] Starting the AI Think application...
-python main.py
+start "AI Think Server" python main.py
+
+echo      '- Waiting for application to start...
+timeout /t 10 /nobreak >nul
+
+echo      '- Opening application in Chrome (Incognito)...
+start "" /max chrome --incognito http://localhost:1111
+
 goto :eof

@@ -9,6 +9,9 @@
       {
         "list": "off"
       }
-    ]
+    ],
+    "compat-api/css": "off",
+    "disown-opener": "off",
+    "axe/keyboard": "off"
   }
 }

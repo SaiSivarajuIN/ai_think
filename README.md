@@ -226,30 +226,37 @@ Ensure port **8080** is open.
 
 ---
 
-## Optional - Tesseract OCR for PDFs
+## Optional - [Tesseract OCR for PDFs](https://tesseractocr.org/)
 
 To enable Optical Character Recognition (OCR) for image-based PDF files, you need to install Tesseract. This allows the application to extract text from PDFs that contain scanned documents or images.
 
 ### 1. Install Tesseract
+
+**Windows:**
 
 Download and install Tesseract from the official project page:
 *   [Tesseract at UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki)
 
 During installation on Windows, make sure to note the installation path (e.g., `C:\Program Files\Tesseract-OCR`).
 
-### 2. Configure Environment Variable
+**Linux**
+* Install Library -- ```sudo apt install tesseract-ocr``
+* Download Languages -- ```sudo apt install tesseract-ocr-all```
+
+**macOS** 
+* Install Library -- ```brew install tesseract```
+* Download Languages -- ```brew install tesseract-lang```
+
+Test Installation ```tesseract --version```
+
+
+#### Windows Configure Environment Variable
 
 After installation, add the path to the Tesseract executable to your `.env` file.
 
 **Windows:**
 ```env
 TESSERACT_CMD="C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
-```
-
-**macOS / Linux:**
-If Tesseract is not in your system's `PATH`, you can specify the location:
-```env
-TESSERACT_CMD="/usr/local/bin/tesseract"
 ```
 
 If Tesseract is installed in your system's `PATH`, this variable is not required. The application will automatically detect it.
