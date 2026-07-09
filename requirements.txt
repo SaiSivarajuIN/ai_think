@@ -1,7 +1,6 @@
 Flask
 python-dotenv
 requests
-chromadb
 psutil
 GPUtil
 langfuse

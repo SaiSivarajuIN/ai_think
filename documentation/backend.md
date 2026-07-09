@@ -10,7 +10,6 @@ AI Think Chat is a Flask-based web application that provides an intelligent chat
 - [Installation and Setup](#installation-and-setup)
 - [Architecture](#architecture)
 - [Logging System](#logging-system)
-- [ChromaDB Integration](#chromadb-integration)
 - [Langfuse Tracing](#langfuse-tracing)
 - [API Endpoints](#api-endpoints)
 - [Core Functions](#core-functions)
@@ -35,7 +34,6 @@ AI Think Chat is a Flask-based web application that provides an intelligent chat
 - Ollama installed and running locally
 - SQLite (comes bundled with Python)
 - SQLite (for development) or PostgreSQL (for production)
-- Optional: ChromaDB Cloud account for distributed storage
 - Optional: Langfuse account for tracing
 - Optional: SearXNG instance for web search
 
@@ -78,7 +76,7 @@ The application uses SQLite with the following core tables:
 
 **settings**: Application configuration
 - Model parameters (temperature, top_p, top_k, num_predict)
-- Integration credentials (Langfuse, ChromaDB, SearXNG)
+- Integration credentials (Langfuse, SearXNG)
 - Feature toggles
 
 **prompts**: Reusable prompt templates
@@ -114,15 +112,6 @@ The application implements rotating file logs stored in the `logger/` directory:
 - **Format**: `app.log.YYYY-MM-DD.txt`
 - **Content**: Request logs, application events, error stack traces
 - **Implementation**: Uses `TimedRotatingFileHandler`
-
-### ChromaDB Integration
-
-ChromaDB serves as an optional distributed storage backend:
-
-- **Fallback Mechanism**: Automatically falls back to SQLite if unavailable
-- **Collection**: `chat_history`
-- **Configuration**: Requires API key, tenant, and database name
-- **Status Check**: Available on `/health` endpoint
 
 ### Langfuse Tracing
 
@@ -171,7 +160,7 @@ Provides observability for chat interactions:
 - Ordered by timestamp
 
 `DELETE /delete_message/<id>`: Remove individual message
-- Deletes from active database (ChromaDB or SQLite)
+- Deletes from SQLite
 
 `DELETE /delete_all_threads`: Clear all conversations
 - Removes all sessions from database
@@ -246,7 +235,7 @@ Provides observability for chat interactions:
 
 `GET /health`: System health dashboard
 - CPU, memory, disk, GPU metrics
-- Service status (Ollama, Langfuse, SearXNG, ChromaDB)
+- Service status (Ollama, Langfuse, SearXNG)
 - Active model display
 
 `GET /history`: Full conversation history
@@ -308,14 +297,6 @@ Sets up Langfuse tracing client:
 - **Authentication**: Validates credentials with `auth_check()`
 - **Global State**: Updates `langfuse_enabled` flag
 
-### `initialize_chroma()`
-
-Establishes ChromaDB connection:
-- **Configuration**: Uses credentials from settings
-- **Heartbeat Check**: Verifies connection health
-- **Collection**: Creates or retrieves `chat_history`
-- **Fallback**: Disables on connection failure
-
 ### `check_ollama_connection()`
 
 Tests Ollama availability:
@@ -337,7 +318,7 @@ Route: `/upload`
 
 | Type   | Handling |
 |--------|----------|
-| `.txt` | Stored directly as text into SQLite/Chroma |
+| `.txt` | Stored directly as text into SQLite |
 | `.pdf` | Text is extracted using `pypdf` and stored as text content |
 | Images | Converted to Base64, stored as special multimodal content |
 
@@ -380,7 +361,7 @@ Deletes the last user/assistant message pair (SQLite only).
 
 If first user message:
 
-- Load recent file context from SQLite/Chroma
+- Load recent file context from SQLite
 - For TXT → prepend document content
 - For Image → add to multimodal payload
 
@@ -403,7 +384,7 @@ Routes either to:
 
 If not incognito:
 
-- Save to SQLite or Chroma
+- Save to SQLite
 - Save timing
 - Save token metrics
 
@@ -586,14 +567,12 @@ Fields include:
 - top_p
 - top_k
 - langfuse keys
-- chroma keys
 - searxng settings
 - toggles for each subsystem
 
 Reinitialization triggers:
 
 - `initialize_langfuse()`
-- `initialize_chroma()`
 
 ## History Page (`/history`)
 
@@ -618,9 +597,8 @@ The application is designed with several layers of error handling and safeguards
 - **Connection Timeouts**: All external API calls (Ollama, Cloud Models, SearXNG) have defined timeouts to prevent the application from hanging on unresponsive services. For example, model generation has a 5-minute timeout.
 - **Service Status Checks**: The `/health` endpoint actively checks the connectivity of all dependent services. The backend uses these checks to gracefully degrade functionality. For example, if SearXNG is down, the `/search` command will return an informative message to the user instead of failing the entire request.
 
-### 2. Database Fallbacks
+### 2. Database Initialization
 
-- **ChromaDB to SQLite**: The application prioritizes ChromaDB if configured. However, if the ChromaDB instance becomes unavailable (detected via `initialize_chroma()` or during an operation), the system automatically and gracefully falls back to using the local SQLite database for the current session. This ensures that chat history and other features continue to function without crashing the application. The connection status is re-checked periodically.
 - **Database Initialization**: On startup, `init_db()` ensures all necessary tables exist, preventing errors from missing tables.
 
 ### 3. Client-Side Request Handling
@@ -672,7 +650,7 @@ The API uses standard HTTP status codes to indicate the success or failure of a 
 | `404 Not Found` | Not Found | The requested resource (e.g., a specific session ID, model, or API endpoint) could not be found on the server. |
 | `422 Unprocessable Entity` | Unprocessable Entity | The request was well-formed, but the server was unable to process the contained instructions (e.g., trying to pull a model that doesn't exist). |
 | `500 Internal Server Error` | Internal Server Error | A generic server error occurred. The logs will contain a detailed stack trace. This prevents leaking sensitive application details. |
-| `503 Service Unavailable` | Service Unavailable | The server is temporarily unable to handle the request, often because a required downstream service (like Ollama or ChromaDB) is offline. |
+| `503 Service Unavailable` | Service Unavailable | The server is temporarily unable to handle the request, often because a required downstream service like Ollama is offline. |
 
 ## Notes & Recommendations
 
@@ -684,7 +662,6 @@ This file is monolithic; recommended modules:
     /services
      - ollama_service.py
      - cloud_service.py
-     - chroma_service.py
      - settings_service.py
      - prompts_service.py
      - models_service.py
@@ -885,7 +862,7 @@ Important behavior:
 - The route checks Ollama availability before generation.
 - `/search <query>` rewrites the prompt with SearXNG results when configured.
 - Cloud models are selected by the `cloud::` prefix and resolved from `cloud_models`.
-- Regeneration deletion is implemented for SQLite. ChromaDB regeneration deletion is logged as unsupported.
+- Regeneration deletion removes the last user/assistant message pair from SQLite.
 - User and assistant messages are saved with timing, model, and token-rate metadata when not incognito.
 
 ### Thread Rename API
@@ -941,7 +918,7 @@ The dashboard computes:
 - CPU count and usage.
 - Memory and disk usage.
 - GPU status through `GPUtil` when available.
-- Ollama, SearXNG, Langfuse, and ChromaDB status.
+- Ollama, SearXNG, and Langfuse status.
 - A `model_name_map` combining active local models and cloud model display names for the frontend active-model display.
 
 ### Cloud Model Service Data
@@ -992,7 +969,7 @@ The backend loads `data/error_handling.csv` at startup into `ERROR_DESCRIPTIONS`
 
 ### Security and Privacy Notes
 
-- Settings updates redact Langfuse secret keys and Chroma API keys before logging.
+- Settings updates redact Langfuse secret keys before logging.
 - `incognito` generation skips database storage and Langfuse tracing.
 - API keys are masked in `GET /api/cloud_models`; full keys are only returned by `GET /api/cloud_models/<id>`.
 - Uploaded file content is stored as chat context, so production deployments should still add size limits and content policy checks.

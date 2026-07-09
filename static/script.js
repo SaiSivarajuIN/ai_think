@@ -55,12 +55,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebarToggle = document.querySelector('.sidebar-toggle-btn');
     const historySidebarToggle = document.getElementById('history-sidebar-toggle');
     const historySidebar = document.querySelector('.history-sidebar');
-    let threadMarkerBar = null; // New: for thread markers
     let thinkingMessageId = null;
     let abortController = null; // New: for cancelling fetch requests
     let fileContextActive = false;
     let isIncognito = localStorage.getItem('isIncognito') === 'true';
     let originalTitle = ''; // Will be set at the end of DOMContentLoaded
+    let threadMarkerBar = null;
+    let threadMarkerRaf = null;
+    let threadMarkerCounter = 0;
 
     // --- New: Inject CSS for Typing Animation ---
     const style = document.createElement('style');
@@ -85,22 +87,6 @@ document.addEventListener('DOMContentLoaded', function() {
             0%, 80%, 100% { transform: scale(0); }
             40% { transform: scale(1.0); }
         }
-        .thread-marker {
-            font-size: 1.5rem; /* Increase marker size */
-            line-height: 0.5;  /* Adjust line height for better spacing */
-            margin: 2px 0;     /* Add some vertical margin */
-        }
-        .thread-marker.active {
-            font-weight: 900;
-            color: var(--primary);
-            animation: marker-pulse 0.5s ease-out;
-        }
-        @keyframes marker-pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(3.0); }
-            100% { transform: scale(1); }
-        }
-
     `;
     document.head.appendChild(style);
     // Showdown converter for Markdown rendering
@@ -208,6 +194,122 @@ document.addEventListener('DOMContentLoaded', function() {
 
             pre.appendChild(copyButton);
         });
+    }
+
+    function getThreadMessages() {
+        if (!chatbox) return [];
+        return Array.from(chatbox.querySelectorAll('.message, .system-message-container'));
+    }
+
+    function getThreadMarkerLabel(message) {
+        if (message.classList.contains('user-message')) return 'User message';
+        if (message.classList.contains('system-message-container')) return 'File context';
+        if (message.classList.contains('thinking')) return 'Assistant is thinking';
+        return 'Assistant message';
+    }
+
+    function getThreadMarkerSnippet(message) {
+        const rawContent = message.dataset.rawContent || message.textContent || '';
+        return rawContent.replace(/\s+/g, ' ').trim().slice(0, 90) || getThreadMarkerLabel(message);
+    }
+
+    function ensureThreadMessageId(message) {
+        if (!message.id) {
+            threadMarkerCounter += 1;
+            message.id = `thread-message-${Date.now()}-${threadMarkerCounter}`;
+        }
+        return message.id;
+    }
+
+    function scheduleThreadMarkerUpdate() {
+        if (!threadMarkerBar || threadMarkerRaf) return;
+        threadMarkerRaf = requestAnimationFrame(() => {
+            threadMarkerRaf = null;
+            renderThreadMarkers();
+            updateActiveThreadMarker();
+        });
+    }
+
+    function renderThreadMarkers() {
+        const scrollContainer = getScrollContainer();
+        if (!threadMarkerBar || !scrollContainer) return;
+
+        const messages = getThreadMessages();
+        threadMarkerBar.classList.toggle('is-empty', messages.length === 0);
+        threadMarkerBar.innerHTML = '';
+
+        const scrollableHeight = Math.max(scrollContainer.scrollHeight, 1);
+
+        messages.forEach((message, index) => {
+            const marker = document.createElement('button');
+            const messageId = ensureThreadMessageId(message);
+            const markerTop = Math.min(96, Math.max(4, (message.offsetTop / scrollableHeight) * 100));
+
+            marker.type = 'button';
+            marker.className = `thread-marker ${message.classList.contains('user-message') ? 'user' : message.classList.contains('system-message-container') ? 'system' : 'assistant'}`;
+            marker.dataset.targetId = messageId;
+            marker.style.setProperty('--marker-top', `${markerTop}%`);
+            marker.title = `${getThreadMarkerLabel(message)} ${index + 1}: ${getThreadMarkerSnippet(message)}`;
+            marker.setAttribute('aria-label', marker.title);
+
+            marker.addEventListener('click', () => {
+                scrollContainer.scrollTo({
+                    top: Math.max(message.offsetTop - 24, 0),
+                    behavior: 'smooth'
+                });
+            });
+
+            threadMarkerBar.appendChild(marker);
+        });
+    }
+
+    function updateActiveThreadMarker() {
+        const scrollContainer = getScrollContainer();
+        if (!threadMarkerBar || !scrollContainer) return;
+
+        const messages = getThreadMessages();
+        const viewportCenter = scrollContainer.scrollTop + (scrollContainer.clientHeight / 2);
+        let activeId = null;
+        let closestDistance = Infinity;
+
+        messages.forEach(message => {
+            const messageCenter = message.offsetTop + (message.offsetHeight / 2);
+            const distance = Math.abs(messageCenter - viewportCenter);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                activeId = message.id;
+            }
+        });
+
+        threadMarkerBar.querySelectorAll('.thread-marker').forEach(marker => {
+            marker.classList.toggle('active', marker.dataset.targetId === activeId);
+        });
+    }
+
+    function setupThreadMarkerBar() {
+        if (!chatbox || threadMarkerBar) return;
+
+        const mainContentWrapper = document.querySelector('.main-content-wrapper');
+        const scrollContainer = getScrollContainer();
+        if (!mainContentWrapper || !scrollContainer) return;
+
+        threadMarkerBar = document.createElement('nav');
+        threadMarkerBar.id = 'thread-marker-bar';
+        threadMarkerBar.className = 'is-empty';
+        threadMarkerBar.setAttribute('aria-label', 'Thread message navigation');
+        mainContentWrapper.appendChild(threadMarkerBar);
+
+        const observer = new MutationObserver(scheduleThreadMarkerUpdate);
+        observer.observe(chatbox, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'open']
+        });
+
+        scrollContainer.addEventListener('scroll', updateActiveThreadMarker, { passive: true });
+        window.addEventListener('resize', scheduleThreadMarkerUpdate);
+        scheduleThreadMarkerUpdate();
     }
 
     // If the model selector exists on the page (i.e., on index.html),
@@ -495,46 +597,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return messageContainer;
     }
 
-    // --- New: Add Thread Marker ---
-    function addThreadMarker(messageContainer, isUser) {
-        if (!threadMarkerBar) return;
-
-        const marker = document.createElement('div');
-        marker.className = 'thread-marker';
-        marker.textContent = isUser ? '-' : '—';
-
-        // Ensure the message has an ID to scroll to
-        if (!messageContainer.id) {
-            messageContainer.id = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        }
-
-        // Set title for hover effect
-        const rawContent = messageContainer.dataset.rawContent || messageContainer.textContent;
-        // Show a snippet of the message on hover
-        marker.title = rawContent.substring(0, 150) + (rawContent.length > 150 ? '...' : '');
-
-        // Update click listener to scroll to the start of the message
-        marker.addEventListener('click', () => {
-            // Remove 'active' class from any previously active marker
-            if (threadMarkerBar) {
-                const currentActive = threadMarkerBar.querySelector('.thread-marker.active');
-                if (currentActive) {
-                    currentActive.classList.remove('active');
-                }
-            }
-            // Add 'active' class to the clicked marker
-            marker.classList.add('active');
-
-            messageContainer.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start'  // Changed from 'center' to 'start'
-            });
-        });
-
-        threadMarkerBar.appendChild(marker);
-    }
-
-
     // Add message footer with stats and actions
     function addMessageFooter(messageDiv, usage, generationTime, modelUsed, tokensPerSecond) {
         const footer = document.createElement('div');
@@ -679,13 +741,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Scroll to the bottom to ensure the new message is visible
         scrollToBottom();
     }
-    // --- New: Remove a thread marker ---
-    function removeLastThreadMarker() {
-        if (threadMarkerBar && threadMarkerBar.lastChild) {
-            threadMarkerBar.lastChild.remove();
-        }
-    }
-
     // Show thinking indicator
     function showThinking() {
         thinkingMessageId = 'thinking-' + Date.now();
@@ -739,8 +794,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Don't show the "/search " prefix in the UI
                 displayMessage = message.replace(/^\/search\s*/, '');
             }
-            const userMessageDiv = addMessage(displayMessage, 'user');
-            addThreadMarker(userMessageDiv, true); // Add marker for user message
+            addMessage(displayMessage, 'user');
             
             // Clear input and reset search mode
             userInput.textContent = '';
@@ -751,7 +805,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Show thinking indicator
         showThinking();
-        addThreadMarker(document.getElementById(thinkingMessageId), false); // Add marker for bot's thinking message
 
         // Create a new AbortController for this request
         abortController = new AbortController();
@@ -788,15 +841,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                // When aborting, remove the marker for the thinking message
-                removeLastThreadMarker();
                 document.title = originalTitle;
                 console.log('Fetch aborted by user.');
             } else {
                 removeThinking();
                 // On error, the thinking message is replaced by an error message.
-                // The marker added for 'thinking' can now represent the error message.
-                // No need to remove it, just let it be.
                 console.error('Error:', error);
                 addMessage(`❌ Error: ${error.message}`, 'bot');
             }
@@ -823,7 +872,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 conversationHistory = [];
                 fileContextActive = false;
                 chatbox.innerHTML = '';
-                if (threadMarkerBar) threadMarkerBar.innerHTML = ''; // Clear markers
                 if (!isIncognito) {
                     addMessage('🆕 New conversation started!', 'bot');
                     // Reset URL to the base path only if not in incognito
@@ -838,7 +886,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Even if the server call fails, reset the frontend state
             conversationHistory = [];
             chatbox.innerHTML = '';
-            if (threadMarkerBar) threadMarkerBar.innerHTML = ''; // Clear markers
             // Also reset URL to the base path
             window.history.pushState({}, '', '/');
             console.error('Error resetting thread:', error);
@@ -1034,10 +1081,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayMessage = displayMessage.replace(/^\/search\s*/, '');
             }
             addMessage(displayMessage, 'user');
-            // Add a marker for the re-added user message
-            const lastUserMessage = chatbox.querySelector('.user-message:last-of-type');
-            if (lastUserMessage) addThreadMarker(lastUserMessage, true);
-
 
             // Remove the bot and user messages from the UI
             botMessageDiv.remove();
@@ -1047,12 +1090,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (conversationHistory.length >= 2) {
                 conversationHistory.splice(-2, 2);
             }
-            // Remove the last two markers (user and bot)
-            if (threadMarkerBar) {
-                if (threadMarkerBar.lastChild) threadMarkerBar.lastChild.remove();
-                if (threadMarkerBar.lastChild) threadMarkerBar.lastChild.remove();
-            }
-
             // Now, send a new message with the old content, but with a regeneration flag
             await sendMessage(userMessageContent, true);
         }
@@ -1095,7 +1132,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const lastUserMessage = chatbox.querySelector('.user-message:last-of-type');
             if (lastUserMessage) {
                 lastUserMessage.remove();
-                removeLastThreadMarker(); // Also remove the user message marker
             }
         }
         removeThinking();
@@ -1110,15 +1146,6 @@ document.addEventListener('DOMContentLoaded', function() {
     async function initializeChat() {
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('session_id');
-
-        // --- New: Create and append the thread marker bar ---
-        if (!document.getElementById('thread-marker-bar')) {
-            threadMarkerBar = document.createElement('div');
-            threadMarkerBar.id = 'thread-marker-bar';
-            // Append it to the page content area to be next to the chatbox
-            const pageContent = document.querySelector('.page-content');
-            if (pageContent) pageContent.appendChild(threadMarkerBar);
-        }
 
         updateIncognitoUI(); // Always update UI on load
 
@@ -1135,7 +1162,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Clear any welcome messages
                 chatbox.innerHTML = '';
-                if (threadMarkerBar) threadMarkerBar.innerHTML = '';
 
                 // Populate conversation history and UI
                 conversationHistory = history;
@@ -1143,7 +1169,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (msg.role === 'assistant') {
                         const botMsgDiv = addMessage(msg.content, 'assistant');
                         botMsgDiv.dataset.rawContent = msg.content;
-                        addThreadMarker(botMsgDiv, false); // Add marker for bot message
 
                         // --- New: Handle Web Search Results for historical messages ---
                         let searchResultsHtml = '';
@@ -1186,10 +1211,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         addMessageFooter(botMsgDiv, null, msg.generation_time, msg.model_used, msg.tokens_per_second); // Add footer with copy/regen
                     } else { // Handles 'user' and 'system' roles
                         addMessage(msg.content, msg.role);
-                        if (msg.role === 'user') {
-                            const lastUserMsg = chatbox.querySelector('.user-message:last-of-type');
-                            if (lastUserMsg) addThreadMarker(lastUserMsg, true);
-                        }
                     }
                 });
 
@@ -1405,6 +1426,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (userInput) { // Focus input on load
         // Store the session ID from the previous page load to detect navigation vs. refresh
         updateSearchButtonState(); // Restore search button state on load
+        setupThreadMarkerBar();
         initializeChat();
     }
     fetchHistorySidebar();

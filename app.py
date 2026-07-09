@@ -7,12 +7,10 @@ import pytesseract
 import psutil
 from pdf2image import convert_from_bytes
 import GPUtil
-import chromadb
 import logging
 import secrets
 import sqlite3
 import requests
-import httpx
 import csv
 from uuid import uuid4
 from langfuse import Langfuse
@@ -187,12 +185,6 @@ DEFAULT_SETTINGS = {
     'searxng_url': SEARXNG_URL
 }
 
-CHROMA_COLLECTION_NAME = "messages"
-
-chroma_client = None    
-chroma_collection = None
-chroma_connected = False
-
 # Initialize SQLite database
 DATABASE = os.getenv("SQLITE_DATABASE", " ")
 
@@ -288,16 +280,8 @@ def init_db():
             cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_secret_key TEXT')
         if 'langfuse_host' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_host TEXT')
-        if 'chroma_api_key' not in column_names:
-            cursor.execute('ALTER TABLE settings ADD COLUMN chroma_api_key TEXT')
-        if 'chroma_tenant' not in column_names:
-            cursor.execute('ALTER TABLE settings ADD COLUMN chroma_tenant TEXT')
-        if 'chroma_database' not in column_names:
-            cursor.execute('ALTER TABLE settings ADD COLUMN chroma_database TEXT')
         if 'langfuse_enabled' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN langfuse_enabled BOOLEAN DEFAULT 0')
-        if 'chromadb_enabled' not in column_names:
-            cursor.execute('ALTER TABLE settings ADD COLUMN chromadb_enabled BOOLEAN DEFAULT 0')
         if 'searxng_url' not in column_names:
             cursor.execute('ALTER TABLE settings ADD COLUMN searxng_url TEXT')
         if 'searxng_enabled' not in column_names:
@@ -337,21 +321,14 @@ def init_db():
             public_key = ""
             secret_key = ""
             host = LANGFUSE_HOST
-            chroma_api_key = os.getenv("CHROMA_API_KEY", "")
-            chroma_tenant = os.getenv("CHROMA_TENANT", "")
-            chroma_database = os.getenv("CHROMA_DATABASE", "")
-            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, chroma_api_key, chroma_tenant, chroma_database, langfuse_enabled, chromadb_enabled, searxng_url, searxng_enabled, local_models_enabled, cloud_models_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, chroma_api_key, chroma_tenant, chroma_database, 0, 0, DEFAULT_SETTINGS['searxng_url'], 0, 1, 1))
+            db.execute('INSERT INTO settings (id, num_predict, temperature, top_p, top_k, langfuse_public_key, langfuse_secret_key, langfuse_host, langfuse_enabled, searxng_url, searxng_enabled, local_models_enabled, cloud_models_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (1, DEFAULT_SETTINGS['num_predict'], DEFAULT_SETTINGS['temperature'], DEFAULT_SETTINGS['top_p'], DEFAULT_SETTINGS['top_k'], public_key, secret_key, host, 0, DEFAULT_SETTINGS['searxng_url'], 0, 1, 1))
         else:
             # For existing installations, ensure langfuse columns have default values if they are NULL
-            db.execute("UPDATE settings SET chroma_api_key = '' WHERE chroma_api_key IS NULL")
-            db.execute("UPDATE settings SET chroma_tenant = '' WHERE chroma_tenant IS NULL")
-            db.execute("UPDATE settings SET chroma_database = '' WHERE chroma_database IS NULL")
             db.execute("UPDATE settings SET langfuse_public_key = '' WHERE langfuse_public_key IS NULL")
             db.execute("UPDATE settings SET langfuse_secret_key = '' WHERE langfuse_secret_key IS NULL")
             db.execute("UPDATE settings SET langfuse_host = 'https://us.cloud.langfuse.com' WHERE langfuse_host IS NULL OR langfuse_host = ''")
             db.execute("UPDATE settings SET langfuse_enabled = 0 WHERE langfuse_enabled IS NULL")
-            db.execute("UPDATE settings SET chromadb_enabled = 0 WHERE chromadb_enabled IS NULL")
             db.execute("UPDATE settings SET searxng_url = ? WHERE searxng_url IS NULL", (DEFAULT_SETTINGS['searxng_url'],))
             db.execute("UPDATE settings SET searxng_enabled = 0 WHERE searxng_enabled IS NULL")
             db.execute("UPDATE settings SET local_models_enabled = 1 WHERE local_models_enabled IS NULL")
@@ -383,11 +360,7 @@ def get_settings():
         'langfuse_public_key': '',
         'langfuse_secret_key': '',
         'langfuse_host': LANGFUSE_HOST,
-        'chroma_api_key': '',
-        'chroma_tenant': '',
-        'chroma_database': '',
         'langfuse_enabled': False,
-        'chromadb_enabled': False,
         'searxng_url': SEARXNG_URL,
         'searxng_enabled': False,
         'local_models_enabled': True,
@@ -404,11 +377,7 @@ def save_settings(settings_dict):
         'langfuse_public_key': str(settings_dict.get('langfuse_public_key', '')),
         'langfuse_secret_key': str(settings_dict.get('langfuse_secret_key', '')),
         'langfuse_host': str(settings_dict.get('langfuse_host', '')),
-        'chroma_api_key': str(settings_dict.get('chroma_api_key', '')),
-        'chroma_tenant': str(settings_dict.get('chroma_tenant', '')),
-        'chroma_database': str(settings_dict.get('chroma_database', '')),
         'langfuse_enabled': bool(settings_dict.get('langfuse_enabled', False)),
-        'chromadb_enabled': bool(settings_dict.get('chromadb_enabled', False)),
         'searxng_url': str(settings_dict.get('searxng_url', '')),
         'searxng_enabled': bool(settings_dict.get('searxng_enabled', False)),
         'local_models_enabled': bool(settings_dict.get('local_models_enabled', False)),
@@ -419,12 +388,11 @@ def save_settings(settings_dict):
     try:
         db = get_db()
         db.execute(
-            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, chroma_api_key = ?, chroma_tenant = ?, chroma_database = ?, langfuse_enabled = ?, chromadb_enabled = ?, searxng_url = ?, searxng_enabled = ?, local_models_enabled = ?, cloud_models_enabled = ? WHERE id = 1',
+            'UPDATE settings SET num_predict = ?, temperature = ?, top_p = ?, top_k = ?, langfuse_public_key = ?, langfuse_secret_key = ?, langfuse_host = ?, langfuse_enabled = ?, searxng_url = ?, searxng_enabled = ?, local_models_enabled = ?, cloud_models_enabled = ? WHERE id = 1',
             (
                 typed_settings['num_predict'], typed_settings['temperature'], typed_settings['top_p'], typed_settings['top_k'],
                 typed_settings['langfuse_public_key'], typed_settings['langfuse_secret_key'], typed_settings['langfuse_host'],
-                typed_settings['chroma_api_key'], typed_settings['chroma_tenant'], typed_settings['chroma_database'], 
-                typed_settings['langfuse_enabled'], typed_settings['chromadb_enabled'],
+                typed_settings['langfuse_enabled'],
                 typed_settings['searxng_url'], typed_settings['searxng_enabled'],
                 typed_settings['local_models_enabled'], typed_settings['cloud_models_enabled']
             )
@@ -479,46 +447,9 @@ def initialize_langfuse():
             langfuse_enabled = False
             app.logger.info("Langfuse is disabled in settings.")
 
-def initialize_chroma():
-    """Initializes the ChromaDB client and collection."""
-    global chroma_client, chroma_collection, chroma_connected
-    with app.app_context():
-        settings = get_settings()
-        api_key = settings.get('chroma_api_key')
-        tenant = settings.get('chroma_tenant')
-        database = settings.get('chroma_database')
-
-    if not settings.get('chromadb_enabled'):
-        chroma_connected = False
-        app.logger.info("ChromaDB is disabled in settings. Falling back to SQLite.")
-        return
-
-    if api_key and tenant and database: # Now also checks if it's enabled
-        try:
-            app.logger.info("Attempting to connect to ChromaDB Cloud...")
-            chroma_client = chromadb.CloudClient(
-                api_key=api_key,
-                tenant=tenant,
-                database=database
-            )
-            chroma_client.heartbeat()  # Check connection
-            chroma_collection = chroma_client.get_or_create_collection(name=CHROMA_COLLECTION_NAME)
-            chroma_connected = True
-            app.logger.info("Successfully connected to ChromaDB Cloud.")
-        except httpx.ConnectError as e:
-            app.logger.warning(f"Could not connect to ChromaDB Cloud. Please ensure your credentials are correct and the service is accessible. Error: {e}. Falling back to SQLite.")
-            chroma_connected = False
-        except Exception as e:
-            app.logger.warning(f"Failed to initialize ChromaDB, possibly due to invalid credentials or configuration. Error: {e}. Falling back to SQLite.")
-            chroma_connected = False
-    else:
-        app.logger.warning("ChromaDB is enabled in settings, but credentials are not fully provided. Falling back to SQLite.")
-        chroma_connected = False
-
 initialize_tesseract()
 init_db()
 initialize_langfuse() # Initial call on startup
-initialize_chroma() # Initialize ChromaDB
 
 def check_ollama_connection():
     """Check if Ollama is running and accessible"""
@@ -954,24 +885,10 @@ def upload_file():
             content = file.read().decode('utf-8')
             message_to_save = f"File Uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
 
-            if chroma_connected:
-                try:
-                    chroma_collection.add(
-                        documents=[message_to_save],
-                        metadatas=[{
-                            "sender": "system",
-                            "session_id": session_id,
-                            "timestamp": datetime.now(ZoneInfo("UTC")).isoformat(),
-                        }],
-                        ids=[str(uuid.uuid4())]
-                    )
-                except Exception as e:
-                    current_app.logger.error(f"Failed to save .txt file context to ChromaDB: {e}")
-            else:
-                db = get_db()
-                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
-                           (session_id, 'system', message_to_save))
-                db.commit()
+            db = get_db()
+            db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
+                       (session_id, 'system', message_to_save))
+            db.commit()
 
             current_app.logger.info(f"Uploaded file '{file.filename}' and stored it in the database for session {session_id}.")
             return jsonify({"success": True, "filename": file.filename, "message": message_to_save})
@@ -990,20 +907,10 @@ def upload_file():
             message_to_save = f"Image Uploaded: {filename}\n\n--- IMAGE ---\n{mime_type};base64,{base64_image}"
 
             # Save the image message to the database
-            if chroma_connected:
-                try:
-                    chroma_collection.add(
-                        documents=[message_to_save],
-                        metadatas=[{"sender": "system", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}],
-                        ids=[str(uuid.uuid4())]
-                    )
-                except Exception as e:
-                    current_app.logger.error(f"Failed to save image to ChromaDB: {e}")
-            else:
-                db = get_db()
-                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
-                           (session_id, 'system', message_to_save))
-                db.commit()
+            db = get_db()
+            db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)',
+                       (session_id, 'system', message_to_save))
+            db.commit()
 
             current_app.logger.info(f"Saved uploaded image '{filename}' for session {session_id}.")
             return jsonify({"success": True, "filename": filename, "message": message_to_save})
@@ -1035,19 +942,9 @@ def upload_file():
 
             message_to_save = f"File Uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
 
-            if chroma_connected:
-                try:
-                    chroma_collection.add(
-                        documents=[message_to_save],
-                        metadatas=[{"sender": "system", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}],
-                        ids=[str(uuid.uuid4())]
-                    )
-                except Exception as e:
-                    current_app.logger.error(f"Failed to save PDF content to ChromaDB: {e}")
-            else:
-                db = get_db()
-                db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'system', message_to_save))
-                db.commit()
+            db = get_db()
+            db.execute('INSERT INTO messages (session_id, sender, content) VALUES (?, ?, ?)', (session_id, 'system', message_to_save))
+            db.commit()
 
             current_app.logger.info(f"Extracted text from '{file.filename}' and stored it for session {session_id}.")
             return jsonify({"success": True, "filename": file.filename, "message": message_to_save})
@@ -1093,24 +990,18 @@ def generate():
     if is_regeneration and not is_incognito:
         current_app.logger.info(f"Regeneration request for session {session_id}. Deleting last message pair.")
         try:
-            if chroma_connected:
-                # This is complex in ChromaDB without message IDs. A simpler approach is to not delete for now.
-                # For a robust solution, we'd need to fetch, sort, and delete the last two.
-                # As a safe default, we'll log this and proceed without deletion for Chroma.
-                current_app.logger.warning("Regeneration deletion is not yet supported for ChromaDB. Proceeding without deleting.")
-            else:
-                db = get_db()
-                # Find the IDs of the last two messages in the session
-                last_two_ids = db.execute(
-                    'SELECT id FROM messages WHERE session_id = ? ORDER BY timestamp DESC LIMIT 2',
-                    (session_id,)
-                ).fetchall()
+            db = get_db()
+            # Find the IDs of the last two messages in the session
+            last_two_ids = db.execute(
+                'SELECT id FROM messages WHERE session_id = ? ORDER BY timestamp DESC LIMIT 2',
+                (session_id,)
+            ).fetchall()
 
-                if len(last_two_ids) == 2:
-                    ids_to_delete = [row['id'] for row in last_two_ids]
-                    db.execute(f"DELETE FROM messages WHERE id IN (?, ?)", (ids_to_delete[0], ids_to_delete[1]))
-                    db.commit()
-                    current_app.logger.info(f"Deleted messages with IDs {ids_to_delete} for regeneration.")
+            if len(last_two_ids) == 2:
+                ids_to_delete = [row['id'] for row in last_two_ids]
+                db.execute("DELETE FROM messages WHERE id IN (?, ?)", (ids_to_delete[0], ids_to_delete[1]))
+                db.commit()
+                current_app.logger.info(f"Deleted messages with IDs {ids_to_delete} for regeneration.")
 
         except Exception as e:
             current_app.logger.error(f"Error deleting messages for regeneration in session {session_id}: {e}")
@@ -1141,9 +1032,7 @@ def generate():
         session['session_id'] = str(uuid.uuid4())
     session_id = session['session_id']
 
-    db = None
-    if not chroma_connected:
-        db = get_db()
+    db = get_db()
 
     start_time = time.time()
 
@@ -1156,20 +1045,9 @@ def generate():
         # This logic now handles both text files and images.
         if not conversation_history:  # If history is empty, this is the first user message
             file_context_message = None
-            if chroma_connected:
-                try:
-                    results = chroma_collection.get(
-                        where={"$and": [{"session_id": session_id}, {"sender": "system"}]},
-                        include=["documents"]
-                    )
-                    if results['documents']:
-                        file_context_message = results['documents'][-1]
-                except Exception as e:
-                    current_app.logger.error(f"Error fetching file context from ChromaDB for session {session_id}: {e}")
-            else:
-                file_row = db.execute("SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1", (session_id,)).fetchone()
-                if file_row:
-                    file_context_message = file_row['content']
+            file_row = db.execute("SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1", (session_id,)).fetchone()
+            if file_row:
+                file_context_message = file_row['content']
 
             if file_context_message:
                 if "--- IMAGE ---" in file_context_message:
@@ -1222,24 +1100,10 @@ def generate():
         # --- Save messages AFTER successful generation ---
         if not is_incognito:
             # Save user message to database
-            if chroma_connected:
-                try:
-                    # Batch add user and assistant messages
-                    chroma_collection.add(
-                        documents=[user_message_to_save, assistant_response],
-                        metadatas=[
-                            {"sender": "user", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()},
-                            {"sender": "assistant", "session_id": session_id, "timestamp": datetime.now(ZoneInfo("UTC")).isoformat()}
-                        ],
-                        ids=[str(uuid.uuid4()), str(uuid.uuid4())]
-                    )
-                except Exception as e:
-                    current_app.logger.error(f"Failed to save messages to ChromaDB: {e}") # generation_time is not supported in ChromaDB metadata for now
-            else:  # Using SQLite
-                model_name_for_log = f"({model_config['service']}) {model_config['model_name']}" if is_cloud_model else model
-                db.execute('INSERT INTO messages (session_id, sender, content, generation_time, model_used, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?)', (session_id, 'user', user_message_to_save, None, None, None))
-                db.execute('INSERT INTO messages (session_id, sender, content, generation_time, model_used, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?)', (session_id, 'assistant', assistant_response, round(elapsed, 2), model_name_for_log, tokens_per_second))
-                db.commit()
+            model_name_for_log = f"({model_config['service']}) {model_config['model_name']}" if is_cloud_model else model
+            db.execute('INSERT INTO messages (session_id, sender, content, generation_time, model_used, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?)', (session_id, 'user', user_message_to_save, None, None, None))
+            db.execute('INSERT INTO messages (session_id, sender, content, generation_time, model_used, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?)', (session_id, 'assistant', assistant_response, round(elapsed, 2), model_name_for_log, tokens_per_second))
+            db.commit()
             
             # Save API usage metrics
             try:
@@ -1297,40 +1161,20 @@ def get_session_history(session_id):
     """Fetches the message history for a specific session_id."""
     messages = []
     try:
-        if chroma_connected:
-            results = chroma_collection.get(
-                where={"session_id": session_id},
-                include=["metadatas", "documents"]
-            )
-            chroma_messages = []
-            for i in range(len(results['ids'])):
-                meta = results['metadatas'][i]
-                # Ensure we only process messages, not other system data
-                if meta.get('sender') in ['user', 'assistant', 'system']:
-                    chroma_messages.append({
-                        'role': meta['sender'],
-                        'content': results['documents'][i],
-                        'timestamp': meta['timestamp']
-                    })
-            # Sort by timestamp
-            sorted_messages = sorted(chroma_messages, key=lambda x: datetime.fromisoformat(x['timestamp']))
-            # We only need role and content for the conversation history
-            messages = [{'role': msg['role'], 'content': msg['content']} for msg in sorted_messages]
-        else:
-            db = get_db()
-            rows = db.execute(
-                'SELECT sender, content, generation_time, model_used, tokens_per_second FROM messages WHERE session_id = ? ORDER BY timestamp ASC',
-                (session_id,)
-            ).fetchall()
-            for row in rows:
-                msg = {'role': row['sender'], 'content': row['content']}
-                if row['generation_time'] is not None:
-                    msg['generation_time'] = row['generation_time']
-                if row['tokens_per_second'] is not None:
-                    msg['tokens_per_second'] = row['tokens_per_second']
-                if row['model_used'] is not None:
-                    msg['model_used'] = row['model_used']
-                messages.append(msg)
+        db = get_db()
+        rows = db.execute(
+            'SELECT sender, content, generation_time, model_used, tokens_per_second FROM messages WHERE session_id = ? ORDER BY timestamp ASC',
+            (session_id,)
+        ).fetchall()
+        for row in rows:
+            msg = {'role': row['sender'], 'content': row['content']}
+            if row['generation_time'] is not None:
+                msg['generation_time'] = row['generation_time']
+            if row['tokens_per_second'] is not None:
+                msg['tokens_per_second'] = row['tokens_per_second']
+            if row['model_used'] is not None:
+                msg['model_used'] = row['model_used']
+            messages.append(msg)
 
         if not messages:
             return jsonify({"error": "Session not found or has no messages"}), 404
@@ -1354,31 +1198,16 @@ def get_sessions():
     except sqlite3.OperationalError: # In case the table doesn't exist yet
         pass
 
-    if chroma_connected:
-        try:
-            results = chroma_collection.get(include=["metadatas", "documents"])
-            for i in range(len(results['ids'])):
-                meta = results['metadatas'][i]
-                session_id = meta['session_id']
-                timestamp = datetime.fromisoformat(meta['timestamp'])
-                msg = {'sender': meta['sender'], 'content': results['documents'][i], 'timestamp': timestamp}
-                threads[session_id]['messages'].append(msg)
-                if not threads[session_id]['first_timestamp'] or timestamp < threads[session_id]['first_timestamp']:
-                    threads[session_id]['first_timestamp'] = timestamp
-        except Exception as e:
-            current_app.logger.error(f"Failed to fetch sessions from ChromaDB: {e}")
-            return jsonify({"error": "Failed to fetch sessions"}), 500
-    else:
-        db = get_db()
-        messages = db.execute('SELECT session_id, sender, content, timestamp FROM messages ORDER BY timestamp ASC').fetchall()
-        for msg in messages:
-            session_id = msg['session_id']
-            naive_timestamp = datetime.strptime(msg['timestamp'], '%Y-%m-%d %H:%M:%S')
-            timestamp = naive_timestamp.replace(tzinfo=utc_tz)
-            msg_dict = {'sender': msg['sender'], 'content': msg['content'], 'timestamp': timestamp}
-            threads[session_id]['messages'].append(msg_dict)
-            if not threads[session_id]['first_timestamp']:
-                threads[session_id]['first_timestamp'] = timestamp
+    db = get_db()
+    messages = db.execute('SELECT session_id, sender, content, timestamp FROM messages ORDER BY timestamp ASC').fetchall()
+    for msg in messages:
+        session_id = msg['session_id']
+        naive_timestamp = datetime.strptime(msg['timestamp'], '%Y-%m-%d %H:%M:%S')
+        timestamp = naive_timestamp.replace(tzinfo=utc_tz)
+        msg_dict = {'sender': msg['sender'], 'content': msg['content'], 'timestamp': timestamp}
+        threads[session_id]['messages'].append(msg_dict)
+        if not threads[session_id]['first_timestamp']:
+            threads[session_id]['first_timestamp'] = timestamp
 
     # Sort threads by the timestamp of the LAST message
     sorted_threads = sorted(
@@ -1444,54 +1273,28 @@ def history():
     session_start = {}
     utc_tz = ZoneInfo("UTC")
 
-    if chroma_connected:
-        try:
-            results = chroma_collection.get(include=["metadatas", "documents"])
-            chroma_messages = []
-            for i, doc_id in enumerate(results['ids']):
-                meta = results['metadatas'][i]
-                chroma_messages.append({
-                    'id': doc_id,
-                    'session_id': meta['session_id'],
-                    'sender': meta['sender'],
-                    'content': results['documents'][i],
-                    'timestamp': datetime.fromisoformat(meta['timestamp'])
-                })
-            
-            sorted_messages = sorted(chroma_messages, key=lambda x: x['timestamp'])
+    db = get_db()
+    messages = db.execute('SELECT id, session_id, sender, content, timestamp, generation_time, model_used, tokens_per_second FROM messages ORDER BY timestamp ASC').fetchall()
 
-            for msg in sorted_messages:
-                session_id = msg['session_id']
-                threads[session_id].append(msg)
-                if session_id not in session_start:
-                    session_start[session_id] = msg['timestamp']
+    for msg in messages:
+        session_id = msg['session_id']
+        timestamp_str = msg['timestamp']
+        # Create a naive datetime, then make it timezone-aware (UTC)
+        naive_timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+        utc_timestamp = naive_timestamp.replace(tzinfo=utc_tz)
 
-        except Exception as e:
-            current_app.logger.error(f"Failed to fetch history from ChromaDB: {e}")
-            threads = defaultdict(list)
-    else:
-        db = get_db()
-        messages = db.execute('SELECT id, session_id, sender, content, timestamp, generation_time, model_used, tokens_per_second FROM messages ORDER BY timestamp ASC').fetchall()
-        
-        for msg in messages:
-            session_id = msg['session_id']
-            timestamp_str = msg['timestamp']
-            # Create a naive datetime, then make it timezone-aware (UTC)
-            naive_timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
-            utc_timestamp = naive_timestamp.replace(tzinfo=utc_tz)
-            
-            threads[session_id].append({
-                'id': msg['id'],
-                'sender': msg['sender'],
-                'content': msg['content'],
-                'timestamp': utc_timestamp,
-                'generation_time': msg['generation_time'],
-                'model_used': msg['model_used'],
-                'tokens_per_second': msg['tokens_per_second']
-            })
-            
-            if session_id not in session_start:
-                session_start[session_id] = utc_timestamp
+        threads[session_id].append({
+            'id': msg['id'],
+            'sender': msg['sender'],
+            'content': msg['content'],
+            'timestamp': utc_timestamp,
+            'generation_time': msg['generation_time'],
+            'model_used': msg['model_used'],
+            'tokens_per_second': msg['tokens_per_second']
+        })
+
+        if session_id not in session_start:
+            session_start[session_id] = utc_timestamp
 
     # Sort threads by the timestamp of the LAST message in each thread
     sorted_threads = sorted(
@@ -1607,15 +1410,10 @@ def history():
 @app.route('/delete_message/<string:message_id>', methods=['DELETE'])
 def delete_message(message_id):
     try:
-        if chroma_connected:
-            chroma_collection.delete(ids=[message_id])
-            current_app.logger.info(f"User deleted message with ID from ChromaDB: {message_id}")
-        else:
-            db = get_db()
-            # The original route used int, so we cast it back for sqlite
-            db.execute('DELETE FROM messages WHERE id = ?', (int(message_id),))
-            db.commit()
-            current_app.logger.info(f"User deleted message with ID from SQLite: {message_id}")
+        db = get_db()
+        db.execute('DELETE FROM messages WHERE id = ?', (int(message_id),))
+        db.commit()
+        current_app.logger.info(f"User deleted message with ID from SQLite: {message_id}")
 
         return jsonify({"success": True})
     except Exception as e:
@@ -1626,16 +1424,10 @@ def delete_message(message_id):
 def delete_thread(session_id):
     """Deletes all messages associated with a session_id."""
     try:
-        if chroma_connected:
-            # ChromaDB deletion by metadata filter
-            chroma_collection.delete(where={"session_id": session_id})
-            current_app.logger.info(f"User deleted thread with session ID from ChromaDB: {session_id}")
-        else:
-            # SQLite deletion
-            db = get_db()
-            db.execute('DELETE FROM messages WHERE session_id = ?', (session_id,))
-            db.commit()
-            current_app.logger.info(f"User deleted thread with session ID from SQLite: {session_id}")
+        db = get_db()
+        db.execute('DELETE FROM messages WHERE session_id = ?', (session_id,))
+        db.commit()
+        current_app.logger.info(f"User deleted thread with session ID from SQLite: {session_id}")
 
         return jsonify({"success": True, "message": f"Thread {session_id} deleted."})
     except Exception as e:
@@ -1667,16 +1459,9 @@ def rename_session():
 def delete_all_threads():
     """Deletes all messages from the database."""
     try:
-        if chroma_connected:
-            # This is a destructive operation. A safer way would be to delete and recreate the collection.
-            # For now, we fetch all IDs and delete them.
-            results = chroma_collection.get()
-            if results['ids']:
-                chroma_collection.delete(ids=results['ids'])
-        else:
-            db = get_db()
-            db.execute('DELETE FROM messages')
-            db.commit()
+        db = get_db()
+        db.execute('DELETE FROM messages')
+        db.commit()
         current_app.logger.info("User deleted all threads.")
         return jsonify({"success": True, "message": "All threads deleted."})
     except Exception as e:
@@ -1806,7 +1591,6 @@ def health():
         ollama_status=ollama_status,
         ollama_model=OLLAMA_MODEL,
         langfuse_enabled=langfuse_enabled,
-        chroma_connected=chroma_connected, # Add a comma here
         searxng_status=searxng_status,
         model_name_map=model_name_map
     )
@@ -1924,10 +1708,6 @@ def settings(tab_name='general'):
             'langfuse_secret_key': request.form.get('langfuse_secret_key', ''),
             'langfuse_host': request.form.get('langfuse_host', ''),
             'langfuse_enabled': 'langfuse_enabled' in request.form,
-            'chroma_api_key': request.form.get('chroma_api_key', ''),
-            'chroma_tenant': request.form.get('chroma_tenant', ''),
-            'chroma_database': request.form.get('chroma_database', ''),
-            'chromadb_enabled': 'chromadb_enabled' in request.form,
             'searxng_url': request.form.get('searxng_url', ''),
             'searxng_enabled': 'searxng_enabled' in request.form,
             'local_models_enabled': 'local_models_enabled' in request.form,
@@ -1941,15 +1721,12 @@ def settings(tab_name='general'):
         loggable_settings = request.form.to_dict()
         if 'langfuse_secret_key' in loggable_settings:
             loggable_settings['langfuse_secret_key'] = '********'
-        if 'chroma_api_key' in loggable_settings:
-            loggable_settings['chroma_api_key'] = '********'
         if 'searxng_url' in loggable_settings:
             loggable_settings['searxng_url'] = request.form.get('searxng_url', '')
         current_app.logger.info(f"Settings updated: {loggable_settings}")
 
         # Re-initialize services with new settings
         initialize_langfuse()
-        initialize_chroma()
 
         # Redirect back to the tab the user was on
         return redirect(url_for('settings', tab_name=request.form.get('active_tab', 'general')) or 'general')
@@ -2130,36 +1907,15 @@ def dashboard():
         cloud_models_enabled = settings.get('cloud_models_enabled', True)
 
 
-        if chroma_connected:
-            # Fetch stats from ChromaDB
-            results = chroma_collection.get(include=["metadatas"])
-            metadatas = results.get('metadatas', [])
-            
-            session_ids = {meta['session_id'] for meta in metadatas if 'session_id' in meta}
-            stats['total_sessions'] = len(session_ids)
-            
-            user_messages = 0
-            assistant_messages = 0
-            for meta in metadatas:
-                if meta.get('sender') == 'user':
-                    user_messages += 1
-                elif meta.get('sender') == 'assistant':
-                    assistant_messages += 1
-            
-            stats['user_messages'] = user_messages
-            stats['assistant_messages'] = assistant_messages
-            stats['total_messages'] = user_messages + assistant_messages
-        else:
-            # Fetch stats from SQLite
-            stats['total_sessions'] = db.execute('SELECT COUNT(DISTINCT session_id) FROM messages').fetchone()[0] or 0
-            
-            message_counts = db.execute('SELECT sender, COUNT(id) FROM messages GROUP BY sender').fetchall()
-            for row in message_counts:
-                if row['sender'] == 'user':
-                    stats['user_messages'] = row[1] or 0
-                elif row['sender'] == 'assistant':
-                    stats['assistant_messages'] = row[1]
-            stats['total_messages'] = stats['user_messages'] + stats['assistant_messages']
+        stats['total_sessions'] = db.execute('SELECT COUNT(DISTINCT session_id) FROM messages').fetchone()[0] or 0
+
+        message_counts = db.execute('SELECT sender, COUNT(id) FROM messages GROUP BY sender').fetchall()
+        for row in message_counts:
+            if row['sender'] == 'user':
+                stats['user_messages'] = row[1] or 0
+            elif row['sender'] == 'assistant':
+                stats['assistant_messages'] = row[1]
+        stats['total_messages'] = stats['user_messages'] + stats['assistant_messages']
 
         db = get_db() # For model list regardless of DB
         # Get model usage from metadata (assuming it's stored in 'metadata' column for assistant messages)

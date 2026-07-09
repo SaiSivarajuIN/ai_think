@@ -481,28 +481,6 @@
                     </div>
                 </div>
                 <div class="card">
-                    <h2>ChromaDB Cloud (Optional)</h2>
-                    <div class="form-group toggle-group">
-                        <label for="chromadb_enabled">Enable ChromaDB</label>
-                        <label class="switch">
-                            <input type="checkbox" id="chromadb_enabled" name="chromadb_enabled" {% if settings.get('chromadb_enabled') %}checked{% endif %}>
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label for="chroma_api_key">API Key</label>
-                        <input type="password" id="chroma_api_key" name="chroma_api_key" value="{{ settings.get('chroma_api_key', '') }}" placeholder="Enter your ChromaDB API key">
-                    </div>
-                    <div class="form-group">
-                        <label for="chroma_tenant">Tenant</label>
-                        <input type="text" id="chroma_tenant" name="chroma_tenant" value="{{ settings.get('chroma_tenant', '') }}" placeholder="default">
-                    </div>
-                    <div class="form-group">
-                        <label for="chroma_database">Database</label>
-                        <input type="text" id="chroma_database" name="chroma_database" value="{{ settings.get('chroma_database', '') }}" placeholder="default">
-                    </div>
-                </div>
-                <div class="card">
                     <h2>SearXNG Integration (Optional)</h2>
                     <div class="form-group toggle-group">
                         <label for="searxng_enabled">Enable SearXNG</label>

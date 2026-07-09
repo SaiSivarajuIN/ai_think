@@ -2,7 +2,7 @@
 
 # **AI Think — Local & Cloud LLM Chat**
 
-Lightweight, self-hosted web chat for local **Ollama** models & cloud models like (**OpenAI**, **Perplexity**, and **more**) with optional cloud integrations (**ChromaDB**, **Langfuse**, **SearXNG**).
+Lightweight, self-hosted web chat for local **Ollama** models & cloud models like (**OpenAI**, **Perplexity**, and **more**) with optional integrations (**Langfuse**, **SearXNG**).
 
 ---
 
@@ -105,7 +105,7 @@ TOP_P=0.9
 TOP_K=40
 ```
 
-> Additional credentials (Langfuse, ChromaDB, etc.) can be configured via the web UI under **Settings**.
+> Additional credentials for optional integrations can be configured via the web UI under **Settings**.
 
 ---
 
@@ -125,11 +125,11 @@ Then open: [http://localhost:1111](http://localhost:1111)
 
 * Clean chat UI with **model selector** and **history sidebar**
 * **Local Models Hub**: pull / delete models from Ollama
-* **Cloud Integrations**: OpenAI, Perplexity, ChromaDB, Langfuse
-* Persistent chat history (SQLite by default, optional ChromaDB Cloud)
+* **Cloud Integrations**: OpenAI, Perplexity, Langfuse
+* Persistent chat history with SQLite
 * **Prompt Hub** for reusable system prompts
 * **User Dashboard**: View usage statistics like total sessions and messages
-* **Health Dashboard**: CPU / RAM / Disk / GPU, Ollama / Langfuse / Chroma statuses
+* **Health Dashboard**: CPU / RAM / Disk / GPU, Ollama / Langfuse statuses
 * **Runtime settings** (no restart required)
 * **Incognito mode** for ephemeral chats
 * **Interrupt responses** from the UI
@@ -276,9 +276,8 @@ If Tesseract is installed in your system's `PATH`, this variable is not required
 
 ## Configuration Notes
 
-* **Settings** are saved to SQLite (or ChromaDB if configured)
+* **Settings** are saved to SQLite
 * **Langfuse** credentials apply immediately after update
-* **ChromaDB** automatically switches to Cloud if `CHROMA_API_KEY` is set
 
 ---
 
