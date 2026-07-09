@@ -113,9 +113,12 @@ System messages for file uploads expand/collapse via `<details>`.
 
 Adds vertical markers on the right side of viewport, tied to each message’s scroll position:
 
-* Created in JS.
-* Click scrolls to the message.
-* Shows snippet on hover.
+* Created in JS beside the scrollable chat area.
+* Automatically rebuilds when messages change.
+* Distinguishes user, assistant, and system/file-context messages.
+* Highlights the marker nearest the current viewport center.
+* Click scrolls smoothly to the message.
+* Hidden on small screens.
 
 ---
 
@@ -393,25 +396,7 @@ Stop button is red variant.
 
 ---
 
-## 3.5 Thread Marker Bar
-
-Right side vertical bar with clickable markers.
-
-```css
-#thread-marker-bar {
-  position: fixed;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-}
-```
-
-JS populates the markers.
-
----
-
-## 3.6 Cards (Dashboard / Settings)
+## 3.5 Cards (Dashboard / Settings)
 
 Reusable layout:
 
@@ -427,7 +412,7 @@ Used across Dashboard, Settings, About, Health, Prompts.
 
 ---
 
-## 3.7 Tables
+## 3.6 Tables
 
 Scrollable container with sticky headers.
 
@@ -440,7 +425,7 @@ Used in:
 
 ---
 
-## 3.8 Forms & Modals
+## 3.7 Forms & Modals
 
 ### Modals
 
