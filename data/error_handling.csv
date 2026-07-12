@@ -1,8 +1,8 @@
 Status Code,Meaning,Description
 200,OK,Request completed successfully.
-400,Bad Request,"The request is invalid (missing parameters, invalid API key , invalid JSON, etc.)."
-404,Not Found,The requested resource or model was not found.
-422,Unprocessable Entity,"The server understands the content type, but was unable to process the contained instructions (e.g. extra inputs)."
-429,Too Many Requests,Rate limit exceeded. The request should be retried later.
-500,Internal Server Error,The server encountered an unexpected condition.
-502,Bad Gateway,The upstream model or service could not be reached.
+400,Bad Request,"400,Bad Request-The request is invalid (missing parameters, invalid API key , invalid JSON, etc.)."
+404,Not Found,"404,Not Found-The requested resource or model was not found."
+422,Unprocessable Entity,"422,Unprocessable Entity-The server understands the content type, but was unable to process the contained instructions (e.g. extra inputs)."
+429,Too Many Requests,"429,Too Many Requests-Rate limit exceeded. The request should be retried later."
+500,Internal Server Error,"500,Internal Server Error-The server encountered an unexpected condition."
+502,Bad Gateway,"502,Bad Gateway-The upstream model or service could not be reached."

@@ -13,6 +13,16 @@ if not exist .venv (
     call .venv\Scripts\activate
 )
 
+echo Starting SearXNG services...
+if exist "searxng-docker\docker-compose.yaml" (
+    cd searxng-docker
+    docker compose up -d
+    cd ..
+    echo      '- SearXNG services started.
+) else (
+    echo      '- SearXNG directory not found. Skipping.
+)
+
 :: Wait a few seconds for App to start
 timeout /t 4 /nobreak >nul
 
@@ -20,3 +30,5 @@ start "" /min python main.py
 
 timeout /t 1 > nul
 start "" /max chrome --incognito http://localhost:1111
+
+goto :eof
