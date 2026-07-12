@@ -315,10 +315,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // If the model selector exists on the page (i.e., on index.html),
     // set up an event listener to store its value in localStorage.
     if (modelSelector) {
+        function getAvailableModelOptions(groupLabel) {
+            const group = Array.from(modelSelector.querySelectorAll('optgroup'))
+                .find(optgroup => optgroup.label === groupLabel);
+
+            if (!group) return [];
+
+            return Array.from(group.querySelectorAll('option'))
+                .filter(option => !option.disabled && option.value);
+        }
+
+        function getDefaultModelOption() {
+            const localModelOptions = getAvailableModelOptions('Local Models');
+            const cloudModelOptions = getAvailableModelOptions('Cloud Models');
+            const preferredOptions = localModelOptions.length > 0 ? localModelOptions : cloudModelOptions;
+            const fallbackOptions = preferredOptions === localModelOptions ? cloudModelOptions : localModelOptions;
+
+            return preferredOptions[0] || fallbackOptions[0] || modelSelector.options[0];
+        }
+
+        function hasModelOption(value) {
+            return Array.from(modelSelector.options).some(option => option.value === value);
+        }
+
         // On page load, try to set the selector to the last saved value.
         const lastSelectedModel = localStorage.getItem('selectedModel');
-        if (lastSelectedModel) {
+        if (lastSelectedModel && hasModelOption(lastSelectedModel)) {
             modelSelector.value = lastSelectedModel;
+        } else {
+            const defaultModelOption = getDefaultModelOption();
+            if (defaultModelOption) {
+                modelSelector.value = defaultModelOption.value;
+                localStorage.setItem('selectedModel', defaultModelOption.value);
+            }
         }
 
         // Update the stored value whenever the user changes the selection.
@@ -329,7 +358,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // If the prompt selector exists, listen for changes to apply the prompt
     if (promptSelector) {
+        // On page load, restore the last selected prompt or set a default.
+        const lastSelectedPrompt = localStorage.getItem('selectedPrompt');
+        if (lastSelectedPrompt && Array.from(promptSelector.options).some(opt => opt.value === lastSelectedPrompt)) {
+            promptSelector.value = lastSelectedPrompt;
+        } else {
+            // If no prompt is saved, or the saved one is no longer available, select the second option if it exists.
+            if (promptSelector.options.length > 1) {
+                promptSelector.selectedIndex = 1;
+            } else {
+                // Otherwise, ensure the "Select a Prompt..." placeholder is selected.
+                promptSelector.selectedIndex = 0;
+            }
+        }
+        // Manually trigger the change event to apply the selected prompt's content.
+        promptSelector.dispatchEvent(new Event('change'));
+
         promptSelector.addEventListener('change', function() {
+            // Save the user's selection to localStorage.
+            localStorage.setItem('selectedPrompt', this.value);
+
             const selectedOption = this.options[this.selectedIndex];
             const promptContent = selectedOption.dataset.content;
             if (promptContent) {
@@ -429,8 +477,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const isSystem = sender === 'system';
         let messageContainer;
 
-        // Per user request, do not display system messages for prompt activation/deactivation or file uploads.
-        if (isSystem && (content.startsWith('*Prompt') || content.startsWith('File uploaded:') || content.startsWith('Image uploaded:'))) {
+        // Per user request, do not display system messages for prompt activation/deactivation.
+        if (isSystem && content.startsWith('*Prompt')) {
             // The action (like setting the prompt) is already done, so we just prevent the UI message.
             return null;
         }
@@ -471,7 +519,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (content.includes("--- IMAGE ---")) {
                 const parts = content.split('\n\n--- IMAGE ---\n');
                 const filenameLine = parts[0];
-                const filename = filenameLine.replace('Image uploaded: ', '');
+                const filename = filenameLine.replace('Image uploaded: ', '').replace('Image Uploaded: ', '');
                 const base64Data = parts[1];
                 const dataUrl = `data:${base64Data}`;
                 contentDiv.innerHTML = `<strong>${filename}</strong><br><img src="${dataUrl}" style="max-width: 100%; border-radius: 8px; margin-top: 8px;">`;
@@ -488,7 +536,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const parts = content.split('\n\n--- CONTENT ---\n');
                 if (parts.length === 2) {
                     const filenameLine = parts[0];
-                    const filename = filenameLine.replace('File uploaded: ', '');
+                    const filename = filenameLine.replace('File uploaded: ', '').replace('File Uploaded: ', '');
                     const fileContent = parts[1];
                     contentDiv.innerHTML = `<strong>${filename}</strong><pre><code>${escapeHtml(fileContent)}</code></pre>`;
 
@@ -528,9 +576,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Regex for both search and file context
             const searchRegex = /^Based on the following web search results, please answer the user's question\.\n\n--- SEARCH RESULTS ---\n([\s\S]*?)\n\n--- USER QUESTION ---\n([\s\S]*)$/m;
             const fileContextRegex = /^Based on the content of the document '(.+?)' provided below, please answer the following question\.\n\n---\n\nDOCUMENT CONTENT:\n([\s\S]*?)\n\n---\n\nQUESTION:\n([\s\S]*)$/m;
+            const multiFileContextRegex = /^Based on the uploaded documents provided below, please answer the following question\.\n\n---\n\n([\s\S]*?)\n\n---\n\nQUESTION:\n([\s\S]*)$/m;
             
             const searchMatch = content.match(searchRegex);
             const fileMatch = content.match(fileContextRegex);
+            const multiFileMatch = content.match(multiFileContextRegex);
 
             if (searchMatch) {
                 const userQuestion = searchMatch[2].trim();
@@ -544,6 +594,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Display only the user's question part. The full content is saved for history.
                 // We'll add a small indicator about the file context.
                 displayContent = `*(Querying about ${filename})*\n\n${userQuestion}`;
+            } else if (multiFileMatch) {
+                const documentContext = multiFileMatch[1].trim();
+                const userQuestion = multiFileMatch[2].trim();
+                const fileCount = (documentContext.match(/^DOCUMENT\s+\d+:/gm) || []).length;
+                const label = fileCount === 1 ? '1 uploaded file' : `${fileCount} uploaded files`;
+                displayContent = `*(Querying about ${label})*\n\n${userQuestion}`;
             }
 
             // Wrap content for editing
@@ -835,8 +891,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const data = await response.json();
-            // Add the user message content to the response data for history tracking
-            data.user_message_content = message;
+            // Prefer the server-confirmed content because it may include file/search context.
+            data.user_message_content = data.user_message_content || message;
             handleBotResponse(data); // This will now update the thinking message
 
         } catch (error) {
@@ -1369,18 +1425,21 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadButton.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) { // User cancelled the dialog
+            const files = Array.from(e.target.files || []);
+            if (files.length === 0) { // User cancelled the dialog
                 e.target.value = ''; // Reset for next time
                 return;
             }
 
             // Show a temporary "uploading" message
-            const uploadingMsg = addMessage(`Uploading "${file.name}"...`, 'bot');
+            const uploadLabel = files.length === 1
+                ? `"${files[0].name}"`
+                : `${files.length} files`;
+            const uploadingMsg = addMessage(`Uploading ${uploadLabel}...`, 'bot');
             uploadingMsg.classList.add('thinking');
             
             const formData = new FormData();
-            formData.append('file', file);
+            files.forEach(file => formData.append('file', file));
 
             try {
                 const response = await fetch('/upload', {
@@ -1391,9 +1450,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 uploadingMsg.remove();
 
                 if (response.ok && data.success) {
-                    // For any successful upload (.txt or image), display the success message from the server.
-                    // The backend now returns the full content to be displayed.
-                    addMessage(data.message, 'system');
+                    const uploadedFiles = Array.isArray(data.files)
+                        ? data.files
+                        : [{ filename: data.filename, message: data.message }];
+
+                    uploadedFiles.forEach(uploadedFile => {
+                        if (uploadedFile.message) {
+                            addMessage(uploadedFile.message, 'system');
+                        }
+                    });
+
+                    if (uploadedFiles.length > 1) {
+                        addMessage(`Attached ${uploadedFiles.length} files. Ask a question and I will use them together.`, 'bot');
+                    }
+
+                    if (Array.isArray(data.errors) && data.errors.length > 0) {
+                        const failedNames = data.errors
+                            .map(error => `${error.filename}: ${error.error}`)
+                            .join('\n');
+                        addMessage(`Some files could not be attached:\n${failedNames}`, 'bot');
+                    }
                 } else {
                     throw new Error(data.error || 'File upload failed.');
                 }

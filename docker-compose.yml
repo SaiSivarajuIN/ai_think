@@ -1,0 +1,44 @@
+services:
+  ai-think:
+    build: .
+    image: ai-think:latest
+    container_name: ai-think
+    ports:
+      - "1111:1111"
+    environment:
+      SQLITE_DATABASE: /app/instance/chat.db
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      SEARXNG_URL: http://searxng:8080
+      FLASK_DEBUG: "false"
+    volumes:
+      - ./instance:/app/instance
+      - ./logger:/app/logger
+    depends_on:
+      - searxng
+    restart: unless-stopped
+
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    container_name: searxng
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./searxng-docker/searxng:/etc/searxng:rw
+      - searxng-data:/var/cache/searxng:rw
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8080/
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: docker.io/valkey/valkey:8-alpine
+    container_name: redis
+    command: valkey-server --save 30 1 --loglevel warning
+    volumes:
+      - valkey-data:/data
+    restart: unless-stopped
+
+volumes:
+  searxng-data:
+  valkey-data:

@@ -1,3 +1,9 @@
 required dependency for handling PDF files with images is missing. Let's get that sorted out.
 
 sudo apt-get update && sudo apt-get install -y poppler-utils
+
+
+docker run --rm -p 1111:1111 --name ai-think ai-think:latest
+
+docker compose down
+docker compose up --build -d

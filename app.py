@@ -12,8 +12,13 @@ import secrets
 import sqlite3
 import requests
 import csv
+from contextlib import nullcontext
 from uuid import uuid4
 from langfuse import Langfuse
+try:
+    from langfuse import propagate_attributes as langfuse_propagate_attributes
+except ImportError:
+    langfuse_propagate_attributes = None
 from pypdf import PdfReader
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -186,20 +191,44 @@ DEFAULT_SETTINGS = {
 }
 
 # Initialize SQLite database
-DATABASE = os.getenv("SQLITE_DATABASE", " ")
+
+def resolve_database_path():
+    """Resolve a writable SQLite database path for local and container runs."""
+    configured_path = os.getenv("SQLITE_DATABASE", "").strip()
+    if configured_path:
+        database_path = configured_path
+    else:
+        database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instance", "chat.db")
+
+    if not os.path.isabs(database_path):
+        database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), database_path)
+
+    directory = os.path.dirname(database_path)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
+    return database_path
+
+
+DATABASE = resolve_database_path()
+
 
 def get_db():
     """Get a database connection for the current request."""
     if 'db' not in g:
-        # Increase timeout to reduce "database is locked" errors
+        db_dir = os.path.dirname(DATABASE)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+
+        app.logger.debug("Using SQLite database at %s", DATABASE)
         g.db = sqlite3.connect(DATABASE, timeout=10)
         g.db.row_factory = sqlite3.Row
     return g.db
 
 
-
 def init_db():
     with app.app_context():
+        app.logger.info("Initializing SQLite database at %s", DATABASE)
         db = get_db()
         db.execute('''
             CREATE TABLE IF NOT EXISTS messages (
@@ -592,6 +621,19 @@ def langfuse_observation(name, as_type="span", **kwargs):
 
     return langfuse.start_as_current_span(name=name, **kwargs)
 
+def langfuse_trace_context(user_id, session_id, trace_name=None):
+    """Propagate trace-level attributes for SDKs that support Langfuse sessions."""
+    if callable(langfuse_propagate_attributes):
+        kwargs = {
+            "user_id": str(user_id)[:200],
+            "session_id": str(session_id)[:200],
+        }
+        if trace_name:
+            kwargs["trace_name"] = str(trace_name)[:200]
+        return langfuse_propagate_attributes(**kwargs)
+
+    return nullcontext()
+
 def update_langfuse_trace_metadata(span, user_id, session_id):
     """Attach trace/session metadata across Langfuse SDK versions."""
     if hasattr(span, "update_trace"):
@@ -638,40 +680,43 @@ def cloud_model_chat(messages, model_config, session_id=None, max_retries=3, is_
                 api_url = api_url.replace("api.mistral.ai/chat/completions", "api.mistral.ai/v1/chat/completions")
 
             if langfuse_enabled and not is_incognito:
-                with langfuse_observation(
-                    name=f"{model_name}::cloud_chat_generation",
-                    as_type="span",
-                    input={"messages": messages}
-                ) as span:
-                    update_langfuse_trace_metadata(span, "cloud-model-user", session_id or str(uuid4()))
-
+                trace_session_id = session_id or str(uuid4())
+                trace_name = f"{model_name}::cloud_chat_generation"
+                with langfuse_trace_context("cloud-model-user", trace_session_id, trace_name):
                     with langfuse_observation(
-                        name=f"{model_name}::generation",
-                        as_type="generation",
-                        model=model_name,
-                        input=messages,
-                        model_parameters={k: v for k, v in payload.items() if k != 'messages'}
-                    ) as gen:
-                        response = requests.post(
-                            api_url,
-                            json=payload,
-                            headers=headers,
-                            timeout=300
-                        )
-                        response.raise_for_status()
+                        name=trace_name,
+                        as_type="span",
+                        input={"messages": messages}
+                    ) as span:
+                        update_langfuse_trace_metadata(span, "cloud-model-user", trace_session_id)
 
-                        data = response.json()
-                        # OpenAI/Perplexity/DeepSeek compatible response format
-                        assistant_response = data.get("choices", [{}])[0].get("message", {}).get("content", "Sorry, I couldn't get a response.")
-                        usage = data.get("usage", {
-                            "prompt_tokens": 0,
-                            "completion_tokens": 0
-                        })
+                        with langfuse_observation(
+                            name=f"{model_name}::generation",
+                            as_type="generation",
+                            model=model_name,
+                            input=messages,
+                            model_parameters={k: v for k, v in payload.items() if k != 'messages'}
+                        ) as gen:
+                            response = requests.post(
+                                api_url,
+                                json=payload,
+                                headers=headers,
+                                timeout=300
+                            )
+                            response.raise_for_status()
 
-                        gen.update(output=assistant_response, usage_details=usage)
+                            data = response.json()
+                            # OpenAI/Perplexity/DeepSeek compatible response format
+                            assistant_response = data.get("choices", [{}])[0].get("message", {}).get("content", "Sorry, I couldn't get a response.")
+                            usage = data.get("usage", {
+                                "prompt_tokens": 0,
+                                "completion_tokens": 0
+                            })
 
-                    span.update(output={"generated_text": assistant_response})
-                    return {"content": assistant_response, "usage": usage}
+                            gen.update(output=assistant_response, usage_details=usage)
+
+                        span.update(output={"generated_text": assistant_response})
+                        return {"content": assistant_response, "usage": usage}
             else:
                 response = requests.post(
                     api_url,
@@ -743,43 +788,46 @@ def ollama_chat(messages, model, session_id=None, max_retries=3, is_incognito=Fa
             
             # Create Langfuse trace if enabled
             if langfuse_enabled and not is_incognito:
-                with langfuse_observation(
-                    name=f"{model}::chat_generation",
-                    as_type="span",
-                    input={"messages": final_messages}
-                ) as span:
-                    update_langfuse_trace_metadata(span, "local-model-user", session_id or str(uuid4()))
-                    
+                trace_session_id = session_id or str(uuid4())
+                trace_name = f"{model}::chat_generation"
+                with langfuse_trace_context("local-model-user", trace_session_id, trace_name):
                     with langfuse_observation(
-                        name=f"{model}::generation",
-                        as_type="generation",
-                        model=model,
-                        input=final_messages,
-                        model_parameters=payload.get("options", {})
-                    ) as gen:
-                        # Make the API call with longer timeout
-                        response = requests.post(
-                            f"{OLLAMA_BASE_URL}/api/chat",
-                            json=payload, 
-                            timeout=300,  # Increased to 5 minutes
-                            headers={'Content-Type': 'application/json'}
-                        )
-                        response.raise_for_status()
+                        name=trace_name,
+                        as_type="span",
+                        input={"messages": final_messages}
+                    ) as span:
+                        update_langfuse_trace_metadata(span, "local-model-user", trace_session_id)
                         
-                        data = response.json()
-                        assistant_response = data.get("message", {}).get("content", "Sorry, I couldn't generate a response.")
-                        usage = {
-                            "prompt_tokens": data.get("prompt_eval_count", 0),
-                            "completion_tokens": data.get("eval_count", 0),
-                        }
+                        with langfuse_observation(
+                            name=f"{model}::generation",
+                            as_type="generation",
+                            model=model,
+                            input=final_messages,
+                            model_parameters=payload.get("options", {})
+                        ) as gen:
+                            # Make the API call with longer timeout
+                            response = requests.post(
+                                f"{OLLAMA_BASE_URL}/api/chat",
+                                json=payload, 
+                                timeout=300,  # Increased to 5 minutes
+                                headers={'Content-Type': 'application/json'}
+                            )
+                            response.raise_for_status()
+                            
+                            data = response.json()
+                            assistant_response = data.get("message", {}).get("content", "Sorry, I couldn't generate a response.")
+                            usage = {
+                                "prompt_tokens": data.get("prompt_eval_count", 0),
+                                "completion_tokens": data.get("eval_count", 0),
+                            }
+                            
+                            # Update Langfuse generation with output
+                            gen.update(output=assistant_response, usage_details=usage)
+                            
+                        # Update span with final output
+                        span.update(output={"generated_text": assistant_response})
                         
-                        # Update Langfuse generation with output
-                        gen.update(output=assistant_response, usage_details=usage)
-                        
-                    # Update span with final output
-                    span.update(output={"generated_text": assistant_response})
-                    
-                    return {"content": assistant_response, "usage": usage}
+                        return {"content": assistant_response, "usage": usage}
             else:
                 # Make the API call without Langfuse tracing
                 response = requests.post(
@@ -875,9 +923,43 @@ def upload_file():
 
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
-    file = request.files['file']
-    if file.filename == '':
+    files = [file for file in request.files.getlist('file') if file and file.filename]
+    if not files:
         return jsonify({"error": "No selected file"}), 400
+
+    results = []
+    errors = []
+    for file in files:
+        result, status_code = process_uploaded_file(file, session_id)
+        if status_code == 200:
+            results.append(result)
+        else:
+            errors.append({
+                "filename": file.filename,
+                "error": result.get("error", "File upload failed.")
+            })
+
+    if len(files) == 1:
+        if results:
+            return jsonify(results[0])
+        return jsonify(errors[0]), 400
+
+    if not results:
+        return jsonify({"error": "No files could be uploaded.", "errors": errors}), 400
+
+    response = {
+        "success": True,
+        "files": results,
+        "errors": errors,
+        "message": f"Uploaded {len(results)} of {len(files)} files."
+    }
+    return jsonify(response), 207 if errors else 200
+
+
+def process_uploaded_file(file, session_id):
+    """Extract and persist a single uploaded file as chat context."""
+    if file.filename == '':
+        return {"error": "No selected file"}, 400
 
     filename = file.filename
     if file and file.filename.endswith('.txt'):
@@ -891,10 +973,10 @@ def upload_file():
             db.commit()
 
             current_app.logger.info(f"Uploaded file '{file.filename}' and stored it in the database for session {session_id}.")
-            return jsonify({"success": True, "filename": file.filename, "message": message_to_save})
+            return {"success": True, "filename": file.filename, "message": message_to_save}, 200
         except Exception as e:
             current_app.logger.error(f"Error reading uploaded file: {e}")
-            return jsonify({"error": "Failed to read file"}), 500
+            return {"error": "Failed to read file"}, 500
 
     elif file and filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
         try:
@@ -913,10 +995,10 @@ def upload_file():
             db.commit()
 
             current_app.logger.info(f"Saved uploaded image '{filename}' for session {session_id}.")
-            return jsonify({"success": True, "filename": filename, "message": message_to_save})
+            return {"success": True, "filename": filename, "message": message_to_save}, 200
         except Exception as e:
             current_app.logger.error(f"Error processing uploaded image '{filename}': {e}")
-            return jsonify({"error": "Failed to process image file"}), 500
+            return {"error": "Failed to process image file"}, 500
 
     elif file and filename.lower().endswith('.pdf'):
         try:
@@ -938,7 +1020,7 @@ def upload_file():
                 current_app.logger.info(f"OCR successful for '{filename}'.")
 
             if not content.strip() and not is_image_based:
-                return jsonify({"error": "Could not extract text from PDF. The PDF might be image-based or empty."}), 400
+                return {"error": "Could not extract text from PDF. The PDF might be image-based or empty."}, 400
 
             message_to_save = f"File Uploaded: {file.filename}\n\n--- CONTENT ---\n{content}"
 
@@ -947,12 +1029,60 @@ def upload_file():
             db.commit()
 
             current_app.logger.info(f"Extracted text from '{file.filename}' and stored it for session {session_id}.")
-            return jsonify({"success": True, "filename": file.filename, "message": message_to_save})
+            return {"success": True, "filename": file.filename, "message": message_to_save}, 200
         except Exception as e:
             current_app.logger.error(f"Error reading PDF file '{filename}': {e}")
-            return jsonify({"error": "Failed to process PDF file."}), 500
+            return {"error": "Failed to process PDF file."}, 500
 
-    return jsonify({"error": "Invalid file type. Please upload a .txt, .pdf, .png, .jpg, or .jpeg file."}), 400
+    return {"error": "Invalid file type. Please upload a .txt, .pdf, .png, .jpg, or .jpeg file."}, 400
+
+
+def parse_upload_context_message(content):
+    """Parse a stored upload system message into structured attachment context."""
+    if "\n\n--- IMAGE ---\n" in content:
+        header, image_data = content.split("\n\n--- IMAGE ---\n", 1)
+        filename = header.replace("Image uploaded: ", "").replace("Image Uploaded: ", "").strip()
+        mime_type, _, base64_data = image_data.partition(";base64,")
+        if filename and base64_data:
+            return {
+                "type": "image",
+                "filename": filename,
+                "mime_type": mime_type,
+                "base64_data": base64_data,
+                "data_url": f"data:{image_data}"
+            }
+    if "\n\n--- CONTENT ---\n" in content:
+        header, file_content = content.split("\n\n--- CONTENT ---\n", 1)
+        filename = header.replace("File uploaded: ", "").replace("File Uploaded: ", "").strip()
+        if filename:
+            return {
+                "type": "document",
+                "filename": filename,
+                "content": file_content
+            }
+    return None
+
+
+def build_attachment_prompt(question, attachments):
+    """Build one clear prompt containing every uploaded text/PDF attachment."""
+    documents = [attachment for attachment in attachments if attachment["type"] == "document"]
+    if not documents:
+        return question
+
+    document_blocks = []
+    for index, document in enumerate(documents, start=1):
+        document_blocks.append(
+            f"DOCUMENT {index}: {document['filename']}\n\n{document['content']}"
+        )
+
+    joined_documents = "\n\n---\n\n".join(document_blocks)
+    return (
+        "Based on the uploaded documents provided below, please answer the following question.\n\n"
+        "---\n\n"
+        f"{joined_documents}\n\n"
+        "---\n\n"
+        f"QUESTION:\n{question}"
+    )
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -1038,41 +1168,67 @@ def generate():
 
     try:
         # This outer try-except block is to catch the client disconnecting.
-        # If the user clicks "Stop" on the frontend, the request is aborted,
-        # and this exception is raised when Flask tries to send the response. By catching it, we can prevent the messages from being saved to the DB.
 
         # --- Prepend Context if Necessary ---
-        # This logic now handles both text files and images.
-        if not conversation_history:  # If history is empty, this is the first user message
-            file_context_message = None
-            file_row = db.execute("SELECT content FROM messages WHERE session_id = ? AND sender = 'system' ORDER BY timestamp DESC LIMIT 1", (session_id,)).fetchone()
-            if file_row:
-                file_context_message = file_row['content']
+        # Attachments are stored as system messages. When a user starts a chat
+        # from uploads, or adds uploads mid-chat, include all uploaded context.
+        db = get_db()
+        last_db_message = db.execute(
+            "SELECT sender, timestamp FROM messages WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1", (session_id,)
+        ).fetchone()
 
-            if file_context_message:
-                if "--- IMAGE ---" in file_context_message:
-                    # This is a multimodal request. The last message in `messages_for_model` is the user's text prompt.
-                    # We need to add the image part to it.
-                    parts = file_context_message.split('\n\n--- IMAGE ---\n')
-                    if len(parts) == 2:
-                        base64_data = parts[1]
-                        # The user's text is already the last message. We modify it to be a list of content parts.
-                        messages_for_model[-1]['content'] = [
-                            {"type": "text", "text": new_message_content},
-                            {"type": "image_url", "image_url": {"url": f"data:{base64_data}"}}
+        # We inject context if there's no history OR if the last DB message is a system message
+        # and it's newer than the last message in the client-side history.
+        should_inject_context = not conversation_history or (
+            last_db_message and last_db_message['sender'] == 'system'
+        )
+
+        if should_inject_context:
+            upload_rows = db.execute(
+                """
+                SELECT content
+                FROM messages
+                WHERE session_id = ?
+                  AND sender = 'system'
+                  AND (content LIKE 'File Uploaded:%' OR content LIKE 'Image Uploaded:%')
+                ORDER BY timestamp ASC, id ASC
+                """,
+                (session_id,)
+            ).fetchall()
+            attachments = []
+            for row in upload_rows:
+                attachment = parse_upload_context_message(row['content'])
+                if attachment:
+                    attachments.append(attachment)
+
+            if attachments:
+                contextual_prompt = build_attachment_prompt(new_message_content, attachments)
+                image_attachments = [
+                    attachment for attachment in attachments if attachment["type"] == "image"
+                ]
+
+                if is_cloud_model and image_attachments:
+                    content_parts = [{"type": "text", "text": contextual_prompt}]
+                    content_parts.extend(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": attachment["data_url"]}
+                        }
+                        for attachment in image_attachments
+                    )
+                    messages_for_model[-1]['content'] = content_parts
+                else:
+                    messages_for_model[-1]['content'] = contextual_prompt
+                    if image_attachments:
+                        messages_for_model[-1]['images'] = [
+                            attachment["base64_data"] for attachment in image_attachments
                         ]
-                        user_message_to_save = new_message_content # Save only the text part for history display
-                        current_app.logger.info("Prepending image data to user prompt for multimodal generation.")
-                elif "--- CONTENT ---" in file_context_message:
-                    # This is a text file context.
-                    content_split = file_context_message.split('\n\n--- CONTENT ---\n')
-                    if len(content_split) == 2:
-                        header_line, file_content = content_split
-                        filename = header_line.replace('File uploaded: ', '').replace('File Uploaded: ', '')
-                        contextual_prompt = f"Based on the content of the document '{filename}' provided below, please answer the following question.\n\n---\n\nDOCUMENT CONTENT:\n{file_content}\n\n---\n\nQUESTION:\n{new_message_content}"
-                        messages_for_model[-1]['content'] = contextual_prompt
-                        user_message_to_save = contextual_prompt
-                        current_app.logger.info(f"Re-running generation with context from '{filename}'")
+
+                user_message_to_save = contextual_prompt
+                file_names = ", ".join(attachment["filename"] for attachment in attachments)
+                current_app.logger.info(
+                    f"Running generation with {len(attachments)} uploaded attachment(s): {file_names}"
+                )
 
         # --- Model Routing and Generation ---
         assistant_response_data = None

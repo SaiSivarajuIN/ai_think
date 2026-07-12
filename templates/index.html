@@ -567,7 +567,7 @@
 {% block header_nav %}
     <div class="model-selector-wrapper">
         <label for="model-selector" class="visually-hidden">Model:</label>
-        <select id="model-selector" class="model-selector">
+        <select id="model-selector" class="model-selector" name="model_selector">
             <option value="" data-content="">Select any Model</option>    
             {% if available_models and settings.get('local_models_enabled', True) %}
                 <optgroup label="Local Models">
@@ -588,12 +588,11 @@
                 {% endfor %}
                 </optgroup>
             {% else %}
-                <!--<option value="{{ model_id }}" selected>{{ model_id }} (default)</option>-->
             {% endif %}
             {% if cloud_models and settings.get('cloud_models_enabled', True) %}
                 <optgroup label="Cloud Models">
                 {% for model in cloud_models if model.active %}
-                    {% set logo_base_name = model.service|lower|replace(' ', '')|replace('ai', '') ~ '.png' %}
+                    {% set logo_base_name = model.service|lower|replace(' ai', '')|replace(' ', '') ~ '.png' %}
                     {% set logo_path = os_path_join('static', 'logos', logo_base_name) %}
                     {% if os_path_exists(logo_path) %}
                         {% set final_logo_filename = logo_base_name %}
@@ -618,6 +617,7 @@
             {% endfor %}
         </select>
     </div>
+    
     <button onclick="resetThread()" class="nav-link" title="New Chat">
         <span class="material-icons">add_comment</span>
     </button>

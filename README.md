@@ -48,13 +48,13 @@ Use the bundled setup script to install and pull a model.
 **macOS / Linux:**
 
 ```bash
-chmod +x ./ollamaSetup.sh && ./ollamaSetup.sh
+chmod +x ./setup.sh && ./setup.sh
 ```
 
 **Windows:**
 
 ```bash
-./ollamaSetup.bat
+./setup.bat
 ```
 
 #### Manual
@@ -147,8 +147,8 @@ The project is organized as follows:
 ├── requirements.txt        # Python dependencies
 ├── .env                    # Environment variables (user-created)
 ├── README.md               # This file
-├── ollamaSetup.sh          # Ollama setup script for macOS/Linux
-├── ollamaSetup.bat         # Ollama setup script for Windows
+├── setup.sh                # Setup script for macOS/Linux
+├── setup.bat               # Setup script for Windows
 │
 ├── static/                 # Static assets (CSS, JS, images)
 │   ├── script.js           # Main chat interface logic
